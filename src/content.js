@@ -21,104 +21,83 @@ const style = document.createElement("style");
 style.textContent = `
 .chrome-ax-tooltip {
   position: absolute;
-  background: #f6f6fa;
-  color: #24124b;
-  padding: 14px 20px 12px 20px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.99), rgba(249,245,255,0.97));
+  color: #2d1958;
+  padding: 12px 16px;
   border-radius: 8px;
   z-index: 2147483647 !important;
-  font-size: 1em;
-  font-family: 'Inter', 'Segoe UI', 'Liberation Sans', Arial, sans-serif;
-  box-shadow: 0 6px 32px 0 rgba(120,81,169,0.13), 0 2px 8px 0 rgba(120,81,169,0.10);
-  border: 2.5px solid #7851a9;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  box-shadow: 
+    0 12px 20px -10px rgba(104,58,183,0.18),
+    0 3px 6px -2px rgba(104,58,183,0.12),
+    inset 0 0 0 1px rgba(104,58,183,0.14);
+  border: none;
   white-space: normal;
   pointer-events: none;
-  transition: opacity 0.18s cubic-bezier(.4,0,.2,1), box-shadow 0.18s cubic-bezier(.4,0,.2,1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   opacity: 0.98;
-  letter-spacing: 0.01em;
-  min-width: 260px;
-  max-width: 360px;
-  animation: ax-pop 0.18s cubic-bezier(.4,0,.2,1);
+  letter-spacing: -0.011em;
+  min-width: 280px;
+  max-width: 380px;
+  animation: ax-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: visible;
 }
+
 @keyframes ax-pop {
   0% { transform: scale(0.96) translateY(10px); opacity: 0.7; }
   100% { transform: scale(1) translateY(0); opacity: 0.98; }
 }
 
-.chrome-ax-tooltip::before {
-  content: "";
-  display: block;
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 5px;
-  border-radius: 8px 8px 0 0;
-  background: #7851a9;
-  margin-bottom: 8px;
-}
-
-.chrome-ax-tooltip-heading {
-  font-size: 1.13em;
-  font-weight: 900;
-  color: #7851a9;
-  margin-bottom: 8px;
-  padding-top: 8px;
-  padding-bottom: 3px;
-  border-bottom: 2px solid #e3e0ef;
-  font-family: inherit;
-  letter-spacing: 0.01em;
-  text-shadow: none;
-  background: none;
-}
-
 .chrome-ax-tooltip-sr {
-  background: #edeaf5;
-  color: #24124b;
-  font-size: 1em;
-  padding: 7px 12px;
-  border-radius: 5px;
-  border-left: 5px solid #7851a9;
+  background: linear-gradient(to bottom, rgba(245,241,255,0.9), rgba(237,231,254,0.9));
+  color: #2d1958;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 6px;
   margin-bottom: 10px;
-  font-family: 'IBM Plex Mono', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
-  font-weight: 600;
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, monospace;
+  font-weight: 500;
   word-break: break-word;
-  box-shadow: none;
+  box-shadow: inset 0 0 0 1px rgba(104,58,183,0.2);
+  border-left: 3px solid #683ab7;
 }
 
 .chrome-ax-tooltip dl {
   margin: 0;
   padding: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  align-items: baseline;
 }
 
 .chrome-ax-tooltip dt {
-  font-weight: 800;
-  margin-top: 8px;
-  margin-bottom: 2px;
-  color: #7851a9;
-  background: none;
-  display: inline-block;
-  padding: 0 7px 0 0;
-  border: none;
-  border-radius: 0;
-  font-size: 1em;
-  letter-spacing: 0.01em;
+  font-weight: 600;
+  color: #683ab7;
+  font-size: 12px;
+  letter-spacing: 0.02em;
   font-family: inherit;
-  box-shadow: none;
-  text-shadow: none;
+  text-transform: uppercase;
 }
 
 .chrome-ax-tooltip dd {
-  margin-left: 0;
-  margin-bottom: 8px;
-  padding-left: 10px;
-  font-size: 0.99em;
-  color: #24124b;
-  background: none;
-  border-left: 2.5px solid #b39ddb;
-  border-radius: 0;
+  margin: 0;
+  font-size: 13px;
+  color: #2d1958;
   font-family: inherit;
-  font-weight: 400;
+  font-weight: 450;
+  background: rgba(245,241,255,0.7);
+  padding: 4px 8px;
+  border-radius: 6px;
   word-break: break-word;
-  box-shadow: none;
+  box-shadow: inset 0 0 0 1px rgba(104,58,183,0.1);
+}
+
+.chrome-ax-tooltip dd:after {
+  content: "";
+  display: block;
+  margin-bottom: 4px;
 }
 `;
 document.head.appendChild(style);
@@ -134,19 +113,51 @@ function getScreenReaderOutput(role, name, description) {
   return output;
 }
 
-function getPropertiesList(role, name, description) {
+function getPropertiesList(
+  role,
+  name,
+  description,
+  value,
+  ignored,
+  ignoredReasons
+) {
   let dl = "<dl>";
   dl += `<dt>Name</dt><dd>${name}</dd>`;
   dl += `<dt>Role</dt><dd>${role}</dd>`;
   if (description !== "(no description)") {
     dl += `<dt>Description</dt><dd>${description}</dd>`;
   }
+  if (value !== undefined && value !== null && value !== "(no value)") {
+    dl += `<dt>Value</dt><dd>${value}</dd>`;
+  }
+  dl += `<dt>Ignored</dt><dd>${ignored ? "true" : "false"}</dd>`;
+  if (Array.isArray(ignoredReasons) && ignoredReasons.length > 0) {
+    dl += `<dt>Ignored Reasons</dt><dd>${ignoredReasons
+      .map((r) => r.message || JSON.stringify(r))
+      .join(", ")}</dd>`;
+  }
   dl += "</dl>";
   return dl;
 }
 
-function showTooltip(role, name, description, target) {
-  console.log("showTooltip called", { role, name, description, target });
+function showTooltip(
+  role,
+  name,
+  description,
+  value,
+  ignored,
+  ignoredReasons,
+  target
+) {
+  console.log("showTooltip called", {
+    role,
+    name,
+    description,
+    value,
+    ignored,
+    ignoredReasons,
+    target,
+  });
   if (!tooltip) {
     tooltip = document.createElement("div");
     tooltip.className = "chrome-ax-tooltip";
@@ -156,19 +167,24 @@ function showTooltip(role, name, description, target) {
   }
 
   tooltip.innerHTML = `
-  <div class="chrome-ax-tooltip-sr">
-    <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Screen Reader Output" focusable="false" style="vertical-align:middle;">
-  <!-- Speaker body -->
-  <rect x="3" y="8" width="5" height="8" rx="1.5" fill="#7851a9"/>
-  <polygon points="8,8 14,4 14,20 8,16" fill="#7851a9"/>
-  <!-- Sound waves -->
-  <path d="M17 9a4 4 0 0 1 0 6" stroke="#7851a9" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <path d="M19.5 7a7 7 0 0 1 0 10" stroke="#7851a9" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-</svg>
-    ${getScreenReaderOutput(role, name, description)}
-  </div>
-  ${getPropertiesList(role, name, description)}
-`;
+    <div class="chrome-ax-tooltip-sr">
+      <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Screen Reader Output" focusable="false" style="vertical-align:middle;">
+        <rect x="3" y="8" width="5" height="8" rx="1.5" fill="#7851a9"/>
+        <polygon points="8,8 14,4 14,20 8,16" fill="#7851a9"/>
+        <path d="M17 9a4 4 0 0 1 0 6" stroke="#7851a9" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M19.5 7a7 7 0 0 1 0 10" stroke="#78551a9" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      </svg>
+      ${getScreenReaderOutput(role, name, description)}
+    </div>
+    ${getPropertiesList(
+      role,
+      name,
+      description,
+      value,
+      ignored,
+      ignoredReasons
+    )}
+  `;
   tooltip.style.display = "block";
 
   // Remove old connector if present
@@ -284,12 +300,12 @@ function showTooltip(role, name, description, target) {
   whiteLine.setAttribute("y1", tooltipEdge.y);
   whiteLine.setAttribute("x2", elemEdge.x);
   whiteLine.setAttribute("y2", elemEdge.y);
-  whiteLine.setAttribute("stroke", "#fff");
+  whiteLine.setAttribute("stroke", "rgba(238, 242, 255, 0.9)");
   whiteLine.setAttribute("stroke-width", "6");
   whiteLine.setAttribute("stroke-linecap", "round");
   connector.appendChild(whiteLine);
 
-  // Draw thinner black line on top
+  // Draw thinner colored line on top
   const blackLine = document.createElementNS(
     "http://www.w3.org/2000/svg",
     "line"
@@ -298,7 +314,7 @@ function showTooltip(role, name, description, target) {
   blackLine.setAttribute("y1", tooltipEdge.y);
   blackLine.setAttribute("x2", elemEdge.x);
   blackLine.setAttribute("y2", elemEdge.y);
-  blackLine.setAttribute("stroke", "#111");
+  blackLine.setAttribute("stroke", "rgba(99, 102, 241, 0.8)");
   blackLine.setAttribute("stroke-width", "2");
   blackLine.setAttribute("stroke-linecap", "round");
   connector.appendChild(blackLine);
@@ -384,34 +400,77 @@ function unregisterEventListeners() {
   listenersRegistered = false;
 }
 
+async function getAccessibleInfo(target) {
+  if (isInShadowRoot(target)) {
+    return getLocalAccessibleInfo(target);
+  }
+
+  try {
+    const selector = getUniqueSelector(target);
+    const info = await new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(
+        () => reject(new Error("Message timeout")),
+        5000
+      );
+
+      chrome.runtime.sendMessage(
+        {
+          action: "getBackendNodeIdAndAccessibleInfo",
+          elementSelector: selector,
+        },
+        (response) => {
+          clearTimeout(timeoutId);
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+            return;
+          }
+          resolve(response);
+        }
+      );
+    });
+
+    return {
+      role: info?.role || "(no role)",
+      name: info?.name || "(no accessible name)",
+      description: info?.description || "(no description)",
+      value: info?.value || "(no value)",
+      ignored: info?.ignored || false,
+      ignoredReasons: info?.ignoredReasons || [],
+      properties: info?.properties || [],
+    };
+  } catch (error) {
+    console.error("Failed to get accessibility info:", error);
+    return getLocalAccessibleInfo(target);
+  }
+}
+
 function onFocusIn(e) {
   if (!extensionEnabled) {
     hideTooltip(e.target);
     return;
   }
-  lastFocusedElement = e.target;
-  if (isInShadowRoot(e.target)) {
-    const { role, name, description } = getLocalAccessibleInfo(e.target);
-    showTooltip(
-      role,
-      name,
-      description + " (Shadow DOM: computed accessibility info unavailable)",
-      e.target
-    );
-    return;
-  }
-  const selector = markAndGetSelector(e.target);
-  chrome.runtime.sendMessage(
-    { action: "getAccessibleInfo", elementSelector: selector },
-    (info) => {
-      e.target.removeAttribute("data-chrome-ax-marker");
-      let role = info && info.role ? info.role : "(no role)";
-      let name = info && info.name ? info.name : "(no accessible name)";
-      let description =
-        info && info.description ? info.description : "(no description)";
-      showTooltip(role, name, description, e.target);
-    }
-  );
+
+  const targetElement = e.target;
+  lastFocusedElement = targetElement;
+
+  getAccessibleInfo(targetElement)
+    .then((info) => {
+      if (lastFocusedElement === targetElement) {
+        showTooltip(
+          info.role,
+          info.name,
+          info.description,
+          info.value,
+          info.ignored,
+          info.ignoredReasons,
+          targetElement
+        );
+      }
+    })
+    .catch((error) => {
+      console.error("Error showing tooltip:", error);
+      hideTooltip(targetElement);
+    });
 }
 
 function onFocusOut(e) {
@@ -426,20 +485,22 @@ function onKeyDown(e) {
   }
   if (e.key === "Escape" && !e.shiftKey) {
     hideTooltip(lastFocusedElement);
-  } else if (e.key === "Escape" && e.shiftKey) {
-    if (lastFocusedElement) {
-      const selector = getUniqueSelector(lastFocusedElement);
-      chrome.runtime.sendMessage(
-        { action: "getAccessibleInfo", elementSelector: selector },
-        (info) => {
-          let role = info && info.role ? info.role : "(no role)";
-          let name = info && info.name ? info.name : "(no accessible name)";
-          let description =
-            info && info.description ? info.description : "(no description)";
-          showTooltip(role, name, description, lastFocusedElement);
-        }
-      );
-    }
+  } else if (e.key === "Escape" && e.shiftKey && lastFocusedElement) {
+    getAccessibleInfo(lastFocusedElement)
+      .then((info) => {
+        showTooltip(
+          info.role,
+          info.name,
+          info.description,
+          info.value,
+          info.ignored,
+          info.ignoredReasons,
+          lastFocusedElement
+        );
+      })
+      .catch((error) => {
+        console.error("Error showing tooltip:", error);
+      });
   }
 }
 
@@ -456,55 +517,68 @@ chrome.storage.sync.get({ extensionEnabled: true }, (data) => {
 
 // Listen for toggle messages from popup
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === "ENABLE_EXTENSION") {
-    extensionEnabled = true;
-    registerEventListeners();
-  } else if (msg.type === "DISABLE_EXTENSION") {
-    extensionEnabled = false;
-    unregisterEventListeners();
-    hideTooltip();
+  try {
+    switch (msg.type) {
+      case "ENABLE_EXTENSION":
+        extensionEnabled = true;
+        registerEventListeners();
+        break;
+      case "DISABLE_EXTENSION":
+        extensionEnabled = false;
+        unregisterEventListeners();
+        hideTooltip();
+        break;
+      default:
+        console.warn("Unknown message type:", msg.type);
+    }
+  } catch (error) {
+    console.error("Error handling message:", error);
   }
 });
 
-async function getAccessibleInfo(tabId, selector) {
-  await chrome.debugger.attach({ tabId }, "1.3");
-  await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
-  const { root } = await chrome.debugger.sendCommand(
-    { tabId },
-    "DOM.getDocument",
-    { depth: -1, pierce: true }
-  );
-  const { nodeId } = await chrome.debugger.sendCommand(
-    { tabId },
-    "DOM.querySelector",
-    {
-      nodeId: root.nodeId,
-      selector: selector,
-    }
-  );
-  if (!nodeId) {
-    await chrome.debugger.detach({ tabId });
-    throw new Error("Node not found");
+// Background script handles the debugger API calls
+async function getAccessibleInfo(target) {
+  if (isInShadowRoot(target)) {
+    return getLocalAccessibleInfo(target);
   }
-  const { nodes } = await chrome.debugger.sendCommand(
-    { tabId },
-    "Accessibility.getPartialAXTree",
-    {
-      nodeId,
-      fetchRelatives: false,
-    }
-  );
-  await chrome.debugger.detach({ tabId });
-  let role = "(no role)";
-  let name = "(no accessible name)";
-  let description = "(no description)";
-  if (nodes && nodes.length) {
-    if (nodes[0].role && nodes[0].role.value) role = nodes[0].role.value;
-    if (nodes[0].name && nodes[0].name.value) name = nodes[0].name.value;
-    if (nodes[0].description && nodes[0].description.value)
-      description = nodes[0].description.value;
+
+  try {
+    const selector = getUniqueSelector(target);
+    const info = await new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(
+        () => reject(new Error("Message timeout")),
+        5000
+      );
+
+      chrome.runtime.sendMessage(
+        {
+          action: "getBackendNodeIdAndAccessibleInfo",
+          elementSelector: selector,
+        },
+        (response) => {
+          clearTimeout(timeoutId);
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+            return;
+          }
+          resolve(response);
+        }
+      );
+    });
+
+    return {
+      role: info?.role || "(no role)",
+      name: info?.name || "(no accessible name)",
+      description: info?.description || "(no description)",
+      value: info?.value || "(no value)",
+      ignored: info?.ignored || false,
+      ignoredReasons: info?.ignoredReasons || [],
+      properties: info?.properties || [],
+    };
+  } catch (error) {
+    console.error("Failed to get accessibility info:", error);
+    return getLocalAccessibleInfo(target);
   }
-  return { role, name, description };
 }
 
 function isInShadowRoot(el) {
@@ -531,4 +605,18 @@ function getLocalAccessibleInfo(el) {
     "";
   if (!description) description = "(no description)";
   return { role, name, description };
+}
+
+function getBackendNodeId(element, callback) {
+  // Get the element's objectId via the Chrome DevTools Protocol
+  chrome.runtime.sendMessage(
+    { action: "getBackendNodeId" },
+    async (response) => {
+      if (response && response.backendNodeId) {
+        callback(response.backendNodeId);
+      } else {
+        callback(null);
+      }
+    }
+  );
 }

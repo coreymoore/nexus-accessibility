@@ -2,39 +2,7 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log("Chrome Accessibility Extension installed");
 });
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "getAccessibilityTree") {
-    getAccessibilityTree(sender.tab.id)
-      .then((tree) => sendResponse({ tree }))
-      .catch((error) => sendResponse({ error: error.message }));
-    return true; // async response
-  }
-  if (request.action === "getAccessibilitySubtree") {
-    getAccessibilitySubtree(sender.tab.id, request.elementSelector)
-      .then((subtree) => sendResponse({ subtree }))
-      .catch((error) => sendResponse({ error: error.message }));
-    return true;
-  }
-  if (request.action === "getAccessibleName") {
-    getAccessibleName(sender.tab.id, request.elementSelector)
-      .then((name) => sendResponse({ name }))
-      .catch((error) => sendResponse({ error: error.message }));
-    return true;
-  }
-  if (request.action === "getAccessibleRole") {
-    getAccessibleRole(sender.tab.id, request.elementSelector)
-      .then((role) => sendResponse({ role }))
-      .catch((error) => sendResponse({ error: error.message }));
-    return true;
-  }
-  if (request.action === "getAccessibleInfo") {
-    getAccessibleInfo(sender.tab.id, request.elementSelector)
-      .then((info) => sendResponse(info))
-      .catch((error) => sendResponse({ error: error.message }));
-    return true;
-  }
-});
-
+// Helper function for accessibility tree
 async function getAccessibilityTree(tabId) {
   try {
     await chrome.debugger.attach({ tabId }, "1.3");
@@ -53,198 +21,101 @@ async function getAccessibilityTree(tabId) {
   }
 }
 
-async function getAccessibilitySubtree(tabId, selector) {
-  await chrome.debugger.attach({ tabId }, "1.3");
-  await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
-  // Get the root document node
-  const { root } = await chrome.debugger.sendCommand(
-    { tabId },
-    "DOM.getDocument",
-    { depth: -1, pierce: true }
-  );
-  // Query for the element using the selector
-  const { nodeId } = await chrome.debugger.sendCommand(
-    { tabId },
-    "DOM.querySelector",
-    {
-      nodeId: root.nodeId,
-      selector,
-    }
-  );
-  if (!nodeId) {
-    await chrome.debugger.detach({ tabId });
-    throw new Error("Node not found");
+// Main message handler
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.action === "getAccessibilityTree") {
+    getAccessibilityTree(sender.tab.id)
+      .then((tree) => sendResponse({ tree }))
+      .catch((error) => sendResponse({ error: error.message }));
+    return true;
   }
-  // Get accessibility node
-  const { nodes } = await chrome.debugger.sendCommand(
-    { tabId },
-    "Accessibility.getPartialAXTree",
-    {
-      nodeId,
-      fetchRelatives: true,
-    }
-  );
-  await chrome.debugger.detach({ tabId });
-  return nodes;
-}
 
-async function getAccessibleName(tabId, selector) {
-  await chrome.debugger.attach({ tabId }, "1.3");
-  await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
-  const { root } = await chrome.debugger.sendCommand(
-    { tabId },
-    "DOM.getDocument",
-    { depth: -1, pierce: true }
-  );
-  const { nodeId } = await chrome.debugger.sendCommand(
-    { tabId },
-    "DOM.querySelector",
-    {
-      nodeId: root.nodeId,
-      selector: ":focus",
-    }
-  );
-  if (!nodeId) {
-    await chrome.debugger.detach({ tabId });
-    throw new Error("Node not found");
-  }
-  const { nodes } = await chrome.debugger.sendCommand(
-    { tabId },
-    "Accessibility.getPartialAXTree",
-    {
-      nodeId,
-      fetchRelatives: false,
-    }
-  );
-  await chrome.debugger.detach({ tabId });
-  if (nodes && nodes.length && nodes[0].name && nodes[0].name.value) {
-    return nodes[0].name.value;
-  }
-  return "(no accessible name)";
-}
+  if (
+    msg.action === "getBackendNodeIdAndAccessibleInfo" ||
+    msg.action === "getAccessibleInfo"
+  ) {
+    (async () => {
+      let tabId;
+      try {
+        const [tab] = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        tabId = tab.id;
 
-async function getAccessibleRole(tabId, selector) {
-  await chrome.debugger.attach({ tabId }, "1.3");
-  await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
-  const { root } = await chrome.debugger.sendCommand(
-    { tabId },
-    "DOM.getDocument",
-    { depth: -1, pierce: true }
-  );
-  // Use :focus to get the currently focused node, or selector if provided
-  const { nodeId } = await chrome.debugger.sendCommand(
-    { tabId },
-    "DOM.querySelector",
-    {
-      nodeId: root.nodeId,
-      selector: selector,
-    }
-  );
-  if (!nodeId) {
-    await chrome.debugger.detach({ tabId });
-    throw new Error("Node not found");
-  }
-  const { nodes } = await chrome.debugger.sendCommand(
-    { tabId },
-    "Accessibility.getPartialAXTree",
-    {
-      nodeId,
-      fetchRelatives: false,
-    }
-  );
-  await chrome.debugger.detach({ tabId });
-  if (nodes && nodes.length && nodes[0].role && nodes[0].role.value) {
-    return nodes[0].role.value;
-  }
-  return "(no role)";
-}
+        await chrome.debugger.attach({ tabId }, "1.3");
+        await chrome.debugger.sendCommand({ tabId }, "DOM.enable");
+        await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
 
-async function getAccessibleInfo(tabId, selector) {
-  await chrome.debugger.attach({ tabId }, "1.3");
-  await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
-  const { root } = await chrome.debugger.sendCommand(
-    { tabId },
-    "DOM.getDocument",
-    { depth: -1, pierce: true }
-  );
-  const { nodeId } = await chrome.debugger.sendCommand(
-    { tabId },
-    "DOM.querySelector",
-    {
-      nodeId: root.nodeId,
-      selector: selector,
-    }
-  );
-  if (!nodeId) {
-    await chrome.debugger.detach({ tabId });
-    throw new Error("Node not found");
-  }
-  const { nodes } = await chrome.debugger.sendCommand(
-    { tabId },
-    "Accessibility.getPartialAXTree",
-    {
-      nodeId,
-      fetchRelatives: false,
-    }
-  );
-  await chrome.debugger.detach({ tabId });
-  let role = "(no role)";
-  let name = "(no accessible name)";
-  let description = "(no description)";
-  if (nodes && nodes.length) {
-    if (nodes[0].role && nodes[0].role.value) role = nodes[0].role.value;
-    if (nodes[0].name && nodes[0].name.value) name = nodes[0].name.value;
-    if (nodes[0].description && nodes[0].description.value)
-      description = nodes[0].description.value;
-  }
-  return { role, name, description };
-}
-
-chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
-  if (msg.action === "getAccessibleInfoByPath") {
-    const tabId = sender.tab.id;
-    try {
-      await chrome.debugger.attach({ tabId }, "1.3");
-      await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
-      const { root } = await chrome.debugger.sendCommand(
-        { tabId },
-        "DOM.getDocument",
-        { depth: -1, pierce: true }
-      );
-      let nodeId = root.nodeId;
-      let current = root;
-      for (const idx of msg.elementPath) {
-        const { node } = await chrome.debugger.sendCommand(
+        const { root } = await chrome.debugger.sendCommand(
           { tabId },
-          "DOM.describeNode",
-          { nodeId }
+          "DOM.getDocument",
+          { depth: -1, pierce: true }
         );
-        if (!node.children || node.children.length <= idx) {
-          throw new Error("Path out of bounds");
+
+        const { nodeId } = await chrome.debugger.sendCommand(
+          { tabId },
+          "DOM.querySelector",
+          {
+            nodeId: root.nodeId,
+            selector: msg.elementSelector,
+          }
+        );
+
+        if (!nodeId) {
+          await chrome.debugger.detach({ tabId });
+          sendResponse({ error: "Node not found" });
+          return;
         }
-        // children is an array of node objects, not node IDs
-        nodeId = node.children[idx].nodeId;
+
+        const { nodes } = await chrome.debugger.sendCommand(
+          { tabId },
+          "Accessibility.getPartialAXTree",
+          {
+            nodeId,
+            fetchRelatives: false,
+          }
+        );
+
+        await chrome.debugger.detach({ tabId });
+
+        if (!nodes || !nodes.length) {
+          sendResponse({ error: "No AXNode found" });
+          return;
+        }
+
+        const node = nodes[0];
+        const result = {
+          role: node.role?.value || "(no role)",
+          name: node.name?.value || "(no accessible name)",
+          description: node.description?.value || "(no description)",
+          value: node.value?.value,
+          checked: node.checked?.value,
+          pressed: node.pressed?.value,
+          expanded: node.expanded?.value,
+          selected: node.selected?.value,
+          disabled: node.disabled?.value,
+          focused: node.focused?.value,
+          readonly: node.readonly?.value,
+          required: node.required?.value,
+          level: node.level?.value,
+          ignored: node.ignored || false,
+          ignoredReasons: node.ignoredReasons || [],
+          properties: node.properties || [],
+        };
+
+        console.log("Sending response:", result);
+        sendResponse(result);
+      } catch (err) {
+        console.error("Error in background script:", err);
+        if (tabId) {
+          try {
+            await chrome.debugger.detach({ tabId });
+          } catch {}
+        }
+        sendResponse({ error: err.message });
       }
-      // Now nodeId is the target element
-      const { nodes } = await chrome.debugger.sendCommand(
-        { tabId },
-        "Accessibility.getPartialAXTree",
-        { nodeId, fetchRelatives: false }
-      );
-      await chrome.debugger.detach({ tabId });
-      let role = "(no role)";
-      let name = "(no accessible name)";
-      let description = "(no description)";
-      if (nodes && nodes.length) {
-        if (nodes[0].role && nodes[0].role.value) role = nodes[0].role.value;
-        if (nodes[0].name && nodes[0].name.value) name = nodes[0].name.value;
-        if (nodes[0].description && nodes[0].description.value)
-          description = nodes[0].description.value;
-      }
-      sendResponse({ role, name, description });
-    } catch (e) {
-      sendResponse({ error: e.message });
-    }
-    return true; // async
+    })();
+    return true;
   }
 });

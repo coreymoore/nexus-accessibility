@@ -26,48 +26,44 @@ function displayAccessibilityData(data) {
 document.addEventListener("DOMContentLoaded", () => {
   fetchAccessibilityData();
 
-  const toggle = document.getElementById("toggle-extension");
-  // Load state from storage
-  chrome.storage.sync.get(["extensionEnabled"], (result) => {
-    const enabled = result.extensionEnabled !== false; // default ON
-    toggle.checked = enabled;
-    toggle.setAttribute("aria-checked", enabled ? "true" : "false");
+  const toggleInput = document.getElementById("toggle-extension");
+  const toggleLabel = document.getElementById("toggle-label");
+
+  // Get initial state
+  chrome.storage.sync.get({ extensionEnabled: true }, (data) => {
+    toggleInput.checked = data.extensionEnabled;
+    updateToggleLabel(data.extensionEnabled);
   });
 
-  toggle.addEventListener("change", () => {
-    const enabled = toggle.checked;
-    chrome.storage.sync.set({ extensionEnabled: enabled });
-    toggle.setAttribute("aria-checked", enabled ? "true" : "false");
+  // Handle toggle changes
+  toggleInput.addEventListener("change", (e) => {
+    const isEnabled = e.target.checked;
+    chrome.storage.sync.set({ extensionEnabled: isEnabled });
+    updateToggleLabel(isEnabled);
+
+    // Send message to content script
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0] && tabs[0].id) {
+      if (tabs[0]) {
         chrome.tabs.sendMessage(tabs[0].id, {
-          type: enabled ? "ENABLE_EXTENSION" : "DISABLE_EXTENSION",
+          type: isEnabled ? "ENABLE_EXTENSION" : "DISABLE_EXTENSION",
         });
       }
     });
   });
 
-  // Fetch page info
+  function updateToggleLabel(isEnabled) {
+    toggleLabel.textContent = isEnabled
+      ? "Disable Access Nexus"
+      : "Enable Access Nexus";
+  }
+
+  // Update page info
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    chrome.scripting.executeScript(
-      {
-        target: { tabId: tabs[0].id },
-        func: () => ({
-          title: document.title,
-          lang: document.documentElement.lang || "not set",
-        }),
-      },
-      (results) => {
-        if (results && results[0] && results[0].result) {
-          document.getElementById("page-title").textContent =
-            results[0].result.title;
-          document.getElementById("page-lang").textContent =
-            results[0].result.lang;
-        } else {
-          document.getElementById("page-title").textContent = "Unavailable";
-          document.getElementById("page-lang").textContent = "Unavailable";
-        }
-      }
-    );
+    if (tabs[0]) {
+      const title = document.getElementById("page-title");
+      const lang = document.getElementById("page-lang");
+      title.textContent = tabs[0].title || "No title";
+      lang.textContent = document.documentElement?.lang || "Not specified";
+    }
   });
 });
