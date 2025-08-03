@@ -212,16 +212,19 @@ let lastAccessibleName = null;
 
 document.addEventListener("focusin", (e) => {
   lastFocusedElement = e.target;
+  let selector;
+  if (e.target.id) {
+    selector = `#${CSS.escape(e.target.id)}`;
+  } else {
+    selector = ":focus";
+  }
   chrome.runtime.sendMessage(
-    { action: "getAccessibleName", elementSelector: ":focus" },
-    (response) => {
-      if (response && response.name) {
-        lastAccessibleName = response.name;
-        showTooltip(response.name, e.target);
-      } else if (response && response.error) {
-        lastAccessibleName = "Error: " + response.error;
-        showTooltip(lastAccessibleName, e.target);
-      }
+    { action: "getAccessibleInfo", elementSelector: selector },
+    (info) => {
+      let role = info && info.role ? info.role : "(no role)";
+      let name = info && info.name ? info.name : "(no accessible name)";
+      lastAccessibleName = `${role}: ${name}`;
+      showTooltip(lastAccessibleName, e.target);
     }
   );
 });
