@@ -27,7 +27,7 @@ style.textContent = `
   position: absolute;
   background: linear-gradient(to bottom, rgba(255,255,255,0.99), rgba(249,245,255,0.97));
   color: #2d1958;
-  padding: 12px 16px;
+  padding: 12px 32px 12px 16px;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
   z-index: 2147483647 !important;
@@ -37,12 +37,28 @@ style.textContent = `
   white-space: normal;
   pointer-events: all;
   cursor: default;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  opacity: 1;
   letter-spacing: -0.011em;
   min-width: 280px;
   max-width: 380px;
   overflow: visible;
+}
+
+.chrome-ax-tooltip-close {
+  position: relative;
+  float: right;
+  margin-right: -2rem;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(104,58,183,0.1);
+  color: #683ab7;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.2s ease;
 }
 
 .chrome-ax-tooltip-sr {
@@ -57,6 +73,17 @@ style.textContent = `
   word-break: break-word;
   box-shadow: inset 0 0 0 1px rgba(104,58,183,0.2);
   border-left: 3px solid #683ab7;
+}
+
+.chrome-ax-tooltip *:focus {
+  outline: 2px solid #683ab7 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px #fff!important;
+}
+
+.chrome-ax-tooltip *:hover {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 div.chrome-ax-tooltip[role="tooltip"] dl {
@@ -91,7 +118,7 @@ div.chrome-ax-tooltip[role="tooltip"] dl dd {
   font-family: inherit !important;
   font-weight: 450 !important;
   background: rgba(245,241,255,0.7) !important;
-  padding: 4px 8px !important;
+  padding: 0px 8px!important;
   border-radius: 6px !important;
   word-break: break-word !important;
   box-shadow: inset 0 0 0 1px rgba(104,58,183,0.1) !important;
@@ -103,7 +130,7 @@ div.chrome-ax-tooltip[role="tooltip"] dl dd {
 .chrome-ax-tooltip dd:after {
   content: "";
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .chrome-ax-tooltip .states-list,
@@ -116,20 +143,19 @@ div.chrome-ax-tooltip[role="tooltip"] dl dd {
 .chrome-ax-tooltip .state-badge,
 .chrome-ax-tooltip .aria-badge {
   display: inline-block;
-  padding: 2px 6px;
+  padding: 0 2px !important;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px !important;
   font-weight: 500;
+  background: none !important;
 }
 
 .chrome-ax-tooltip .state-badge {
-  background: rgba(104, 58, 183, 0.1);
   color: #683ab7;
   margin: 0.15rem 0.15rem 0 0.15rem;
 }
 
 .chrome-ax-tooltip .aria-badge {
-  background: rgba(76, 175, 80, 0.1);
   color: #2d8a30;
   margin: 0.15rem 0.15rem 0 0.15rem;
 }
@@ -348,7 +374,12 @@ function showTooltip(info, target) {
 
   // Set tooltip content
   const tooltipContent = `
-    <div class="chrome-ax-tooltip-sr">
+    <button class="chrome-ax-tooltip-close" aria-label="Close Nexus Inspector">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+      </svg>
+    </button>
+    <div class="chrome-ax-tooltip-sr" tabindex="-1">
       <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Screen Reader Output" focusable="false" style="vertical-align:middle;">
         <rect x="3" y="8" width="5" height="8" rx="1.5" fill="#7851a9"/>
         <polygon points="8,8 14,4 14,20 8,16" fill="#78551a9"/>
@@ -358,10 +389,60 @@ function showTooltip(info, target) {
       ${getScreenReaderOutput(info)}
     </div>
     ${getPropertiesList(info)}
+    <div class="chrome-ax-tooltip-keys">
+      <span><kbd>Esc</kbd> Close</span>
+      <span><kbd>Shift</kbd>+<kbd>Esc</kbd> Reopen</span>
+      <span><kbd>Alt</kbd>+<kbd>[</kbd> Inspector</span>
+    </div>
   `;
   tooltip.innerHTML = tooltipContent;
+
+  // Register Alt+[ shortcut once
+  if (!window.chromeAxTooltipShortcutRegistered) {
+    document.addEventListener(
+      "keydown",
+      function (e) {
+        if (
+          e.altKey &&
+          !e.shiftKey &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          e.code === "BracketLeft" &&
+          tooltip &&
+          tooltip.style.display === "block"
+        ) {
+          const srNode = tooltip.querySelector(".chrome-ax-tooltip-sr");
+          if (srNode) {
+            srNode.focus();
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }
+      },
+      true
+    );
+    window.chromeAxTooltipShortcutRegistered = true;
+  }
+
+  // Set initial position offscreen to measure size
+  tooltip.style.position = "fixed";
+  tooltip.style.left = "-9999px";
+  tooltip.style.top = "-9999px";
   document.body.appendChild(tooltip);
   tooltip.style.display = "block";
+
+  // Add click handler for close button - use same logic as Escape key
+  const closeButton = tooltip.querySelector(".chrome-ax-tooltip-close");
+  if (closeButton) {
+    // Remove tabindex -1 so it can be focused
+    closeButton.removeAttribute("tabindex");
+    closeButton.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (extensionEnabled) {
+        hideTooltip(lastFocusedElement);
+      }
+    });
+  }
 
   // Remove old connector if present
   if (connector) {
@@ -540,15 +621,25 @@ function showTooltip(info, target) {
   // Insert connector after tooltip so it's visually on top
   document.body.appendChild(connector);
 
-  tooltip.style.top = `${top}px`;
-  tooltip.style.left = `${left}px`;
+  // Set final position
+  tooltip.style.position = "fixed";
+  tooltip.style.top = `${top - window.scrollY}px`;
+  tooltip.style.left = `${left - window.scrollX}px`;
 }
 
-function hideTooltip(target) {
-  if (tooltip) tooltip.style.display = "none";
-  if (connector) {
-    connector.remove();
+function hideTooltip() {
+  if (tooltip && tooltip.parentNode) {
+    tooltip.parentNode.removeChild(tooltip);
+    tooltip = null;
+  }
+  if (connector && connector.parentNode) {
+    connector.parentNode.removeChild(connector);
     connector = null;
+  }
+  // Suppress updating lastFocusedElement on next focusin
+  if (inspectedElement) {
+    suppressNextFocusIn = true;
+    inspectedElement.focus();
   }
 }
 
@@ -591,6 +682,8 @@ function getElementPath(el) {
 // Cache for successful accessibility info lookups
 const accessibilityCache = new WeakMap();
 let lastFocusedElement = null;
+let inspectedElement = null;
+let suppressNextFocusIn = false;
 
 function markAndGetSelector(el) {
   const unique = "chrome-ax-marker-" + Math.random().toString(36).slice(2);
@@ -804,12 +897,20 @@ function onFocusIn(e) {
   logger.log("onFocusIn", "event fired", e.target);
   if (!extensionEnabled) {
     logger.log("onFocusIn", "extension disabled");
-    hideTooltip(e.target);
+    hideTooltip();
     return;
   }
-
+  if (suppressNextFocusIn) {
+    suppressNextFocusIn = false;
+    return;
+  }
+  // Don't inspect the close button or anything inside the tooltip
+  if (tooltip && tooltip.contains(e.target)) {
+    return;
+  }
   const targetElement = e.target;
   lastFocusedElement = targetElement;
+  inspectedElement = targetElement;
 
   // Start observing the new focused element
   // Start observing any focusable element for state changes
@@ -841,9 +942,11 @@ function onFocusIn(e) {
 }
 
 function onFocusOut(e) {
-  // Only stop observing, keep tooltip open
-  stopObserving();
-  lastFocusedElement = null;
+  // Only stop observing when focus leaves document completely
+  if (!e.relatedTarget) {
+    stopObserving();
+    lastFocusedElement = null;
+  }
 }
 
 function onKeyDown(e) {
@@ -961,4 +1064,53 @@ function getBackendNodeId(element, callback) {
       }
     }
   );
+}
+
+// Keycap CSS (compact, single-line)
+if (!window.chromeAxTooltipKeycapStyle) {
+  const keycapStyle = document.createElement("style");
+  keycapStyle.textContent = `
+    .chrome-ax-tooltip-keys {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 0.7em;
+      font-size: 12px;
+      margin: 2px 0;
+      padding-top: 10px;
+      color: #3a2956;
+      font-family: inherit;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      user-select: none;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow-x: auto;
+      text-overflow: ellipsis;
+    }
+    .chrome-ax-tooltip-keys span {
+      display: flex;
+      align-items: center;
+      gap: 0.1em;
+      white-space: nowrap;
+    }
+    .chrome-ax-tooltip-keys kbd {
+      display: inline-block;
+      font-family: inherit;
+      font-size: 11px;
+      background: #f3f0fa;
+      border: 1px solid #d1c4e9;
+      border-radius: 4px;
+      box-shadow: 0 1px 1px rgba(104,58,183,0.07);
+      padding: 1px 5px 1px 5px;
+      margin: 0 1px 0 0;
+      color: #683ab7;
+      font-weight: 600;
+      line-height: 1.1;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+  `;
+  document.head.appendChild(keycapStyle);
+  window.chromeAxTooltipKeycapStyle = true;
 }
