@@ -28,18 +28,31 @@ style.textContent = `
   z-index: 2147483647 !important;
   font-size: 15px;
   font-family: Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  max-width: 420px;
-  min-width: 80px;
   box-shadow:
     0 0 0 4px #000,
     0 4px 24px rgba(0,0,0,0.18),
     0 1.5px 4px rgba(0,0,0,0.10);
   border: 2px solid #fff;
-  white-space: pre-wrap;
+  white-space: normal;
   pointer-events: none;
   transition: opacity 0.18s cubic-bezier(.4,0,.2,1);
   opacity: 0.98;
   letter-spacing: 0.01em;
+}
+.chrome-ax-tooltip div {
+  margin-bottom: 8px;
+}
+.chrome-ax-tooltip dl {
+  margin: 10px 0 0 0;
+  padding: 0;
+}
+.chrome-ax-tooltip dt {
+  font-weight: bold;
+  margin-top: 6px;
+}
+.chrome-ax-tooltip dd {
+  margin-left: 0;
+  margin-bottom: 4px;
 }
 `;
 document.head.appendChild(style);
@@ -55,7 +68,21 @@ function showTooltip(text, target) {
     tooltip.setAttribute("id", "chrome-ax-tooltip");
     document.body.appendChild(tooltip);
   }
-  tooltip.textContent = text;
+
+  // Parse role and name from the text (assuming "role name" format)
+  let [role, ...nameParts] = text.split(" ");
+  let name = nameParts.join(" ").trim();
+
+  tooltip.innerHTML = `
+  <div style="font-weight:bold;">Screen Reader Output</div>
+  <div>${role} ${name}</div>
+    <dl>
+      <dt>Name</dt>
+      <dd>${name}</dd>
+      <dt>Role</dt>
+      <dd>${role}</dd>
+    </dl>
+  `;
   tooltip.style.display = "block";
 
   // Remove old connector if present
@@ -223,7 +250,7 @@ document.addEventListener("focusin", (e) => {
     (info) => {
       let role = info && info.role ? info.role : "(no role)";
       let name = info && info.name ? info.name : "(no accessible name)";
-      lastAccessibleName = `${role}: ${name}`;
+      lastAccessibleName = `${role} ${name}`;
       showTooltip(lastAccessibleName, e.target);
     }
   );
