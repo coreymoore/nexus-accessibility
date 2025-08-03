@@ -37,11 +37,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     (async () => {
       let tabId;
       try {
+        console.log("Background: received message", msg);
         const [tab] = await chrome.tabs.query({
           active: true,
           currentWindow: true,
         });
         tabId = tab.id;
+        console.log("Background: using tab", tabId);
 
         await chrome.debugger.attach({ tabId }, "1.3");
         await chrome.debugger.sendCommand({ tabId }, "DOM.enable");
@@ -68,12 +70,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           return;
         }
 
+        // Get the accessibility node with all properties
         const { nodes } = await chrome.debugger.sendCommand(
           { tabId },
           "Accessibility.getPartialAXTree",
           {
             nodeId,
-            fetchRelatives: false,
+            fetchRelatives: true,
+          }
+        );
+
+        // Also get DOM attributes to capture ARIA properties
+        const { attributes } = await chrome.debugger.sendCommand(
+          { tabId },
+          "DOM.getAttributes",
+          {
+            nodeId,
           }
         );
 
@@ -85,26 +97,71 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
 
         const node = nodes[0];
+        console.log("Raw AX node:", node);
+        console.log("DOM attributes:", attributes);
+
         const result = {
           role: node.role?.value || "(no role)",
           name: node.name?.value || "(no accessible name)",
           description: node.description?.value || "(no description)",
-          value: node.value?.value,
-          checked: node.checked?.value,
-          pressed: node.pressed?.value,
-          expanded: node.expanded?.value,
-          selected: node.selected?.value,
-          disabled: node.disabled?.value,
-          focused: node.focused?.value,
-          readonly: node.readonly?.value,
-          required: node.required?.value,
-          level: node.level?.value,
+          value: node.value?.value || "(no value)",
+          states: {},
+          ariaProperties: {},
           ignored: node.ignored || false,
           ignoredReasons: node.ignoredReasons || [],
-          properties: node.properties || [],
         };
 
-        console.log("Sending response:", result);
+        // Extract ARIA properties from DOM attributes (more reliable)
+        if (attributes && Array.isArray(attributes)) {
+          console.log("Processing DOM attributes:", attributes);
+          for (let i = 0; i < attributes.length; i += 2) {
+            const attrName = attributes[i];
+            const attrValue = attributes[i + 1];
+            console.log(`Attribute: ${attrName} = ${attrValue}`);
+            if (attrName && attrName.startsWith("aria-")) {
+              console.log(`Found ARIA attribute: ${attrName} = ${attrValue}`);
+              result.ariaProperties[attrName] = attrValue;
+            }
+          }
+        } else {
+          console.log("No attributes found or not an array:", attributes);
+        }
+
+        // Extract properties from accessibility node (if available)
+        if (node.properties && Array.isArray(node.properties)) {
+          console.log("Node has properties:", node.properties);
+          node.properties.forEach((prop) => {
+            console.log("Processing node property:", prop);
+            if (prop.name && prop.name.startsWith("aria-")) {
+              // Only add if not already captured from DOM attributes
+              if (!result.ariaProperties[prop.name]) {
+                result.ariaProperties[prop.name] =
+                  prop.value?.value || prop.value;
+              }
+            } else if (prop.name) {
+              result.states[prop.name] = prop.value?.value || prop.value;
+            }
+          });
+        }
+
+        // Add native properties from the node itself
+        [
+          "checked",
+          "pressed",
+          "expanded",
+          "selected",
+          "disabled",
+          "focused",
+          "readonly",
+          "required",
+          "level",
+        ].forEach((prop) => {
+          if (node[prop]?.value !== undefined) {
+            result.states[prop] = node[prop].value;
+          }
+        });
+
+        console.log("Final result:", result);
         sendResponse(result);
       } catch (err) {
         console.error("Error in background script:", err);
