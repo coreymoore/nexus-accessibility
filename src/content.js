@@ -21,38 +21,104 @@ const style = document.createElement("style");
 style.textContent = `
 .chrome-ax-tooltip {
   position: absolute;
-  background: #fff;
-  color: #111;
-  padding: 14px 22px;
-  border-radius: 10px;
+  background: #f6f6fa;
+  color: #24124b;
+  padding: 14px 20px 12px 20px;
+  border-radius: 8px;
   z-index: 2147483647 !important;
-  font-size: 15px;
-  font-family: Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  box-shadow:
-    0 0 0 4px #000,
-    0 4px 24px rgba(0,0,0,0.18),
-    0 1.5px 4px rgba(0,0,0,0.10);
-  border: 2px solid #fff;
+  font-size: 1em;
+  font-family: 'Inter', 'Segoe UI', 'Liberation Sans', Arial, sans-serif;
+  box-shadow: 0 6px 32px 0 rgba(120,81,169,0.13), 0 2px 8px 0 rgba(120,81,169,0.10);
+  border: 2.5px solid #7851a9;
   white-space: normal;
   pointer-events: none;
-  transition: opacity 0.18s cubic-bezier(.4,0,.2,1);
+  transition: opacity 0.18s cubic-bezier(.4,0,.2,1), box-shadow 0.18s cubic-bezier(.4,0,.2,1);
   opacity: 0.98;
   letter-spacing: 0.01em;
+  min-width: 260px;
+  max-width: 360px;
+  animation: ax-pop 0.18s cubic-bezier(.4,0,.2,1);
+  overflow: visible;
 }
-.chrome-ax-tooltip div {
+@keyframes ax-pop {
+  0% { transform: scale(0.96) translateY(10px); opacity: 0.7; }
+  100% { transform: scale(1) translateY(0); opacity: 0.98; }
+}
+
+.chrome-ax-tooltip::before {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 5px;
+  border-radius: 8px 8px 0 0;
+  background: #7851a9;
   margin-bottom: 8px;
 }
+
+.chrome-ax-tooltip-heading {
+  font-size: 1.13em;
+  font-weight: 900;
+  color: #7851a9;
+  margin-bottom: 8px;
+  padding-top: 8px;
+  padding-bottom: 3px;
+  border-bottom: 2px solid #e3e0ef;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  text-shadow: none;
+  background: none;
+}
+
+.chrome-ax-tooltip-sr {
+  background: #edeaf5;
+  color: #24124b;
+  font-size: 1em;
+  padding: 7px 12px;
+  border-radius: 5px;
+  border-left: 5px solid #7851a9;
+  margin-bottom: 10px;
+  font-family: 'IBM Plex Mono', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+  font-weight: 600;
+  word-break: break-word;
+  box-shadow: none;
+}
+
 .chrome-ax-tooltip dl {
-  margin: 10px 0 0 0;
+  margin: 0;
   padding: 0;
 }
+
 .chrome-ax-tooltip dt {
-  font-weight: bold;
-  margin-top: 6px;
+  font-weight: 800;
+  margin-top: 8px;
+  margin-bottom: 2px;
+  color: #7851a9;
+  background: none;
+  display: inline-block;
+  padding: 0 7px 0 0;
+  border: none;
+  border-radius: 0;
+  font-size: 1em;
+  letter-spacing: 0.01em;
+  font-family: inherit;
+  box-shadow: none;
+  text-shadow: none;
 }
+
 .chrome-ax-tooltip dd {
   margin-left: 0;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  padding-left: 10px;
+  font-size: 0.99em;
+  color: #24124b;
+  background: none;
+  border-left: 2.5px solid #b39ddb;
+  border-radius: 0;
+  font-family: inherit;
+  font-weight: 400;
+  word-break: break-word;
+  box-shadow: none;
 }
 `;
 document.head.appendChild(style);
@@ -60,7 +126,27 @@ document.head.appendChild(style);
 let tooltip = null;
 let connector = null;
 
-function showTooltip(text, target) {
+function getScreenReaderOutput(role, name, description) {
+  let output = role;
+  if (name && name !== "(no accessible name)") output += " " + name;
+  if (description && description !== "(no description)")
+    output += " " + description;
+  return output;
+}
+
+function getPropertiesList(role, name, description) {
+  let dl = "<dl>";
+  dl += `<dt>Name</dt><dd>${name}</dd>`;
+  dl += `<dt>Role</dt><dd>${role}</dd>`;
+  if (description !== "(no description)") {
+    dl += `<dt>Description</dt><dd>${description}</dd>`;
+  }
+  dl += "</dl>";
+  return dl;
+}
+
+function showTooltip(role, name, description, target) {
+  console.log("showTooltip called", { role, name, description, target });
   if (!tooltip) {
     tooltip = document.createElement("div");
     tooltip.className = "chrome-ax-tooltip";
@@ -69,20 +155,20 @@ function showTooltip(text, target) {
     document.body.appendChild(tooltip);
   }
 
-  // Parse role and name from the text (assuming "role name" format)
-  let [role, ...nameParts] = text.split(" ");
-  let name = nameParts.join(" ").trim();
-
   tooltip.innerHTML = `
-  <div style="font-weight:bold;">Screen Reader Output</div>
-  <div>${role} ${name}</div>
-    <dl>
-      <dt>Name</dt>
-      <dd>${name}</dd>
-      <dt>Role</dt>
-      <dd>${role}</dd>
-    </dl>
-  `;
+  <div class="chrome-ax-tooltip-sr">
+    <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Screen Reader Output" focusable="false" style="vertical-align:middle;">
+  <!-- Speaker body -->
+  <rect x="3" y="8" width="5" height="8" rx="1.5" fill="#7851a9"/>
+  <polygon points="8,8 14,4 14,20 8,16" fill="#7851a9"/>
+  <!-- Sound waves -->
+  <path d="M17 9a4 4 0 0 1 0 6" stroke="#7851a9" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M19.5 7a7 7 0 0 1 0 10" stroke="#7851a9" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+</svg>
+    ${getScreenReaderOutput(role, name, description)}
+  </div>
+  ${getPropertiesList(role, name, description)}
+`;
   tooltip.style.display = "block";
 
   // Remove old connector if present
@@ -234,41 +320,215 @@ function hideTooltip(target) {
   if (target) target.removeAttribute("aria-describedby");
 }
 
-let lastFocusedElement = null;
-let lastAccessibleName = null;
-
-document.addEventListener("focusin", (e) => {
-  lastFocusedElement = e.target;
-  let selector;
-  if (e.target.id) {
-    selector = `#${CSS.escape(e.target.id)}`;
-  } else {
-    selector = ":focus";
+function getUniqueSelector(el) {
+  if (el.id) return `#${CSS.escape(el.id)}`;
+  let path = [];
+  while (el && el.nodeType === 1 && el !== document.body) {
+    let selector = el.nodeName.toLowerCase();
+    if (el.classList && el.classList.length) {
+      selector +=
+        "." +
+        Array.from(el.classList)
+          .map((cls) => CSS.escape(cls))
+          .join(".");
+    }
+    let sibling = el;
+    let nth = 1;
+    while ((sibling = sibling.previousElementSibling)) {
+      if (sibling.nodeName === el.nodeName) nth++;
+    }
+    selector += `:nth-of-type(${nth})`;
+    path.unshift(selector);
+    el = el.parentElement;
   }
+  return path.length ? path.join(" > ") : ":focus";
+}
+
+function getElementPath(el) {
+  const path = [];
+  while (el && el !== document.body) {
+    let idx = 0;
+    let sibling = el;
+    while ((sibling = sibling.previousElementSibling)) idx++;
+    path.unshift(idx);
+    el = el.parentElement;
+  }
+  return path;
+}
+
+// Replace selector logic in focusin and Shift+Escape handlers:
+let lastFocusedElement = null;
+
+function markAndGetSelector(el) {
+  const unique = "chrome-ax-marker-" + Math.random().toString(36).slice(2);
+  el.setAttribute("data-chrome-ax-marker", unique);
+  return `[data-chrome-ax-marker="${unique}"]`;
+}
+
+let extensionEnabled = true;
+let listenersRegistered = false;
+
+function registerEventListeners() {
+  if (listenersRegistered) return;
+  document.addEventListener("focusin", onFocusIn, true);
+  document.addEventListener("focusout", onFocusOut, true);
+  document.addEventListener("keydown", onKeyDown, true);
+  listenersRegistered = true;
+}
+
+function unregisterEventListeners() {
+  if (!listenersRegistered) return;
+  document.removeEventListener("focusin", onFocusIn, true);
+  document.removeEventListener("focusout", onFocusOut, true);
+  document.removeEventListener("keydown", onKeyDown, true);
+  listenersRegistered = false;
+}
+
+function onFocusIn(e) {
+  if (!extensionEnabled) {
+    hideTooltip(e.target);
+    return;
+  }
+  lastFocusedElement = e.target;
+  if (isInShadowRoot(e.target)) {
+    const { role, name, description } = getLocalAccessibleInfo(e.target);
+    showTooltip(
+      role,
+      name,
+      description + " (Shadow DOM: computed accessibility info unavailable)",
+      e.target
+    );
+    return;
+  }
+  const selector = markAndGetSelector(e.target);
   chrome.runtime.sendMessage(
     { action: "getAccessibleInfo", elementSelector: selector },
     (info) => {
+      e.target.removeAttribute("data-chrome-ax-marker");
       let role = info && info.role ? info.role : "(no role)";
       let name = info && info.name ? info.name : "(no accessible name)";
-      lastAccessibleName = `${role} ${name}`;
-      showTooltip(lastAccessibleName, e.target);
+      let description =
+        info && info.description ? info.description : "(no description)";
+      showTooltip(role, name, description, e.target);
     }
   );
-});
+}
 
-document.addEventListener("focusout", (e) => {
+function onFocusOut(e) {
   hideTooltip(e.target);
   lastFocusedElement = null;
-  lastAccessibleName = null;
-});
+}
 
-// Keyboard accessibility: ESC to hide, Shift+ESC to restore
-document.addEventListener("keydown", (e) => {
+function onKeyDown(e) {
+  if (!extensionEnabled) {
+    hideTooltip(lastFocusedElement);
+    return;
+  }
   if (e.key === "Escape" && !e.shiftKey) {
     hideTooltip(lastFocusedElement);
   } else if (e.key === "Escape" && e.shiftKey) {
-    if (lastFocusedElement && lastAccessibleName) {
-      showTooltip(lastAccessibleName, lastFocusedElement);
+    if (lastFocusedElement) {
+      const selector = getUniqueSelector(lastFocusedElement);
+      chrome.runtime.sendMessage(
+        { action: "getAccessibleInfo", elementSelector: selector },
+        (info) => {
+          let role = info && info.role ? info.role : "(no role)";
+          let name = info && info.name ? info.name : "(no accessible name)";
+          let description =
+            info && info.description ? info.description : "(no description)";
+          showTooltip(role, name, description, lastFocusedElement);
+        }
+      );
     }
   }
+}
+
+// On load, get state and set up listeners
+chrome.storage.sync.get({ extensionEnabled: true }, (data) => {
+  extensionEnabled = !!data.extensionEnabled;
+  if (extensionEnabled) {
+    registerEventListeners();
+  } else {
+    unregisterEventListeners();
+    hideTooltip();
+  }
 });
+
+// Listen for toggle messages from popup
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === "ENABLE_EXTENSION") {
+    extensionEnabled = true;
+    registerEventListeners();
+  } else if (msg.type === "DISABLE_EXTENSION") {
+    extensionEnabled = false;
+    unregisterEventListeners();
+    hideTooltip();
+  }
+});
+
+async function getAccessibleInfo(tabId, selector) {
+  await chrome.debugger.attach({ tabId }, "1.3");
+  await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
+  const { root } = await chrome.debugger.sendCommand(
+    { tabId },
+    "DOM.getDocument",
+    { depth: -1, pierce: true }
+  );
+  const { nodeId } = await chrome.debugger.sendCommand(
+    { tabId },
+    "DOM.querySelector",
+    {
+      nodeId: root.nodeId,
+      selector: selector,
+    }
+  );
+  if (!nodeId) {
+    await chrome.debugger.detach({ tabId });
+    throw new Error("Node not found");
+  }
+  const { nodes } = await chrome.debugger.sendCommand(
+    { tabId },
+    "Accessibility.getPartialAXTree",
+    {
+      nodeId,
+      fetchRelatives: false,
+    }
+  );
+  await chrome.debugger.detach({ tabId });
+  let role = "(no role)";
+  let name = "(no accessible name)";
+  let description = "(no description)";
+  if (nodes && nodes.length) {
+    if (nodes[0].role && nodes[0].role.value) role = nodes[0].role.value;
+    if (nodes[0].name && nodes[0].name.value) name = nodes[0].name.value;
+    if (nodes[0].description && nodes[0].description.value)
+      description = nodes[0].description.value;
+  }
+  return { role, name, description };
+}
+
+function isInShadowRoot(el) {
+  return el.getRootNode() instanceof ShadowRoot;
+}
+
+function getLocalAccessibleInfo(el) {
+  // Try ARIA attributes and native properties
+  let role = el.getAttribute("role") || el.role || "(no role)";
+  let name =
+    el.getAttribute("aria-label") ||
+    (el.getAttribute("aria-labelledby") &&
+      document.getElementById(el.getAttribute("aria-labelledby"))
+        ?.textContent) ||
+    el.innerText ||
+    el.alt ||
+    el.title ||
+    "(no accessible name)";
+  let description =
+    el.getAttribute("aria-description") ||
+    (el.getAttribute("aria-describedby") &&
+      document.getElementById(el.getAttribute("aria-describedby"))
+        ?.textContent) ||
+    "";
+  if (!description) description = "(no description)";
+  return { role, name, description };
+}

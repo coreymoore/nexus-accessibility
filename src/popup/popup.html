@@ -1,19 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accessibility Tree</title>
-    <link rel="stylesheet" href="popup.css">
-</head>
-<body>
-    <div id="popup-container">
-        <h1>Accessibility Tree</h1>
-        <div id="tree-data">
-            <!-- Accessibility Tree data will be displayed here -->
-        </div>
-        <button id="refresh-button">Refresh</button>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Access Nexus</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1 class="popup-heading">Access Nexus</h1>
+    <label class="switch">
+      <input type="checkbox" id="toggle-extension" role="switch" />
+      <span class="slider"></span>
+      <span id="toggle-label">Enable Access Nexus</span>
+    </label>
+
+    <div id="page-info-section">
+      <h2>Page Information</h2>
+      <dl id="page-info">
+        <dt>Title</dt>
+        <dd id="page-title">Loading…</dd>
+        <dt>Language</dt>
+        <dd id="page-lang">Loading…</dd>
+      </dl>
     </div>
     <script src="popup.js"></script>
-</body>
+  </body>
 </html>

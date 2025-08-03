@@ -41,3 +41,10 @@ Contributions not currently welcome. However, you may open an issue for any enha
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
+
+## Shadow DOM Support and Limitations
+
+- For elements inside Shadow DOM, Access Nexus uses ARIA attributes and native properties to estimate accessible name, role, and description.
+- This may not match the computed accessibility tree shown in Chrome DevTools, and may miss browser-internal accessibility calculations.
+- For elements in the main document, full accessibility info is retrieved using the Chrome Debugger Protocol.
+- Due to Chrome’s architecture, extensions cannot access the full computed accessibility tree for shadow DOM elements.

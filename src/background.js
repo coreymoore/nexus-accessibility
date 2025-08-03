@@ -190,9 +190,61 @@ async function getAccessibleInfo(tabId, selector) {
   await chrome.debugger.detach({ tabId });
   let role = "(no role)";
   let name = "(no accessible name)";
+  let description = "(no description)";
   if (nodes && nodes.length) {
     if (nodes[0].role && nodes[0].role.value) role = nodes[0].role.value;
     if (nodes[0].name && nodes[0].name.value) name = nodes[0].name.value;
+    if (nodes[0].description && nodes[0].description.value)
+      description = nodes[0].description.value;
   }
-  return { role, name };
+  return { role, name, description };
 }
+
+chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
+  if (msg.action === "getAccessibleInfoByPath") {
+    const tabId = sender.tab.id;
+    try {
+      await chrome.debugger.attach({ tabId }, "1.3");
+      await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
+      const { root } = await chrome.debugger.sendCommand(
+        { tabId },
+        "DOM.getDocument",
+        { depth: -1, pierce: true }
+      );
+      let nodeId = root.nodeId;
+      let current = root;
+      for (const idx of msg.elementPath) {
+        const { node } = await chrome.debugger.sendCommand(
+          { tabId },
+          "DOM.describeNode",
+          { nodeId }
+        );
+        if (!node.children || node.children.length <= idx) {
+          throw new Error("Path out of bounds");
+        }
+        // children is an array of node objects, not node IDs
+        nodeId = node.children[idx].nodeId;
+      }
+      // Now nodeId is the target element
+      const { nodes } = await chrome.debugger.sendCommand(
+        { tabId },
+        "Accessibility.getPartialAXTree",
+        { nodeId, fetchRelatives: false }
+      );
+      await chrome.debugger.detach({ tabId });
+      let role = "(no role)";
+      let name = "(no accessible name)";
+      let description = "(no description)";
+      if (nodes && nodes.length) {
+        if (nodes[0].role && nodes[0].role.value) role = nodes[0].role.value;
+        if (nodes[0].name && nodes[0].name.value) name = nodes[0].name.value;
+        if (nodes[0].description && nodes[0].description.value)
+          description = nodes[0].description.value;
+      }
+      sendResponse({ role, name, description });
+    } catch (e) {
+      sendResponse({ error: e.message });
+    }
+    return true; // async
+  }
+});
