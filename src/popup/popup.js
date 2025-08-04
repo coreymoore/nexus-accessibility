@@ -53,8 +53,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updateToggleLabel(isEnabled) {
     toggleLabel.textContent = isEnabled
-      ? "Disable Nexus Inspector"
-      : "Enable Nexus Inspector";
+      ? "Nexus Inspector Enabled"
+      : "Nexus Inspector Disabled";
   }
 
   // Update page info

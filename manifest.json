@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Access Nexus",
+  "name": "Nexus Accessibility Testing Toolkit",
   "version": "1.0",
-  "description": "View accessibility information of elements.",
+  "description": "Nexus Accessibility Testing Toolkit: A Chrome extension for accessibility inspection and testing.",
   "permissions": ["activeTab", "scripting", "debugger", "storage"],
   "host_permissions": ["<all_urls>"],
   "background": {
