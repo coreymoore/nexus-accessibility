@@ -50,9 +50,29 @@ Contributions not currently welcome. However, you may open an issue for any enha
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 
+## Privacy
+
+This extension does not collect or transmit any user data. All accessibility inspection happens locally in your browser:
+- No analytics or tracking
+- No data collection
+- No remote servers
+- No user information storage
+- All processing happens locally on your device
+
 ## Shadow DOM Support and Limitations
 
 - For elements inside Shadow DOM, Access Nexus uses ARIA attributes and native properties to estimate accessible name, role, and description.
 - This may not match the computed accessibility tree shown in Chrome DevTools, and may miss browser-internal accessibility calculations.
 - For elements in the main document, full accessibility info is retrieved using the Chrome Debugger Protocol.
 - Due to Chrome’s architecture, extensions cannot access the full computed accessibility tree for shadow DOM elements.
+
+## AI Disclosure
+
+This project was developed with assistance from GitHub Copilot and other AI tools. Specifically:
+
+- Code structure and implementations were partially generated and refined using GitHub Copilot
+- Documentation and instructions were enhanced with AI assistance
+- No training data was collected from users
+- All AI-generated content was reviewed and verified by human developers
+
+While AI tools were used to accelerate development, all code and functionality is thoroughly tested to ensure reliability and accuracy for accessibility testing purposes.
