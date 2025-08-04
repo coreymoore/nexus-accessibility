@@ -1,38 +1,46 @@
-# Access Nexus
+# Nexus Accessibility Testing Toolkit
 
-This extension provides a user-friendly interface to view accessibility information of elements, making it easier for developers and testers to know how elements will be announced by screen readers.
+A Chrome extension for real-time accessibility inspection and testing. This toolkit provides developers and QA teams with instant feedback about accessibility properties, ARIA attributes, and screen reader output of any focused element.
 
-It uses the Chrome DevTools Protocol to access the accessibility properties of elements for more accuracy to how they are exposed to assistive technologies.
-
-This is an early release and not feature complete.
+This is an early release and not feature complete. Some accessibility properties do not properly display. This is a known issue and will be resolved before official release.
 
 ## Features
 
-- View the name, role, values, and states of elements in keyboard focus.
+- Real-time accessibility inspection of focused elements
+- Screen reader output preview
+- ARIA attributes and states inspection
+- Keyboard shortcuts for quick access
+- Mini mode for compact display
+- High contrast UI design
+
+## Keyboard Shortcuts
+
+- `Esc` - Close inspector
+- `Shift` + `Esc` - Reopen inspector
+- `Alt` + `[` - Focus inspector
 
 ## Installation
 
-1. Clone the repository:
+1. Download the code:
 
-   ```
-   git clone https://github.com/coreymoore/access-nexus.git
-   ```
+   - Click the green "Code" button above
+   - Select "Download ZIP"
+   - Extract the ZIP file to a location on your computer
 
-2. Navigate to the project directory:
+2. Open Chrome and navigate to `chrome://extensions`.
 
-   ```
-   cd access-nexus
-   ```
+3. Enable "Developer mode" in the top right corner.
 
-3. Open Chrome and go to `chrome://extensions/`.
-
-4. Enable "Developer mode" in the top right corner.
-
-5. Click on "Load unpacked" and select the `access-nexus` directory.
+4. Click on "Load unpacked" and select the `access-nexus` directory.
 
 ## Usage
 
-TODO. Press the tab key.
+Focus any element on the page to see its accessibility information. The toolkit will display:
+
+- Screen reader output
+- ARIA attributes and states
+- Role and name
+- Other relevant accessibility properties
 
 ## Contributing
 
