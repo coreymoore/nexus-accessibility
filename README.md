@@ -2,7 +2,17 @@
 
 A Chrome extension for real-time accessibility inspection and testing. This toolkit provides developers and QA teams with instant feedback about accessibility properties, ARIA attributes, and screen reader output of any focused element.
 
-This is an early release and not feature complete. Some accessibility properties do not properly display. This is a known issue and will be resolved before official release.
+This is an early release and not feature complete.
+
+## Known Issues
+
+These will be resolved before official release.
+
+- Some accessibility properties do not properly display.
+- Potential access barriers on the tooltip or extension menu, as full accessibility testing has not yet been completed. I did try to minimize as many barriers as possible during development but I used a very quick iterative process and may have missed some.
+- The focus order of the close button in the tooltip is not correct.
+- I think there may not be enough contrast for the ARIA attributes section text?
+- The code is a bit spaghetti at this time. The plan is to go back and refine it manually before release.
 
 ## Features
 
@@ -53,6 +63,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ## Privacy
 
 This extension does not collect or transmit any user data. All accessibility inspection happens locally in your browser:
+
 - No analytics or tracking
 - No data collection
 - No remote servers
