@@ -10,10 +10,28 @@ class Tooltip {
     this.tooltip = null;
     this.connector = null;
     this.miniMode = false;
+    this._mutObserver = null;
+    this._isHiding = false;
     chrome.storage.sync.get({ miniMode: false }, (data) => {
       this.miniMode = !!data.miniMode;
     });
     this._registerShortcut();
+    // Listen for miniMode changes from popup once
+    if (!window.chromeAxMiniModeListenerRegistered) {
+      chrome.runtime.onMessage.addListener((msg) => {
+        if (msg && typeof msg.miniMode === "boolean") {
+          this.miniMode = msg.miniMode;
+          if (this.tooltip && this.tooltip.style.display === "block") {
+            this.showTooltip(
+              this._lastInfo,
+              this._lastTarget,
+              this._lastOptions
+            );
+          }
+        }
+      });
+      window.chromeAxMiniModeListenerRegistered = true;
+    }
   }
 
   ensureStylesInjected() {
@@ -207,6 +225,8 @@ class Tooltip {
     this.tooltip.style.position = "fixed";
     this.tooltip.style.left = "-9999px";
     this.tooltip.style.top = "-9999px";
+    this.tooltip.style.setProperty("z-index", "2147483648", "important");
+    this.tooltip.style.setProperty("display", "block", "important");
     document.body.appendChild(this.tooltip);
     this.tooltip.style.display = "block";
 
@@ -368,16 +388,24 @@ class Tooltip {
     this.tooltip.style.position = "fixed";
     this.tooltip.style.top = `${top - window.scrollY}px`;
     this.tooltip.style.left = `${left - window.scrollX}px`;
+
+    // Start observing DOM to prevent external removals
+    this._ensureObserver();
   }
 
   hideTooltip({ onRefocus } = {}) {
-    if (this.tooltip && this.tooltip.parentNode) {
-      this.tooltip.parentNode.removeChild(this.tooltip);
-      this.tooltip = null;
-    }
-    if (this.connector && this.connector.parentNode) {
-      this.connector.parentNode.removeChild(this.connector);
-      this.connector = null;
+    this._isHiding = true;
+    try {
+      if (this.tooltip && this.tooltip.parentNode) {
+        this.tooltip.parentNode.removeChild(this.tooltip);
+        this.tooltip = null;
+      }
+      if (this.connector && this.connector.parentNode) {
+        this.connector.parentNode.removeChild(this.connector);
+        this.connector = null;
+      }
+    } finally {
+      this._isHiding = false;
     }
     if (onRefocus) onRefocus();
   }
@@ -444,6 +472,33 @@ class Tooltip {
         true
       );
       window.chromeAxTooltipShortcutRegistered = true;
+    }
+  }
+
+  _ensureObserver() {
+    if (this._mutObserver) return;
+    try {
+      this._mutObserver = new MutationObserver(() => {
+        if (this._isHiding) return; // do not auto-restore during intentional hide
+        this._restoreIfDetached();
+      });
+      this._mutObserver.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+      });
+    } catch (e) {
+      // ignore if observer can't start
+    }
+  }
+
+  _restoreIfDetached() {
+    if (this.tooltip && !document.documentElement.contains(this.tooltip)) {
+      document.body.appendChild(this.tooltip);
+      this.tooltip.style.setProperty("display", "block", "important");
+      this.tooltip.style.zIndex = "2147483648";
+    }
+    if (this.connector && !document.documentElement.contains(this.connector)) {
+      document.body.appendChild(this.connector);
     }
   }
 }
