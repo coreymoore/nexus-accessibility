@@ -24,15 +24,7 @@ function showTooltip(info, target) {
   ) {
     window.chromeAxTooltip.showTooltip(info, target, {
       onClose: () => {
-        if (!extensionEnabled) return;
-        window.chromeAxTooltip.hideTooltip({
-          onRefocus: () => {
-            if (inspectedElement) {
-              suppressNextFocusIn = true;
-              inspectedElement.focus();
-            }
-          },
-        });
+        window.chromeAxTooltip.hideTooltip();
       },
       enabled: () => extensionEnabled,
     });
@@ -44,19 +36,15 @@ function hideTooltip() {
     window.chromeAxTooltip &&
     typeof window.chromeAxTooltip.hideTooltip === "function"
   ) {
-    window.chromeAxTooltip.hideTooltip({
-      onRefocus: () => {
-        if (inspectedElement) {
-          suppressNextFocusIn = true;
-          inspectedElement.focus();
-        }
-      },
-    });
+    window.chromeAxTooltip.hideTooltip();
   }
 }
 
 // Cache for successful accessibility info lookups
 const accessibilityCache = new WeakMap();
+// New: track in-flight fetches and debounce timers per element
+const inflightRequests = new WeakMap();
+const refetchTimers = new WeakMap();
 let lastFocusedElement = null;
 let inspectedElement = null;
 let suppressNextFocusIn = false;
@@ -115,16 +103,24 @@ const observer = new MutationObserver((mutations) => {
       // Clear cache for this element to force fresh data
       accessibilityCache.delete(lastFocusedElement);
 
-      // Re-fetch accessibility info when any ARIA attribute changes
-      getAccessibleInfo(lastFocusedElement, true)
-        .then((info) => {
-          if (lastFocusedElement === mutation.target) {
-            showTooltip(info, lastFocusedElement);
-          }
-        })
-        .catch((error) => {
-          console.error("Error updating tooltip:", error);
-        });
+      // New: debounce re-fetch to prevent overlapping requests
+      const target = lastFocusedElement;
+      if (target) {
+        const prevTimer = refetchTimers.get(target);
+        if (prevTimer) clearTimeout(prevTimer);
+        const timer = setTimeout(() => {
+          getAccessibleInfo(target, true)
+            .then((info) => {
+              if (lastFocusedElement === target) {
+                showTooltip(info, target);
+              }
+            })
+            .catch((error) => {
+              console.error("Error updating tooltip:", error);
+            });
+        }, 150);
+        refetchTimers.set(target, timer);
+      }
     }
   });
 });
@@ -179,6 +175,13 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
               reject(chrome.runtime.lastError);
               return;
             }
+            // Treat structured error responses from background as failures
+            if (response && response.error) {
+              const err = new Error(response.error);
+              if (response.errorCode) err.code = response.errorCode;
+              reject(err);
+              return;
+            }
             resolve(response);
           }
         );
@@ -216,6 +219,8 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
       }
     } catch (error) {
       console.log(`Attempt ${attempt + 1} failed:`, error);
+      // Do NOT abort on debugger-attached errors; keep retrying to allow final result
+      // Previously we threw on "Another debugger is already attached"; now we backoff and continue
       if (attempt < maxAttempts - 1) {
         await new Promise((resolve) => setTimeout(resolve, 200));
       }
@@ -243,6 +248,12 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
             reject(chrome.runtime.lastError);
             return;
           }
+          if (response && response.error) {
+            const err = new Error(response.error);
+            if (response.errorCode) err.code = response.errorCode;
+            reject(err);
+            return;
+          }
           resolve(response);
         }
       );
@@ -257,6 +268,7 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
   }
 }
 
+// New: coalesce concurrent calls per element
 async function getAccessibleInfo(target, forceUpdate = false) {
   console.log(
     "getAccessibleInfo called with:",
@@ -265,80 +277,163 @@ async function getAccessibleInfo(target, forceUpdate = false) {
     forceUpdate
   );
 
-  // Check cache first, unless forceUpdate is true
-  if (!forceUpdate) {
-    const cached = accessibilityCache.get(target);
-    if (
-      cached &&
-      cached.role !== "(no role)" &&
-      cached.name !== "(no accessible name)"
-    ) {
-      console.log("Using cached accessibility info:", cached);
-      return cached;
-    }
+  const existing = inflightRequests.get(target);
+  if (existing) {
+    return existing;
   }
 
-  if (isInShadowRoot(target)) {
-    console.log("Element is in shadow root, using local info");
-    return getLocalAccessibleInfo(target);
-  }
-
-  try {
-    const info = await waitForAccessibilityUpdate(target);
-
-    console.log("getAccessibleInfo: building return object from", info);
-    const states = { ...(info?.states || {}) };
-    const ariaProperties = { ...(info?.ariaProperties || {}) };
-
-    // Clean up recursive properties and exclude non-essential states
-    delete states.describedby;
-    delete states.url;
-    delete ariaProperties["aria-describedby"];
-
-    const result = {
-      role: info?.role || "(no role)",
-      name: info?.name || "(no accessible name)",
-      description: info?.description || "(no description)",
-      value: info?.value || "(no value)",
-      states,
-      ariaProperties,
-      ignored: info?.ignored || false,
-      ignoredReasons: info?.ignoredReasons || [],
-    };
-
-    // If we got good data, cache it
-    if (
-      result.role !== "(no role)" ||
-      result.name !== "(no accessible name)" ||
-      Object.keys(states).length > 0 ||
-      Object.keys(ariaProperties).length > 0
-    ) {
-      accessibilityCache.set(target, result);
-    } else if (cached) {
-      // If current result is empty but we have cached data, use that
-      console.log("Using cached data instead of empty result");
-      return cached;
+  const promise = (async () => {
+    // Check cache first, unless forceUpdate is true
+    let cached;
+    if (!forceUpdate) {
+      cached = accessibilityCache.get(target);
+      if (
+        cached &&
+        cached.role !== "(no role)" &&
+        cached.name !== "(no accessible name)"
+      ) {
+        console.log("Using cached accessibility info:", cached);
+        showTooltip(cached, target);
+        return cached;
+      }
     }
 
-    console.log("getAccessibleInfo: final result", result);
-    return result;
-  } catch (error) {
-    console.error("Failed to get accessibility info:", error);
-    // If we have cached data, use it instead of falling back to local info
-    if (cached) {
-      console.log("Using cached data after error");
-      return cached;
+    if (isInShadowRoot(target)) {
+      console.log("Element is in shadow root, using local info");
+      const localInfo = getLocalAccessibleInfo(target);
+      showTooltip(localInfo, target);
+      return localInfo;
     }
-    const localInfo = getLocalAccessibleInfo(target);
-    // Cache local info if it has meaningful data
-    if (
-      localInfo.role !== "(no role)" ||
-      localInfo.name !== "(no accessible name)"
-    ) {
-      accessibilityCache.set(target, localInfo);
+
+    // Log the current DOM attribute value for aria-expanded before fetching accessibility info
+    const domExpanded = target.getAttribute("aria-expanded");
+    console.log("DOM aria-expanded value before fetch:", domExpanded);
+
+    try {
+      const info = await waitForAccessibilityUpdate(target);
+
+      // If background returned a structured error object, surface it as an exception
+      if (info && info.error) {
+        const err = new Error(info.error);
+        if (info.errorCode) err.code = info.errorCode;
+        throw err;
+      }
+
+      console.log("getAccessibleInfo: building return object from", info);
+      // Log the accessibility info's expanded state if present
+      if (info && info.states && "expanded" in info.states) {
+        console.log(
+          "Accessibility info.states.expanded:",
+          info.states.expanded
+        );
+      }
+      if (
+        info &&
+        info.ariaProperties &&
+        "aria-expanded" in info.ariaProperties
+      ) {
+        console.log(
+          'Accessibility info.ariaProperties["aria-expanded"]:',
+          info.ariaProperties["aria-expanded"]
+        );
+      }
+      const states = { ...(info?.states || {}) };
+      const ariaProperties = { ...(info?.ariaProperties || {}) };
+
+      // Clean up recursive properties and exclude non-essential states
+      delete states.describedby;
+      delete states.url;
+      delete ariaProperties["aria-describedby"];
+
+      // Normalize expanded state for display
+      let normalizedExpanded = null;
+      if ("expanded" in states) {
+        if (
+          typeof states.expanded === "object" &&
+          states.expanded !== null &&
+          "value" in states.expanded
+        ) {
+          normalizedExpanded = states.expanded.value === true;
+        } else {
+          normalizedExpanded = states.expanded === true;
+        }
+      } else if ("aria-expanded" in ariaProperties) {
+        if (
+          ariaProperties["aria-expanded"] === "true" ||
+          ariaProperties["aria-expanded"] === true
+        ) {
+          normalizedExpanded = true;
+        } else if (
+          ariaProperties["aria-expanded"] === "false" ||
+          ariaProperties["aria-expanded"] === false
+        ) {
+          normalizedExpanded = false;
+        }
+      }
+
+      const result = {
+        role: info?.role || "(no role)",
+        name: info?.name || "(no accessible name)",
+        description: info?.description || "(no description)",
+        value: info?.value || "(no value)",
+        states,
+        ariaProperties,
+        normalizedExpanded,
+        ignored: info?.ignored || false,
+        ignoredReasons: info?.ignoredReasons || [],
+      };
+
+      // Only cache if not a forceUpdate (mutation observer or explicit refresh)
+      if (
+        !forceUpdate &&
+        (result.role !== "(no role)" ||
+          result.name !== "(no accessible name)" ||
+          Object.keys(states).length > 0 ||
+          Object.keys(ariaProperties).length > 0)
+      ) {
+        accessibilityCache.set(target, result);
+      } else if (cached) {
+        // If currIent result is empty but we have cached data, use that
+        console.log("Using cached data instead of empty result");
+        showTooltip(cached, target);
+        return cached;
+      }
+
+      console.log("getAccessibleInfo: final result", result);
+      // Only show tooltip if this is still the focused element
+      if (lastFocusedElement === target) {
+        showTooltip(result, target);
+      }
+      return result;
+    } catch (error) {
+      console.error("Failed to get accessibility info:", error);
+      // Only fallback to cached/local info if all attempts fail
+      const cachedNow = accessibilityCache.get(target);
+      if (cachedNow) {
+        console.log("Using cached data after error");
+        showTooltip(cachedNow, target);
+        return cachedNow;
+      }
+      const localInfo = getLocalAccessibleInfo(target);
+      // Cache local info if it has meaningful data
+      if (
+        localInfo.role !== "(no role)" ||
+        localInfo.name !== "(no accessible name)"
+      ) {
+        accessibilityCache.set(target, localInfo);
+      }
+      // Only show tooltip if this is still the focused element
+      if (lastFocusedElement === target) {
+        showTooltip(localInfo, target);
+      }
+      return localInfo;
+    } finally {
+      inflightRequests.delete(target);
     }
-    return localInfo;
-  }
+  })();
+
+  inflightRequests.set(target, promise);
+  return promise;
 }
 
 function onFocusIn(e) {
@@ -394,25 +489,42 @@ function onFocusOut(e) {
   // Only stop observing when focus leaves document completely
   if (!e.relatedTarget) {
     stopObserving();
+    // Clear pending mutation debounce for this element
+    if (lastFocusedElement) {
+      const t = refetchTimers.get(lastFocusedElement);
+      if (t) clearTimeout(t);
+      refetchTimers.delete(lastFocusedElement);
+    }
     lastFocusedElement = null;
+    // Request background to detach debugger when focus leaves
+    chrome.runtime.sendMessage({ action: "detachDebugger" });
   }
 }
 
 function onKeyDown(e) {
   if (!extensionEnabled) {
-    hideTooltip(lastFocusedElement);
+    hideTooltip();
     return;
   }
   if (e.key === "Escape" && !e.shiftKey) {
-    hideTooltip(lastFocusedElement);
-  } else if (e.key === "Escape" && e.shiftKey && lastFocusedElement) {
-    getAccessibleInfo(lastFocusedElement)
-      .then((info) => {
-        showTooltip(info, lastFocusedElement);
-      })
-      .catch((error) => {
-        console.error("Error showing tooltip:", error);
-      });
+    // Always close tooltip regardless of focus state or element state
+    hideTooltip();
+    // Optionally, clear inspectedElement and lastFocusedElement to prevent re-show
+    inspectedElement = null;
+    lastFocusedElement = null;
+  } else if (e.key === "Escape" && e.shiftKey) {
+    // Reopen tooltip for the currently focused element if possible
+    let target = lastFocusedElement || document.activeElement;
+    if (target && target !== document.body) {
+      lastFocusedElement = target;
+      getAccessibleInfo(target)
+        .then((info) => {
+          showTooltip(info, target);
+        })
+        .catch((error) => {
+          console.error("Error showing tooltip:", error);
+        });
+    }
   }
 }
 
