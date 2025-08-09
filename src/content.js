@@ -57,6 +57,9 @@ function hideTooltip() {
 
 // Cache for successful accessibility info lookups
 const accessibilityCache = new WeakMap();
+// New: track in-flight fetches and debounce timers per element
+const inflightRequests = new WeakMap();
+const refetchTimers = new WeakMap();
 let lastFocusedElement = null;
 let inspectedElement = null;
 let suppressNextFocusIn = false;
@@ -115,16 +118,24 @@ const observer = new MutationObserver((mutations) => {
       // Clear cache for this element to force fresh data
       accessibilityCache.delete(lastFocusedElement);
 
-      // Re-fetch accessibility info when any ARIA attribute changes
-      getAccessibleInfo(lastFocusedElement, true)
-        .then((info) => {
-          if (lastFocusedElement === mutation.target) {
-            showTooltip(info, lastFocusedElement);
-          }
-        })
-        .catch((error) => {
-          console.error("Error updating tooltip:", error);
-        });
+      // New: debounce re-fetch to prevent overlapping requests
+      const target = lastFocusedElement;
+      if (target) {
+        const prevTimer = refetchTimers.get(target);
+        if (prevTimer) clearTimeout(prevTimer);
+        const timer = setTimeout(() => {
+          getAccessibleInfo(target, true)
+            .then((info) => {
+              if (lastFocusedElement === target) {
+                showTooltip(info, target);
+              }
+            })
+            .catch((error) => {
+              console.error("Error updating tooltip:", error);
+            });
+        }, 150);
+        refetchTimers.set(target, timer);
+      }
     }
   });
 });
@@ -179,6 +190,13 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
               reject(chrome.runtime.lastError);
               return;
             }
+            // Treat structured error responses from background as failures
+            if (response && response.error) {
+              const err = new Error(response.error);
+              if (response.errorCode) err.code = response.errorCode;
+              reject(err);
+              return;
+            }
             resolve(response);
           }
         );
@@ -216,6 +234,8 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
       }
     } catch (error) {
       console.log(`Attempt ${attempt + 1} failed:`, error);
+      // Do NOT abort on debugger-attached errors; keep retrying to allow final result
+      // Previously we threw on "Another debugger is already attached"; now we backoff and continue
       if (attempt < maxAttempts - 1) {
         await new Promise((resolve) => setTimeout(resolve, 200));
       }
@@ -243,6 +263,12 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
             reject(chrome.runtime.lastError);
             return;
           }
+          if (response && response.error) {
+            const err = new Error(response.error);
+            if (response.errorCode) err.code = response.errorCode;
+            reject(err);
+            return;
+          }
           resolve(response);
         }
       );
@@ -257,6 +283,7 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
   }
 }
 
+// New: coalesce concurrent calls per element
 async function getAccessibleInfo(target, forceUpdate = false) {
   console.log(
     "getAccessibleInfo called with:",
@@ -265,80 +292,101 @@ async function getAccessibleInfo(target, forceUpdate = false) {
     forceUpdate
   );
 
-  // Check cache first, unless forceUpdate is true
-  if (!forceUpdate) {
-    const cached = accessibilityCache.get(target);
-    if (
-      cached &&
-      cached.role !== "(no role)" &&
-      cached.name !== "(no accessible name)"
-    ) {
-      console.log("Using cached accessibility info:", cached);
-      return cached;
-    }
+  const existing = inflightRequests.get(target);
+  if (existing) {
+    return existing;
   }
 
-  if (isInShadowRoot(target)) {
-    console.log("Element is in shadow root, using local info");
-    return getLocalAccessibleInfo(target);
-  }
-
-  try {
-    const info = await waitForAccessibilityUpdate(target);
-
-    console.log("getAccessibleInfo: building return object from", info);
-    const states = { ...(info?.states || {}) };
-    const ariaProperties = { ...(info?.ariaProperties || {}) };
-
-    // Clean up recursive properties and exclude non-essential states
-    delete states.describedby;
-    delete states.url;
-    delete ariaProperties["aria-describedby"];
-
-    const result = {
-      role: info?.role || "(no role)",
-      name: info?.name || "(no accessible name)",
-      description: info?.description || "(no description)",
-      value: info?.value || "(no value)",
-      states,
-      ariaProperties,
-      ignored: info?.ignored || false,
-      ignoredReasons: info?.ignoredReasons || [],
-    };
-
-    // If we got good data, cache it
-    if (
-      result.role !== "(no role)" ||
-      result.name !== "(no accessible name)" ||
-      Object.keys(states).length > 0 ||
-      Object.keys(ariaProperties).length > 0
-    ) {
-      accessibilityCache.set(target, result);
-    } else if (cached) {
-      // If current result is empty but we have cached data, use that
-      console.log("Using cached data instead of empty result");
-      return cached;
+  const promise = (async () => {
+    // Check cache first, unless forceUpdate is true
+    let cached;
+    if (!forceUpdate) {
+      cached = accessibilityCache.get(target);
+      if (
+        cached &&
+        cached.role !== "(no role)" &&
+        cached.name !== "(no accessible name)"
+      ) {
+        console.log("Using cached accessibility info:", cached);
+        return cached;
+      }
     }
 
-    console.log("getAccessibleInfo: final result", result);
-    return result;
-  } catch (error) {
-    console.error("Failed to get accessibility info:", error);
-    // If we have cached data, use it instead of falling back to local info
-    if (cached) {
-      console.log("Using cached data after error");
-      return cached;
+    if (isInShadowRoot(target)) {
+      console.log("Element is in shadow root, using local info");
+      return getLocalAccessibleInfo(target);
     }
-    const localInfo = getLocalAccessibleInfo(target);
-    // Cache local info if it has meaningful data
-    if (
-      localInfo.role !== "(no role)" ||
-      localInfo.name !== "(no accessible name)"
-    ) {
-      accessibilityCache.set(target, localInfo);
+
+    try {
+      const info = await waitForAccessibilityUpdate(target);
+
+      // If background returned a structured error object, surface it as an exception
+      if (info && info.error) {
+        const err = new Error(info.error);
+        if (info.errorCode) err.code = info.errorCode;
+        throw err;
+      }
+
+      console.log("getAccessibleInfo: building return object from", info);
+      const states = { ...(info?.states || {}) };
+      const ariaProperties = { ...(info?.ariaProperties || {}) };
+
+      // Clean up recursive properties and exclude non-essential states
+      delete states.describedby;
+      delete states.url;
+      delete ariaProperties["aria-describedby"];
+
+      const result = {
+        role: info?.role || "(no role)",
+        name: info?.name || "(no accessible name)",
+        description: info?.description || "(no description)",
+        value: info?.value || "(no value)",
+        states,
+        ariaProperties,
+        ignored: info?.ignored || false,
+        ignoredReasons: info?.ignoredReasons || [],
+      };
+
+      // If we got good data, cache it
+      if (
+        result.role !== "(no role)" ||
+        result.name !== "(no accessible name)" ||
+        Object.keys(states).length > 0 ||
+        Object.keys(ariaProperties).length > 0
+      ) {
+        accessibilityCache.set(target, result);
+      } else if (cached) {
+        // If current result is empty but we have cached data, use that
+        console.log("Using cached data instead of empty result");
+        return cached;
+      }
+
+      console.log("getAccessibleInfo: final result", result);
+      return result;
+    } catch (error) {
+      console.error("Failed to get accessibility info:", error);
+      // Only fallback to cached/local info if all attempts fail
+      const cachedNow = accessibilityCache.get(target);
+      if (cachedNow) {
+        console.log("Using cached data after error");
+        return cachedNow;
+      }
+      const localInfo = getLocalAccessibleInfo(target);
+      // Cache local info if it has meaningful data
+      if (
+        localInfo.role !== "(no role)" ||
+        localInfo.name !== "(no accessible name)"
+      ) {
+        accessibilityCache.set(target, localInfo);
+      }
+      return localInfo;
+    } finally {
+      inflightRequests.delete(target);
     }
-    return localInfo;
-  }
+  })();
+
+  inflightRequests.set(target, promise);
+  return promise;
 }
 
 function onFocusIn(e) {
@@ -394,7 +442,15 @@ function onFocusOut(e) {
   // Only stop observing when focus leaves document completely
   if (!e.relatedTarget) {
     stopObserving();
+    // Clear pending mutation debounce for this element
+    if (lastFocusedElement) {
+      const t = refetchTimers.get(lastFocusedElement);
+      if (t) clearTimeout(t);
+      refetchTimers.delete(lastFocusedElement);
+    }
     lastFocusedElement = null;
+    // Request background to detach debugger when focus leaves
+    chrome.runtime.sendMessage({ action: "detachDebugger" });
   }
 }
 
