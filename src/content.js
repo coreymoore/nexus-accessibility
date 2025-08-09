@@ -24,15 +24,7 @@ function showTooltip(info, target) {
   ) {
     window.chromeAxTooltip.showTooltip(info, target, {
       onClose: () => {
-        if (!extensionEnabled) return;
-        window.chromeAxTooltip.hideTooltip({
-          onRefocus: () => {
-            if (inspectedElement) {
-              suppressNextFocusIn = true;
-              inspectedElement.focus();
-            }
-          },
-        });
+        window.chromeAxTooltip.hideTooltip();
       },
       enabled: () => extensionEnabled,
     });
@@ -44,14 +36,7 @@ function hideTooltip() {
     window.chromeAxTooltip &&
     typeof window.chromeAxTooltip.hideTooltip === "function"
   ) {
-    window.chromeAxTooltip.hideTooltip({
-      onRefocus: () => {
-        if (inspectedElement) {
-          suppressNextFocusIn = true;
-          inspectedElement.focus();
-        }
-      },
-    });
+    window.chromeAxTooltip.hideTooltip();
   }
 }
 
@@ -308,14 +293,21 @@ async function getAccessibleInfo(target, forceUpdate = false) {
         cached.name !== "(no accessible name)"
       ) {
         console.log("Using cached accessibility info:", cached);
+        showTooltip(cached, target);
         return cached;
       }
     }
 
     if (isInShadowRoot(target)) {
       console.log("Element is in shadow root, using local info");
-      return getLocalAccessibleInfo(target);
+      const localInfo = getLocalAccessibleInfo(target);
+      showTooltip(localInfo, target);
+      return localInfo;
     }
+
+    // Log the current DOM attribute value for aria-expanded before fetching accessibility info
+    const domExpanded = target.getAttribute("aria-expanded");
+    console.log("DOM aria-expanded value before fetch:", domExpanded);
 
     try {
       const info = await waitForAccessibilityUpdate(target);
@@ -328,6 +320,23 @@ async function getAccessibleInfo(target, forceUpdate = false) {
       }
 
       console.log("getAccessibleInfo: building return object from", info);
+      // Log the accessibility info's expanded state if present
+      if (info && info.states && "expanded" in info.states) {
+        console.log(
+          "Accessibility info.states.expanded:",
+          info.states.expanded
+        );
+      }
+      if (
+        info &&
+        info.ariaProperties &&
+        "aria-expanded" in info.ariaProperties
+      ) {
+        console.log(
+          'Accessibility info.ariaProperties["aria-expanded"]:',
+          info.ariaProperties["aria-expanded"]
+        );
+      }
       const states = { ...(info?.states || {}) };
       const ariaProperties = { ...(info?.ariaProperties || {}) };
 
@@ -336,6 +345,32 @@ async function getAccessibleInfo(target, forceUpdate = false) {
       delete states.url;
       delete ariaProperties["aria-describedby"];
 
+      // Normalize expanded state for display
+      let normalizedExpanded = null;
+      if ("expanded" in states) {
+        if (
+          typeof states.expanded === "object" &&
+          states.expanded !== null &&
+          "value" in states.expanded
+        ) {
+          normalizedExpanded = states.expanded.value === true;
+        } else {
+          normalizedExpanded = states.expanded === true;
+        }
+      } else if ("aria-expanded" in ariaProperties) {
+        if (
+          ariaProperties["aria-expanded"] === "true" ||
+          ariaProperties["aria-expanded"] === true
+        ) {
+          normalizedExpanded = true;
+        } else if (
+          ariaProperties["aria-expanded"] === "false" ||
+          ariaProperties["aria-expanded"] === false
+        ) {
+          normalizedExpanded = false;
+        }
+      }
+
       const result = {
         role: info?.role || "(no role)",
         name: info?.name || "(no accessible name)",
@@ -343,25 +378,32 @@ async function getAccessibleInfo(target, forceUpdate = false) {
         value: info?.value || "(no value)",
         states,
         ariaProperties,
+        normalizedExpanded,
         ignored: info?.ignored || false,
         ignoredReasons: info?.ignoredReasons || [],
       };
 
-      // If we got good data, cache it
+      // Only cache if not a forceUpdate (mutation observer or explicit refresh)
       if (
-        result.role !== "(no role)" ||
-        result.name !== "(no accessible name)" ||
-        Object.keys(states).length > 0 ||
-        Object.keys(ariaProperties).length > 0
+        !forceUpdate &&
+        (result.role !== "(no role)" ||
+          result.name !== "(no accessible name)" ||
+          Object.keys(states).length > 0 ||
+          Object.keys(ariaProperties).length > 0)
       ) {
         accessibilityCache.set(target, result);
       } else if (cached) {
-        // If current result is empty but we have cached data, use that
+        // If currIent result is empty but we have cached data, use that
         console.log("Using cached data instead of empty result");
+        showTooltip(cached, target);
         return cached;
       }
 
       console.log("getAccessibleInfo: final result", result);
+      // Only show tooltip if this is still the focused element
+      if (lastFocusedElement === target) {
+        showTooltip(result, target);
+      }
       return result;
     } catch (error) {
       console.error("Failed to get accessibility info:", error);
@@ -369,6 +411,7 @@ async function getAccessibleInfo(target, forceUpdate = false) {
       const cachedNow = accessibilityCache.get(target);
       if (cachedNow) {
         console.log("Using cached data after error");
+        showTooltip(cachedNow, target);
         return cachedNow;
       }
       const localInfo = getLocalAccessibleInfo(target);
@@ -378,6 +421,10 @@ async function getAccessibleInfo(target, forceUpdate = false) {
         localInfo.name !== "(no accessible name)"
       ) {
         accessibilityCache.set(target, localInfo);
+      }
+      // Only show tooltip if this is still the focused element
+      if (lastFocusedElement === target) {
+        showTooltip(localInfo, target);
       }
       return localInfo;
     } finally {
@@ -456,19 +503,28 @@ function onFocusOut(e) {
 
 function onKeyDown(e) {
   if (!extensionEnabled) {
-    hideTooltip(lastFocusedElement);
+    hideTooltip();
     return;
   }
   if (e.key === "Escape" && !e.shiftKey) {
-    hideTooltip(lastFocusedElement);
-  } else if (e.key === "Escape" && e.shiftKey && lastFocusedElement) {
-    getAccessibleInfo(lastFocusedElement)
-      .then((info) => {
-        showTooltip(info, lastFocusedElement);
-      })
-      .catch((error) => {
-        console.error("Error showing tooltip:", error);
-      });
+    // Always close tooltip regardless of focus state or element state
+    hideTooltip();
+    // Optionally, clear inspectedElement and lastFocusedElement to prevent re-show
+    inspectedElement = null;
+    lastFocusedElement = null;
+  } else if (e.key === "Escape" && e.shiftKey) {
+    // Reopen tooltip for the currently focused element if possible
+    let target = lastFocusedElement || document.activeElement;
+    if (target && target !== document.body) {
+      lastFocusedElement = target;
+      getAccessibleInfo(target)
+        .then((info) => {
+          showTooltip(info, target);
+        })
+        .catch((error) => {
+          console.error("Error showing tooltip:", error);
+        });
+    }
   }
 }
 
