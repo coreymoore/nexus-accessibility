@@ -28,12 +28,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const toggleInput = document.getElementById("toggle-extension");
   const toggleLabel = document.getElementById("toggle-label");
+  const miniModeInput = document.getElementById("toggle-mini-mode");
+  const miniModeLabel = document.getElementById("mini-mode-label");
 
   // Get initial state
-  chrome.storage.sync.get({ extensionEnabled: true }, (data) => {
-    toggleInput.checked = data.extensionEnabled;
-    updateToggleLabel(data.extensionEnabled);
-  });
+  chrome.storage.sync.get(
+    { extensionEnabled: true, miniMode: false },
+    (data) => {
+      toggleInput.checked = data.extensionEnabled;
+      updateToggleLabel(data.extensionEnabled);
+      miniModeInput.checked = data.miniMode;
+      updateMiniModeLabel(data.miniMode);
+    }
+  );
 
   // Handle toggle changes
   toggleInput.addEventListener("change", (e) => {
@@ -51,10 +58,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  miniModeInput.addEventListener("change", (e) => {
+    const miniMode = e.target.checked;
+    chrome.storage.sync.set({ miniMode });
+    updateMiniModeLabel(miniMode);
+    // Send message to content script to update mini mode
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          miniMode,
+        });
+      }
+    });
+  });
+
   function updateToggleLabel(isEnabled) {
     toggleLabel.textContent = isEnabled
       ? "Nexus Inspector Enabled"
       : "Nexus Inspector Disabled";
+  }
+
+  function updateMiniModeLabel(miniMode) {
+    miniModeLabel.textContent = miniMode ? "Mini Mode (On)" : "Mini Mode (Off)";
   }
 
   // Update page info

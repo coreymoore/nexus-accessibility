@@ -9,6 +9,10 @@ class Tooltip {
       (() => {});
     this.tooltip = null;
     this.connector = null;
+    this.miniMode = false;
+    chrome.storage.sync.get({ miniMode: false }, (data) => {
+      this.miniMode = !!data.miniMode;
+    });
     this._registerShortcut();
   }
 
@@ -125,6 +129,10 @@ class Tooltip {
   }
 
   showTooltip(info, target, { onClose, enabled }) {
+    // Store last info for mini mode toggle
+    this._lastInfo = info;
+    this._lastTarget = target;
+    this._lastOptions = { onClose, enabled };
     this.ensureStylesInjected();
     if (!info) return;
     if (this.tooltip) this.tooltip.remove();
@@ -173,16 +181,26 @@ class Tooltip {
         <span><kbd>Esc</kbd> Close</span>
         <span><kbd>Shift</kbd>+<kbd>Esc</kbd> Reopen</span>
         <span><kbd>Alt</kbd>+<kbd>[</kbd> Inspector</span>
+        <span><kbd>Alt</kbd>+<kbd>M</kbd> Toggle Mini Mode</span>
       </div>
     `;
 
-    // Compose the full tooltip content (can be customized for mini mode)
-    const tooltipContent = `
-      ${closeButtonHtml}
-      ${screenReaderSection}
-      ${propertiesSection}
-      ${keysSection}
-    `;
+    // Compose the tooltip content based on miniMode
+    let tooltipContent;
+    if (this.miniMode) {
+      tooltipContent = `
+        ${closeButtonHtml}
+        ${screenReaderSection}
+        ${keysSection}
+      `;
+    } else {
+      tooltipContent = `
+        ${closeButtonHtml}
+        ${screenReaderSection}
+        ${propertiesSection}
+        ${keysSection}
+      `;
+    }
     this.tooltip.innerHTML = tooltipContent;
 
     // Position offscreen to measure
@@ -369,6 +387,7 @@ class Tooltip {
       document.addEventListener(
         "keydown",
         (e) => {
+          // Alt+[ shortcut for focusing screen reader section
           if (
             e.altKey &&
             !e.shiftKey &&
@@ -385,6 +404,42 @@ class Tooltip {
               e.stopPropagation();
             }
           }
+          // Alt+M shortcut for toggling mini mode
+          if (
+            e.altKey &&
+            !e.shiftKey &&
+            !e.ctrlKey &&
+            !e.metaKey &&
+            e.code === "KeyM"
+          ) {
+            this.miniMode = !this.miniMode;
+            chrome.storage.sync.set({ miniMode: this.miniMode });
+            if (this.tooltip && this.tooltip.style.display === "block") {
+              // Re-render tooltip in new mode
+              if (this._lastInfo && this._lastTarget && this._lastOptions) {
+                this.showTooltip(
+                  this._lastInfo,
+                  this._lastTarget,
+                  this._lastOptions
+                );
+              }
+            }
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          // Listen for miniMode changes from popup
+          chrome.runtime.onMessage.addListener((msg) => {
+            if (msg && typeof msg.miniMode === "boolean") {
+              this.miniMode = msg.miniMode;
+              if (this.tooltip && this.tooltip.style.display === "block") {
+                this.showTooltip(
+                  this._lastInfo,
+                  this._lastTarget,
+                  this._lastOptions
+                );
+              }
+            }
+          });
         },
         true
       );
