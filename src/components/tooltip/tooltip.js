@@ -47,26 +47,31 @@ class Tooltip {
   getScreenReaderOutput(info) {
     // Base: role, name, description
     const base = [];
-    base.push(info.role);
-    if (info.name && info.name !== "(no accessible name)") base.push(info.name);
+    if (info.role) base.push(`<span class=\"sr-role\">${info.role}</span>`);
+    if (info.name && info.name !== "(no accessible name)")
+      base.push(`<span class=\"sr-name\">${info.name}</span>`);
     if (info.description && info.description !== "(no description)")
-      base.push(info.description);
+      base.push(`<span class=\"sr-desc\">${info.description}</span>`);
 
-    // Extras: states, aria-derived states, group
+    // Extras: states, aria-derived states, group, value, required
     const extras = [];
     if (info.ariaProperties || info.states) {
       if (info.ariaProperties && "aria-expanded" in info.ariaProperties) {
         extras.push(
-          info.ariaProperties["aria-expanded"] === "true"
-            ? "expanded"
-            : "collapsed"
+          `<span class=\"sr-state\">${
+            info.ariaProperties["aria-expanded"] === "true"
+              ? "expanded"
+              : "collapsed"
+          }</span>`
         );
       }
       if (info.ariaProperties && "aria-pressed" in info.ariaProperties) {
         extras.push(
-          info.ariaProperties["aria-pressed"] === "true"
-            ? "pressed"
-            : "not pressed"
+          `<span class=\"sr-state\">${
+            info.ariaProperties["aria-pressed"] === "true"
+              ? "pressed"
+              : "not pressed"
+          }</span>`
         );
       }
       if (info.states && "checked" in info.states) {
@@ -74,41 +79,41 @@ class Tooltip {
         if (checked && typeof checked === "object" && "value" in checked) {
           checked = checked.value;
         }
-        console.debug(
-          "[AX Tooltip] checked value:",
-          checked,
-          "type:",
-          typeof checked
-        );
         if (checked === true || checked === "true") {
-          extras.push("checked");
+          extras.push(`<span class=\"sr-state\">checked</span>`);
         } else if (checked === false || checked === "false") {
-          extras.push("unchecked");
+          extras.push(`<span class=\"sr-state\">unchecked</span>`);
         } else if (checked === "mixed") {
-          extras.push("mixed");
+          extras.push(`<span class=\"sr-state\">mixed</span>`);
         } else {
-          extras.push("unchecked");
+          extras.push(`<span class=\"sr-state\">unchecked</span>`);
         }
       }
       if (info.states) {
-        if (info.states.disabled === true) extras.push("disabled");
+        if (info.states.disabled === true)
+          extras.push(`<span class=\"sr-state\">disabled</span>`);
         const ariaReq =
           info.ariaProperties &&
           (info.ariaProperties["aria-required"] === true ||
             info.ariaProperties["aria-required"] === "true");
-        if (info.states.required === true || ariaReq) extras.push("required");
-        if (info.states.invalid === true) extras.push("invalid");
+        if (info.states.required === true || ariaReq)
+          extras.push(`<span class=\"sr-required\">required</span>`);
+        if (info.states.invalid === true)
+          extras.push(`<span class=\"sr-state\">invalid</span>`);
       }
     }
-    // Include current value if present (raw value only)
+    // Value
     if (info.value && info.value !== "(no value)") {
-      extras.push(String(info.value));
+      extras.push(`<span class=\"sr-value\">${String(info.value)}</span>`);
     }
+    // Group
     if (info.group && info.group.role) {
       if (info.group.label) {
-        extras.push(`${info.group.role}, ${info.group.label}`);
+        extras.push(
+          `<span class=\"sr-group\">${info.group.role}, ${info.group.label}</span>`
+        );
       } else {
-        extras.push(info.group.role);
+        extras.push(`<span class=\"sr-group\">${info.group.role}</span>`);
       }
     }
 

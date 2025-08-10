@@ -1,3 +1,25 @@
+/* All colors below pass WCAG AA contrast against #F1EDFE */
+.sr-role {
+  color: #4b0082; /* indigo */
+}
+.sr-name {
+  color: #005a8d; /* dark blue */
+}
+.sr-desc {
+  color: #007a4d; /* dark green */
+}
+.sr-value {
+  color: #924400; /* dark orange */
+}
+.sr-state {
+  color: #b8002f; /* crimson */
+}
+.sr-required {
+  color: #7c5c00; /* dark gold */
+}
+.sr-group {
+  color: #016060; /* teal */
+}
 /* Tooltip container */
 .chrome-ax-tooltip {
   position: absolute;
