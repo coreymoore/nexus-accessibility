@@ -28,6 +28,9 @@
   "action": {
     "default_popup": "src/popup/popup.html"
   },
+  "icons": {
+    "128": "src/assets/nexus-icon.png"
+  },
   "commands": {
     "_execute_action": {
       "suggested_key": {

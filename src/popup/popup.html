@@ -6,28 +6,85 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <h1>Nexus</h1>
-    <div class="toggle-container">
-      <label class="switch">
-        <input type="checkbox" id="toggle-extension" role="switch" />
-        <span class="slider"></span>
-        <div id="toggle-label">Loading…</div>
-      </label>
-      <label class="switch" style="margin-top: 12px">
-        <input type="checkbox" id="toggle-mini-mode" role="switch" />
-        <span class="slider"></span>
-        <div id="mini-mode-label">Mini Mode</div>
-      </label>
-    </div>
-
-    <div id="page-info-section" class="info-container">
-      <h2>Page Information</h2>
-      <dl id="page-info">
-        <dt>Title</dt>
-        <dd id="page-title">Loading…</dd>
-        <dt>Language</dt>
-        <dd id="page-lang">Loading…</dd>
-      </dl>
+    <div class="popup">
+      <h1>
+        <img src="../assets/nexus-logo.svg" alt="Nexus" class="nexus-logo" />
+      </h1>
+      <div role="tablist" aria-label="Nexus Popup Tabs" class="tabs">
+        <button
+          role="tab"
+          aria-selected="true"
+          aria-controls="tabpanel-main"
+          id="tab-main"
+          tabindex="0"
+          class="tab"
+        >
+          Main
+        </button>
+        <button
+          role="tab"
+          aria-selected="false"
+          aria-controls="tabpanel-shortcuts"
+          id="tab-shortcuts"
+          tabindex="-1"
+          class="tab"
+        >
+          Keyboard Shortcuts
+        </button>
+      </div>
+      <div
+        id="tabpanel-main"
+        role="tabpanel"
+        aria-labelledby="tab-main"
+        tabindex="0"
+        class="tabpanel"
+      >
+        <div class="toggle-container">
+          <label class="switch">
+            <input type="checkbox" id="toggle-extension" role="switch" />
+            <span class="slider"></span>
+            <div id="toggle-label">Loading…</div>
+          </label>
+          <label class="switch" style="margin-top: 12px">
+            <input type="checkbox" id="toggle-mini-mode" role="switch" />
+            <span class="slider"></span>
+            <div id="mini-mode-label">Mini Mode</div>
+          </label>
+        </div>
+        <div id="page-info-section" class="info-container">
+          <h2>Page Information</h2>
+          <dl id="page-info">
+            <dt>Title</dt>
+            <dd id="page-title">Loading…</dd>
+            <dt>Language</dt>
+            <dd id="page-lang">Loading…</dd>
+          </dl>
+        </div>
+      </div>
+      <div
+        id="tabpanel-shortcuts"
+        role="tabpanel"
+        aria-labelledby="tab-shortcuts"
+        tabindex="0"
+        class="tabpanel"
+        hidden
+      >
+        <div class="info-container">
+          <h2>Keyboard Shortcuts</h2>
+          <dl class="chrome-ax-tooltip-keys">
+            <dt><kbd>Alt</kbd>+<kbd>X</kbd></dt>
+            <dd>Open Nexus panel</dd>
+            <dt><kbd>Esc</kbd></dt>
+            <dd>Close tooltip</dd>
+            <dt><kbd>Shift</kbd>+<kbd>Esc</kbd></dt>
+            <dd>Reopen tooltip for focused element</dd>
+            <dt><kbd>Alt</kbd>+<kbd>[</kbd></dt>
+            <dd>Enter Inspector</dd>
+            <dt><kbd>Alt</kbd>+<kbd>M</kbd></dt>
+            <dd>Toggle Mini Mode</dd>
+          </dl>
+        </div>
+      </div>
     </div>
     <script src="popup.js"></script>
   </body>

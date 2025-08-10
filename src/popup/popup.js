@@ -91,4 +91,38 @@ document.addEventListener("DOMContentLoaded", () => {
       lang.textContent = document.documentElement?.lang || "Not specified";
     }
   });
+
+  // Accessible Tabs Logic (WAI-ARIA APG)
+  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+  const panels = Array.from(document.querySelectorAll('[role="tabpanel"]'));
+  function activateTab(tab) {
+    tabs.forEach((t, i) => {
+      const selected = t === tab;
+      t.setAttribute("aria-selected", selected ? "true" : "false");
+      t.tabIndex = selected ? 0 : -1;
+      panels[i].hidden = !selected;
+    });
+    tab.focus();
+  }
+  tabs.forEach((tab, i) => {
+    tab.addEventListener("click", () => activateTab(tab));
+    tab.addEventListener("keydown", (e) => {
+      let idx = tabs.indexOf(tab);
+      if (e.key === "ArrowRight" || e.key === "Right") {
+        e.preventDefault();
+        activateTab(tabs[(idx + 1) % tabs.length]);
+      } else if (e.key === "ArrowLeft" || e.key === "Left") {
+        e.preventDefault();
+        activateTab(tabs[(idx - 1 + tabs.length) % tabs.length]);
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        activateTab(tabs[0]);
+      } else if (e.key === "End") {
+        e.preventDefault();
+        activateTab(tabs[tabs.length - 1]);
+      }
+    });
+  });
+  // Activate first tab by default
+  activateTab(tabs[0]);
 });

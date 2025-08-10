@@ -194,29 +194,18 @@ class Tooltip {
       propertiesSection = propertiesList;
     }
 
-    const keysSection = `
-      <div class="chrome-ax-tooltip-keys">
-        <span><kbd>Esc</kbd> Close</span>
-        <span><kbd>Shift</kbd>+<kbd>Esc</kbd> Reopen</span>
-        <span><kbd>Alt</kbd>+<kbd>[</kbd> Inspector</span>
-        <span><kbd>Alt</kbd>+<kbd>M</kbd> Toggle Mini Mode</span>
-      </div>
-    `;
-
     // Compose the tooltip content based on miniMode
     let tooltipContent;
     if (this.miniMode) {
       tooltipContent = `
         ${closeButtonHtml}
         ${screenReaderSection}
-        ${keysSection}
       `;
     } else {
       tooltipContent = `
         ${closeButtonHtml}
         ${screenReaderSection}
         ${propertiesSection}
-        ${keysSection}
       `;
     }
     this.tooltip.innerHTML = tooltipContent;

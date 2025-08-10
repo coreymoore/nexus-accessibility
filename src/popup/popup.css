@@ -1,52 +1,82 @@
+/* Add spacing below the toggle-container for mini mode */
+.toggle-container {
+  margin-bottom: 20px;
+}
+/* Keyboard shortcut styles copied from tooltip */
+.chrome-ax-tooltip-keys kbd {
+  display: inline-block;
+  font-family: inherit;
+  font-size: 11px;
+  background: #f3f0fa;
+  border: 1px solid #d1c4e9;
+  border-radius: 4px;
+  box-shadow: 0 1px 1px rgba(104, 58, 183, 0.07);
+  padding: 1px 5px 1px 5px;
+  margin: 0 1px 0 0;
+  color: #683ab7;
+  font-weight: 600;
+  line-height: 1.1;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.nexus-logo {
+  height: 20px;
+  width: auto;
+  display: block;
+  margin: 0 auto 2px auto;
+}
 body {
-  width: 320px;
-  padding: 16px;
+  width: 100%;
   margin: 0;
+}
+
+.popup {
+  padding: 10px;
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.99),
     rgba(249, 245, 255, 0.97)
   );
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
-    sans-serif;
-  color: #2d1958;
-  font-size: 14px;
-  letter-spacing: -0.011em;
-}
-
-h1 {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0 0 16px 0;
-  color: #2d1958;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-h1 svg {
-  width: 20px;
-  height: 20px;
-  color: #683ab7;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui;
+  min-width: 320px;
+  min-height: 320px;
+  margin: 0 auto;
 }
 
 h2 {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
   color: #2d1958;
+  margin: 0 0 12px 0;
 }
 
-.toggle-container {
-  padding: 12px;
-  background: linear-gradient(
-    to bottom,
-    rgba(245, 241, 255, 0.9),
-    rgba(237, 231, 254, 0.9)
-  );
-  border-radius: 8px;
-  margin-bottom: 16px;
-  box-shadow: inset 0 0 0 1px rgba(104, 58, 183, 0.2);
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 4px;
+}
+.tabs button {
+  flex: 1;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.tabs button[aria-selected="true"] {
+  border-bottom: 2px solid #2d1958;
+  font-weight: bold;
+}
+.tabpanel {
+  margin-top: 8px;
+  padding: 6px 4px;
+}
+.popup-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-align: center;
 }
 
 .info-container {
@@ -68,10 +98,6 @@ button {
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px rgba(104, 58, 183, 0.1);
-}
-
-button:hover {
-  background: #45a049;
 }
 
 button:active {
@@ -174,8 +200,34 @@ input[type="checkbox"] {
   height: 0;
 }
 
+*:focus-visible,
 input[type="checkbox"]:focus-visible + .slider {
-  outline: 2px solid rgba(104, 58, 183, 1);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px white;
+  outline: 2px solid rgba(104, 58, 183, 1) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px white !important;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tab {
+  border: none;
+  border-radius: 6px 6px 0 0;
+  padding: 8px;
+  font-size: 14px;
+  color: #683ab7;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.2s;
+}
+.tab[aria-selected="true"] {
+  background: #fff;
+  color: #2d1958;
+  box-shadow: 0 2px 8px rgba(104, 58, 183, 0.08);
+}
+.tabpanel {
+  margin-bottom: 16px;
 }
