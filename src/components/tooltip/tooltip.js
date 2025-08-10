@@ -151,12 +151,6 @@ class Tooltip {
     }
     // If custom formatter, fallback to HTML string, but append Group if present
     let html = window.formatAccessibilityInfo(accessibilityInfo);
-    if (accessibilityInfo.group && accessibilityInfo.group.role) {
-      const role = accessibilityInfo.group.role;
-      const label = accessibilityInfo.group.label;
-      const groupText = label ? `${role} (${label})` : role;
-      html += `\n<dl><dt>Group</dt><dd>${groupText}</dd></dl>`;
-    }
     return html;
   }
 

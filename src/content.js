@@ -52,6 +52,27 @@ let suppressNextFocusIn = false;
 let extensionEnabled = true;
 let listenersRegistered = false;
 
+// Shared handler for any value-changing events (input/change)
+function onValueChanged(e) {
+  const el = e.target;
+  // Debounce refetches per element to avoid flooding
+  const prev = refetchTimers.get(el);
+  if (prev) clearTimeout(prev);
+  const timer = setTimeout(() => {
+    accessibilityCache.delete(el);
+    getAccessibleInfo(el, true)
+      .then((info) => {
+        if (lastFocusedElement === el) {
+          showTooltip(info, el);
+        }
+      })
+      .catch((err) =>
+        console.error("Error updating tooltip on value change:", err)
+      );
+  }, 100);
+  refetchTimers.set(el, timer);
+}
+
 function registerEventListeners() {
   if (listenersRegistered) return;
   document.addEventListener("focusin", onFocusIn, true);
@@ -144,14 +165,23 @@ const observer = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
     if (
       mutation.type === "attributes" &&
-      mutation.target === lastFocusedElement
+      (mutation.target === lastFocusedElement ||
+        // Also handle attribute changes on <option> elements inside a focused <select>
+        (lastFocusedElement &&
+          lastFocusedElement.tagName === "SELECT" &&
+          mutation.target &&
+          mutation.target.tagName === "OPTION"))
     ) {
       console.log("Attribute changed:", mutation.attributeName);
       // Clear cache for this element to force fresh data
-      accessibilityCache.delete(lastFocusedElement);
+      const targetForUpdate =
+        mutation.target === lastFocusedElement
+          ? lastFocusedElement
+          : lastFocusedElement; // always refetch for the focused select
+      accessibilityCache.delete(targetForUpdate);
 
       // New: debounce re-fetch to prevent overlapping requests
-      const target = lastFocusedElement;
+      const target = targetForUpdate;
       if (target) {
         const prevTimer = refetchTimers.get(target);
         if (prevTimer) clearTimeout(prevTimer);
@@ -174,8 +204,11 @@ const observer = new MutationObserver((mutations) => {
 });
 
 function startObserving(element) {
+  const isSelect = element && element.tagName === "SELECT";
   observer.observe(element, {
     attributes: true,
+    // For <select>, also observe subtree to catch <option selected> attribute toggles
+    subtree: !!isSelect,
     attributeFilter: [
       // ARIA states and properties
       "aria-expanded",
@@ -532,6 +565,18 @@ function onFocusIn(e) {
     return;
   }
   const targetElement = e.target;
+
+  // If we're switching focus between elements, remove value listeners from the previous focused element
+  if (lastFocusedElement && lastFocusedElement !== targetElement) {
+    try {
+      lastFocusedElement.removeEventListener("input", onValueChanged);
+      lastFocusedElement.removeEventListener("change", onValueChanged);
+      lastFocusedElement.removeEventListener("change", onNativeCheckboxChange);
+    } catch {}
+    const t = refetchTimers.get(lastFocusedElement);
+    if (t) clearTimeout(t);
+    refetchTimers.delete(lastFocusedElement);
+  }
   lastFocusedElement = targetElement;
   inspectedElement = targetElement;
 
@@ -567,6 +612,17 @@ function onFocusIn(e) {
   if (targetElement.tagName === "INPUT" && targetElement.type === "checkbox") {
     targetElement.addEventListener("change", onNativeCheckboxChange);
   }
+
+  // Listen for value changes on inputs, textareas, and contenteditable elements
+  const isValueElt =
+    targetElement.tagName === "INPUT" ||
+    targetElement.tagName === "TEXTAREA" ||
+    targetElement.tagName === "SELECT" ||
+    targetElement.isContentEditable === true;
+  if (isValueElt) {
+    targetElement.addEventListener("input", onValueChanged);
+    targetElement.addEventListener("change", onValueChanged);
+  }
 }
 
 function onNativeCheckboxChange(e) {
@@ -592,6 +648,15 @@ function onFocusOut(e) {
       const t = refetchTimers.get(lastFocusedElement);
       if (t) clearTimeout(t);
       refetchTimers.delete(lastFocusedElement);
+      // Remove value listeners on blur-out-of-document
+      try {
+        lastFocusedElement.removeEventListener("input", onValueChanged);
+        lastFocusedElement.removeEventListener("change", onValueChanged);
+        lastFocusedElement.removeEventListener(
+          "change",
+          onNativeCheckboxChange
+        );
+      } catch {}
     }
     lastFocusedElement = null;
     // Request background to detach debugger when focus leaves
