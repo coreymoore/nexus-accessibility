@@ -34,6 +34,82 @@ class Tooltip {
     }
   }
 
+  // Return tabbable elements inside a root container
+  _getFocusableElements(root) {
+    if (!root) return [];
+    const candidates = root.querySelectorAll(
+      [
+        "a[href]",
+        "area[href]",
+        "button:not([disabled])",
+        'input:not([disabled]):not([type="hidden"])',
+        "select:not([disabled])",
+        "textarea:not([disabled])",
+        '[tabindex]:not([tabindex="-1"])',
+      ].join(", ")
+    );
+    const isVisible = (el) => {
+      const style = window.getComputedStyle(el);
+      if (style.visibility === "hidden" || style.display === "none")
+        return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    return Array.from(candidates).filter((el) => isVisible(el));
+  }
+
+  _setupFocusTrap({ onClose, enabled }) {
+    // Remove any previous trap first to avoid duplicates
+    this._removeFocusTrap();
+    this._focusTrapKeydown = (e) => {
+      if (!this.tooltip) return;
+      // Only trap when focus is within the tooltip
+      const active = document.activeElement;
+      const isInside = active && this.tooltip.contains(active);
+      if (!isInside) return;
+      // Handle Escape to close
+      if (e.key === "Escape" || e.key === "Esc" || e.keyCode === 27) {
+        e.preventDefault();
+        try {
+          if (enabled && enabled()) onClose && onClose();
+        } catch {}
+        return;
+      }
+      // Trap Tab navigation inside the tooltip
+      if (e.key === "Tab" || e.keyCode === 9) {
+        const focusables = this._getFocusableElements(this.tooltip);
+        if (focusables.length === 0) {
+          // Keep focus on the tooltip itself if nothing is focusable
+          e.preventDefault();
+          this.tooltip.setAttribute("tabindex", "-1");
+          this.tooltip.focus({ preventScroll: true });
+          return;
+        }
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        // If focus somehow left the list but is still inside, default to first
+        let current = active && focusables.includes(active) ? active : first;
+        const goingBack = !!e.shiftKey;
+        if (!goingBack && current === last) {
+          e.preventDefault();
+          first.focus({ preventScroll: true });
+        } else if (goingBack && current === first) {
+          e.preventDefault();
+          last.focus({ preventScroll: true });
+        }
+      }
+    };
+    // Use capture to catch early and be robust across shadow DOM boundaries
+    document.addEventListener("keydown", this._focusTrapKeydown, true);
+  }
+
+  _removeFocusTrap() {
+    if (this._focusTrapKeydown) {
+      document.removeEventListener("keydown", this._focusTrapKeydown, true);
+      this._focusTrapKeydown = null;
+    }
+  }
+
   ensureStylesInjected() {
     if (document.getElementById("chrome-ax-tooltip-style")) return;
     const link = document.createElement("link");
@@ -243,7 +319,11 @@ class Tooltip {
     this._lastOptions = { onClose, enabled };
     this.ensureStylesInjected();
     if (!info) return;
-    if (this.tooltip) this.tooltip.remove();
+    if (this.tooltip) {
+      // Clean up existing trap/listeners tied to current tooltip instance
+      this._removeFocusTrap();
+      this.tooltip.remove();
+    }
 
     this.tooltip = document.createElement("div");
     this.tooltip.className = "chrome-ax-tooltip";
@@ -470,11 +550,15 @@ class Tooltip {
 
     // Start observing DOM to prevent external removals
     this._ensureObserver();
+
+    // Install focus trap so tab focus is retained within the tooltip once entered
+    this._setupFocusTrap({ onClose, enabled });
   }
 
   hideTooltip({ onRefocus } = {}) {
     this._isHiding = true;
     try {
+      this._removeFocusTrap();
       if (this.tooltip && this.tooltip.parentNode) {
         this.tooltip.parentNode.removeChild(this.tooltip);
         this.tooltip = null;

@@ -24,19 +24,35 @@ function showTooltip(info, target) {
   ) {
     window.chromeAxTooltip.showTooltip(info, target, {
       onClose: () => {
-        window.chromeAxTooltip.hideTooltip();
+        const el = inspectedElement || lastFocusedElement;
+        // Ask tooltip to hide and then restore focus to the inspected element
+        hideTooltip({
+          onRefocus: () => {
+            if (el && typeof el.focus === "function") {
+              suppressNextFocusIn = true;
+              try {
+                el.focus({ preventScroll: true });
+              } catch (e) {
+                try {
+                  el.focus();
+                } catch {}
+              }
+            }
+          },
+        });
       },
       enabled: () => extensionEnabled,
     });
   }
 }
 
-function hideTooltip() {
+function hideTooltip(opts) {
   if (
     window.chromeAxTooltip &&
     typeof window.chromeAxTooltip.hideTooltip === "function"
   ) {
-    window.chromeAxTooltip.hideTooltip();
+    // Forward options (may include onRefocus) to tooltip module
+    window.chromeAxTooltip.hideTooltip(opts);
   }
 }
 
@@ -669,13 +685,23 @@ function onKeyDown(e) {
     hideTooltip();
     return;
   }
+  const tooltipEl = getTooltipEl();
   if (e.key === "Escape" && !e.shiftKey) {
+    // If Escape is pressed from within the tooltip, let the tooltip's
+    // own handler close and restore focus to the inspected element.
+    if (tooltipEl && tooltipEl.contains(e.target)) {
+      return;
+    }
     // Always close tooltip regardless of focus state or element state
     hideTooltip();
     // Optionally, clear inspectedElement and lastFocusedElement to prevent re-show
     inspectedElement = null;
     lastFocusedElement = null;
   } else if (e.key === "Escape" && e.shiftKey) {
+    // If pressed from within tooltip, defer to tooltip handler instead of reopening
+    if (tooltipEl && tooltipEl.contains(e.target)) {
+      return;
+    }
     // Reopen tooltip for the currently focused element if possible
     let target = lastFocusedElement || document.activeElement;
     if (target && target !== document.body) {
