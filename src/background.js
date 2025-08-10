@@ -18,6 +18,78 @@ function queueDebuggerSession(tabId, task) {
   return next;
 }
 
+// Maintain a lightweight persistent debugger attachment per tab to avoid
+// repeated attach/detach overhead on every request.
+const __axAttachedTabs = new Map(); // tabId -> { attached: boolean, detachTimer?: number }
+// Cache of DOM root nodeIds per tab/frame for faster queries
+const __axDocRoots = new Map(); // key: `${tabId}:${frameId||'main'}` -> { nodeId, t }
+// Cache of selector->nodeId per tab/frame to avoid repeated DOM.querySelector
+const __axNodeCache = new Map(); // key: `${tabId}:${frameId||'main'}::${selector}` -> { nodeId, t }
+
+// Cache policy
+const AX_DOCROOT_TTL_MS = 30000; // 30s per-frame document root TTL
+const AX_NODECACHE_TTL_MS = 10000; // 10s per selector->nodeId cache entry
+const AX_NODECACHE_MAX_ENTRIES = 500; // cap total entries to bound memory
+
+function evictOldestNodeCacheEntry() {
+  let oldestKey = null;
+  let oldestT = Infinity;
+  for (const [k, v] of __axNodeCache) {
+    const t = v && v.t ? v.t : 0;
+    if (t < oldestT) {
+      oldestT = t;
+      oldestKey = k;
+    }
+  }
+  if (oldestKey) __axNodeCache.delete(oldestKey);
+}
+
+async function attachIfNeeded(tabId) {
+  const state = __axAttachedTabs.get(tabId) || {
+    attached: false,
+    detachTimer: null,
+  };
+  if (state.detachTimer) {
+    try {
+      clearTimeout(state.detachTimer);
+    } catch {}
+    state.detachTimer = null;
+  }
+  if (!state.attached) {
+    await chrome.debugger.attach({ tabId }, "1.3");
+    await chrome.debugger.sendCommand({ tabId }, "DOM.enable");
+    await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
+    state.attached = true;
+    __axAttachedTabs.set(tabId, state);
+  }
+}
+
+function scheduleDetach(tabId, idleMs = 3000) {
+  const state = __axAttachedTabs.get(tabId);
+  if (!state || !state.attached) return;
+  if (state.detachTimer) {
+    try {
+      clearTimeout(state.detachTimer);
+    } catch {}
+  }
+  state.detachTimer = setTimeout(async () => {
+    try {
+      await chrome.debugger.detach({ tabId });
+    } catch {}
+    state.attached = false;
+    state.detachTimer = null;
+    __axAttachedTabs.set(tabId, state);
+    // Invalidate cached roots on detach
+    for (const key of Array.from(__axDocRoots.keys())) {
+      if (key.startsWith(`${tabId}:`)) __axDocRoots.delete(key);
+    }
+    for (const key of Array.from(__axNodeCache.keys())) {
+      if (key.startsWith(`${tabId}:`)) __axNodeCache.delete(key);
+    }
+  }, idleMs);
+  __axAttachedTabs.set(tabId, state);
+}
+
 // Helper function for accessibility tree
 async function getAccessibilityTree(tabId) {
   try {
@@ -39,6 +111,27 @@ async function getAccessibilityTree(tabId) {
 
 // Main message handler
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  // Relay tooltip-coordination messages across all frames in the tab
+  if (msg && msg.type === "AX_TOOLTIP_SHOWN") {
+    (async () => {
+      try {
+        if (!sender || !sender.tab || !sender.tab.id) return;
+        const tabId = sender.tab.id;
+        // Get all frames in this tab and broadcast
+        const frames = await chrome.webNavigation.getAllFrames({ tabId });
+        for (const f of frames) {
+          try {
+            await chrome.tabs.sendMessage(tabId, msg, { frameId: f.frameId });
+          } catch (e) {
+            // ignore frames without our content script
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to relay AX_TOOLTIP_SHOWN:", e);
+      }
+    })();
+    return false;
+  }
   if (msg.action === "getAccessibilityTree") {
     (async () => {
       try {
@@ -48,21 +141,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
         const tabId = tab.id;
         const tree = await queueDebuggerSession(tabId, async () => {
+          await attachIfNeeded(tabId);
           try {
-            await chrome.debugger.attach({ tabId }, "1.3");
-            await chrome.debugger.sendCommand(
-              { tabId },
-              "Accessibility.enable"
-            );
             const { nodes } = await chrome.debugger.sendCommand(
               { tabId },
               "Accessibility.getFullAXTree"
             );
             return nodes;
           } finally {
-            try {
-              await chrome.debugger.detach({ tabId });
-            } catch {}
+            scheduleDetach(tabId);
           }
         });
         sendResponse({ tree });
@@ -89,29 +176,110 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         console.log("Background: using tab", tabId);
 
         const result = await queueDebuggerSession(tabId, async () => {
-          // The entire debugger session happens within this queued task
-          await chrome.debugger.attach({ tabId }, "1.3");
+          await attachIfNeeded(tabId);
           try {
-            await chrome.debugger.sendCommand({ tabId }, "DOM.enable");
-            await chrome.debugger.sendCommand(
-              { tabId },
-              "Accessibility.enable"
-            );
+            // Resolve the correct frame: prefer sender.frameId; fall back to main doc
+            let documentNodeId;
+            const frameId =
+              sender && typeof sender.frameId !== "undefined"
+                ? String(sender.frameId)
+                : null;
+            const cacheKey = `${tabId}:${frameId || "main"}`;
+            const cached = __axDocRoots.get(cacheKey);
+            if (
+              cached &&
+              cached.nodeId &&
+              Date.now() - cached.t <= AX_DOCROOT_TTL_MS
+            ) {
+              documentNodeId = cached.nodeId;
+            } else {
+              const params = frameId ? { depth: 1, frameId } : { depth: 1 };
+              const { root } = await chrome.debugger.sendCommand(
+                { tabId },
+                "DOM.getDocument",
+                params
+              );
+              documentNodeId = root.nodeId;
+              __axDocRoots.set(cacheKey, {
+                nodeId: documentNodeId,
+                t: Date.now(),
+              });
+            }
 
-            const { root } = await chrome.debugger.sendCommand(
-              { tabId },
-              "DOM.getDocument",
-              { depth: -1, pierce: true }
-            );
-
-            const { nodeId } = await chrome.debugger.sendCommand(
-              { tabId },
-              "DOM.querySelector",
-              {
-                nodeId: root.nodeId,
-                selector: msg.elementSelector,
+            const cacheSelKey = `${cacheKey}::${msg.elementSelector}`;
+            let cachedNode = __axNodeCache.get(cacheSelKey);
+            let nodeId = cachedNode && cachedNode.nodeId;
+            let usedCache = false;
+            if (nodeId) {
+              // TTL check
+              if (
+                cachedNode &&
+                Date.now() - cachedNode.t > AX_NODECACHE_TTL_MS
+              ) {
+                __axNodeCache.delete(cacheSelKey);
+                nodeId = 0;
               }
-            );
+            }
+            if (nodeId) {
+              // Validate quickly by asking for a small AX slice; if it fails, we'll re-query
+              try {
+                const test = await chrome.debugger.sendCommand(
+                  { tabId },
+                  "Accessibility.getPartialAXTree",
+                  { nodeId, fetchRelatives: false }
+                );
+                if (test && Array.isArray(test.nodes) && test.nodes.length) {
+                  usedCache = true;
+                } else {
+                  nodeId = 0;
+                }
+              } catch {
+                nodeId = 0;
+              }
+            }
+            if (!nodeId) {
+              let q = await chrome.debugger.sendCommand(
+                { tabId },
+                "DOM.querySelector",
+                {
+                  nodeId: documentNodeId,
+                  selector: msg.elementSelector,
+                }
+              );
+              nodeId = q.nodeId;
+              // If query fails (nodeId 0), refresh root once and retry quickly
+              if (!nodeId) {
+                try {
+                  const params = frameId ? { depth: 1, frameId } : { depth: 1 };
+                  const { root } = await chrome.debugger.sendCommand(
+                    { tabId },
+                    "DOM.getDocument",
+                    params
+                  );
+                  documentNodeId = root.nodeId;
+                  __axDocRoots.set(cacheKey, {
+                    nodeId: documentNodeId,
+                    t: Date.now(),
+                  });
+                  q = await chrome.debugger.sendCommand(
+                    { tabId },
+                    "DOM.querySelector",
+                    {
+                      nodeId: documentNodeId,
+                      selector: msg.elementSelector,
+                    }
+                  );
+                  nodeId = q.nodeId;
+                } catch {}
+              }
+              if (nodeId) {
+                // Enforce cache cap
+                while (__axNodeCache.size >= AX_NODECACHE_MAX_ENTRIES) {
+                  evictOldestNodeCacheEntry();
+                }
+                __axNodeCache.set(cacheSelKey, { nodeId, t: Date.now() });
+              }
+            }
 
             if (!nodeId) {
               return { error: "Node not found" };
@@ -127,25 +295,43 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               }
             );
 
-            // Also get DOM attributes to capture ARIA properties
-            const { attributes } = await chrome.debugger.sendCommand(
-              { tabId },
-              "DOM.getAttributes",
-              {
-                nodeId,
-              }
-            );
+            // Optionally get DOM attributes to capture ARIA properties (defer unless needed)
+            let attributes = null;
 
             if (!nodes || !nodes.length) {
               return { error: "No AXNode found" };
             }
 
-            const node = nodes[0];
-            console.log("Raw AX node:", node);
-            console.log("DOM attributes:", attributes);
+            // Prefer a non-ignored node with a concrete role if available
+            let node = nodes[0];
+            const pick = nodes.find(
+              (n) => n && !n.ignored && n.role && (n.role.value || n.role)
+            );
+            if (pick) node = pick;
+            // If chosen node is still ignored, attempt to pick a non-ignored child with a role
+            try {
+              if (
+                node &&
+                node.ignored &&
+                Array.isArray(node.childIds) &&
+                node.childIds.length
+              ) {
+                const byIdTmp = new Map(nodes.map((n) => [n.nodeId, n]));
+                for (const cid of node.childIds) {
+                  const c = byIdTmp.get(cid);
+                  if (c && !c.ignored && (c.role?.value || c.role)) {
+                    node = c;
+                    break;
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn("Failed to refine to child role:", e);
+            }
+            console.log("Raw AX node:", node, usedCache ? "(cached node)" : "");
 
             const out = {
-              role: node.role?.value || "(no role)",
+              role: node.role?.value || node.role || "(no role)",
               name: node.name?.value || "(no accessible name)",
               description: node.description?.value || "(no description)",
               value: node.value?.value || "(no value)",
@@ -192,7 +378,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               console.warn("Failed to compute AX group:", e);
             }
 
-            // Extract ARIA properties from DOM attributes (more reliable)
+            // Extract ARIA properties from DOM attributes if we have them
             if (attributes && Array.isArray(attributes)) {
               console.log("Processing DOM attributes:", attributes);
               for (let i = 0; i < attributes.length; i += 2) {
@@ -207,7 +393,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 }
               }
             } else {
-              console.log("No attributes found or not an array:", attributes);
+              console.log("No attributes fetched initially");
             }
 
             // Extract properties from accessibility node (if available)
@@ -225,6 +411,32 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   out.states[prop.name] = prop.value?.value || prop.value;
                 }
               });
+            }
+
+            // If ariaProperties are still empty and we didn't fetch attributes yet, fetch once
+            if (
+              Object.keys(out.ariaProperties).length === 0 &&
+              attributes === null
+            ) {
+              try {
+                const resp = await chrome.debugger.sendCommand(
+                  { tabId },
+                  "DOM.getAttributes",
+                  { nodeId }
+                );
+                attributes = resp.attributes;
+                if (attributes && Array.isArray(attributes)) {
+                  for (let i = 0; i < attributes.length; i += 2) {
+                    const attrName = attributes[i];
+                    const attrValue = attributes[i + 1];
+                    if (attrName && attrName.startsWith("aria-")) {
+                      out.ariaProperties[attrName] = attrValue;
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn("Deferred DOM.getAttributes failed:", e);
+              }
             }
 
             // Add native properties from the node itself
@@ -247,11 +459,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             console.log("Final result:", out);
             return out;
           } finally {
-            try {
-              await chrome.debugger.detach({ tabId });
-            } catch (e) {
-              // ignore
-            }
+            scheduleDetach(tabId);
           }
         });
 

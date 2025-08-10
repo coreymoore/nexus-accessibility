@@ -276,14 +276,14 @@ class Tooltip {
     this.tooltip.setAttribute("role", "tooltip");
     this.tooltip.setAttribute("id", "chrome-ax-tooltip");
     this.tooltip.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="animation: spin 1s linear infinite;">
+      <div role="status" aria-live="polite" aria-atomic="true" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="animation: spin 1s linear infinite;" aria-hidden="true" focusable="false">
           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
             <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
             <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
           </circle>
         </svg>
-        Loading accessibility info...
+        <span>Loading Nexus Accessibility Info</span>
       </div>
     `;
     document.body.appendChild(this.tooltip);
@@ -313,8 +313,8 @@ class Tooltip {
       window.scrollX,
       Math.min(leftAbs, window.scrollX + window.innerWidth - tooltipRect.width)
     );
-    this.tooltip.style.top = `${top}px`;
-    this.tooltip.style.left = `${left}px`;
+    this.tooltip.style.top = `${topAbs}px`;
+    this.tooltip.style.left = `${leftAbs}px`;
   }
 
   showTooltip(info, target, { onClose, enabled }) {

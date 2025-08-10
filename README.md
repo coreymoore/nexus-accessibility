@@ -72,10 +72,30 @@ This extension does not collect or transmit any user data. All accessibility ins
 
 ## Shadow DOM Support and Limitations
 
-- For elements inside Shadow DOM, Access Nexus uses ARIA attributes and native properties to estimate accessible name, role, and description.
+- For elements inside Shadow DOM, Nexus uses ARIA attributes and native properties to estimate accessible name, role, and description.
 - This may not match the computed accessibility tree shown in Chrome DevTools, and may miss browser-internal accessibility calculations.
 - For elements in the main document, full accessibility info is retrieved using the Chrome Debugger Protocol.
 - Due to Chrome’s architecture, extensions cannot access the full computed accessibility tree for shadow DOM elements.
+
+## Performance and Caching Notes
+
+To keep the inspector responsive on complex pages and sites that use frames/iframed menus, the extension employs a few targeted optimizations when retrieving accessibility information via the Chrome DevTools Protocol (CDP):
+
+- Short-lived persistent debugger sessions: While you’re actively inspecting, the extension keeps a debugger session attached to the active tab with a short idle timeout. This avoids the overhead of re-attaching on every element. The session auto-detaches after a few seconds of inactivity.
+
+- Per-frame document root cache (TTL): The extension caches the DOM root nodeId returned by CDP for each frame in the tab. This cache has a 30-second TTL per frame and is cleared when the debugger detaches. Using the cached root reduces repeated DOM.getDocument calls.
+
+- Selector-to-node cache (TTL + cap): For each frame, a small cache maps a generated CSS-like selector to the resolved nodeId. This speeds up repeat lookups of the same element.
+  - TTL: 10 seconds per entry. Entries older than this are invalidated.
+  - Size cap: 500 entries total across all frames/tabs. When the cap is reached, the oldest entries are evicted.
+  - Validation: Before using a cached nodeId, the extension performs a quick AX lookup to ensure the node still exists. If invalid, the cache is refreshed automatically.
+
+### Tradeoffs and implications
+
+- Faster responses, especially after entering or leaving an iframe, and when revisiting elements.
+- Slightly higher memory usage in the background service worker due to caches. The TTL and size cap bound this usage.
+- The extension uses the `debugger` permission to access CDP. While attached, DevTools may report that another debugger is attached. The extension mitigates this by detaching after short idle periods.
+- The extension requests `webNavigation` to coordinate across frames and improve targeting. No network requests are made; all CDP interactions are scoped to the active tab.
 
 ## AI Disclosure
 

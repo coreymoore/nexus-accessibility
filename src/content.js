@@ -2,6 +2,26 @@ console.log("Content script loading...");
 
 const logger = window.axLogger;
 
+// Unique token for this frame to coordinate tooltips across frames
+const FRAME_TOKEN = `${location.origin}|${location.href}`;
+
+// When another frame shows a tooltip, hide ours to prevent duplicates
+chrome.runtime.onMessage.addListener((msg) => {
+  try {
+    if (
+      msg &&
+      msg.type === "AX_TOOLTIP_SHOWN" &&
+      msg.frameToken !== FRAME_TOKEN
+    ) {
+      // Hide our tooltip if visible
+      const tip = getTooltipEl();
+      if (tip) {
+        hideTooltip();
+      }
+    }
+  } catch {}
+});
+
 // Helper to get the tooltip element created by the tooltip module
 function getTooltipEl() {
   return document.querySelector(".chrome-ax-tooltip");
@@ -43,6 +63,13 @@ function showTooltip(info, target) {
       },
       enabled: () => extensionEnabled,
     });
+    // Broadcast that this frame is showing a tooltip so others can hide theirs
+    try {
+      chrome.runtime.sendMessage({
+        type: "AX_TOOLTIP_SHOWN",
+        frameToken: FRAME_TOKEN,
+      });
+    } catch {}
   }
 }
 
@@ -196,6 +223,43 @@ const observer = new MutationObserver((mutations) => {
           : lastFocusedElement; // always refetch for the focused select
       accessibilityCache.delete(targetForUpdate);
 
+      // If the container is driving active item via aria-activedescendant, follow the active item
+      if (
+        mutation.attributeName === "aria-activedescendant" &&
+        lastFocusedElement &&
+        mutation.target === lastFocusedElement
+      ) {
+        const activeId = lastFocusedElement.getAttribute(
+          "aria-activedescendant"
+        );
+        if (activeId) {
+          const activeEl =
+            lastFocusedElement.ownerDocument.getElementById(activeId);
+          if (activeEl) {
+            inspectedElement = activeEl;
+            const prevTimer = refetchTimers.get(activeEl);
+            if (prevTimer) clearTimeout(prevTimer);
+            const timer = setTimeout(() => {
+              accessibilityCache.delete(activeEl);
+              getAccessibleInfo(activeEl, true)
+                .then((info) => {
+                  if (inspectedElement === activeEl) {
+                    showTooltip(info, activeEl);
+                  }
+                })
+                .catch((error) => {
+                  console.error(
+                    "Error updating tooltip for aria-activedescendant:",
+                    error
+                  );
+                });
+            }, 120);
+            refetchTimers.set(activeEl, timer);
+            return; // handled
+          }
+        }
+      }
+
       // New: debounce re-fetch to prevent overlapping requests
       const target = targetForUpdate;
       if (target) {
@@ -235,6 +299,8 @@ function startObserving(element) {
       "aria-invalid",
       "aria-required",
       "aria-readonly",
+      // Patterns where focus remains on container but active item changes
+      "aria-activedescendant",
       // HTML states
       "disabled",
       "checked",
@@ -251,7 +317,7 @@ function stopObserving() {
   observer.disconnect();
 }
 
-async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
+async function waitForAccessibilityUpdate(target, maxAttempts = 8) {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       const selector = getUniqueSelector(target);
@@ -265,6 +331,7 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
           {
             action: "getBackendNodeIdAndAccessibleInfo",
             elementSelector: selector,
+            frameUrl: window.location.href,
           },
           (response) => {
             clearTimeout(timeoutId);
@@ -301,13 +368,9 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
         return info;
       }
 
-      // Extended progressive delays: starts at 75ms, increases by 50ms each time
-      // 75ms, 125ms, 175ms, 225ms, 275ms, 325ms, 375ms, 425ms, 475ms, 525ms...
-      // Then after attempt 10, adds extra 100ms per attempt
+      // Short backoff: 50ms, 100ms, 150ms, ...
       if (attempt < maxAttempts - 1) {
-        const baseDelay = 75 + attempt * 50;
-        const extraDelay = attempt > 9 ? (attempt - 9) * 100 : 0;
-        const delay = baseDelay + extraDelay;
+        const delay = 50 * (attempt + 1);
         console.log(
           `No meaningful data on attempt ${attempt + 1}, waiting ${delay}ms...`,
           { role: info?.role, name: info?.name }
@@ -319,7 +382,7 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 20) {
       // Do NOT abort on debugger-attached errors; keep retrying to allow final result
       // Previously we threw on "Another debugger is already attached"; now we backoff and continue
       if (attempt < maxAttempts - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
   }
@@ -581,6 +644,15 @@ function onFocusIn(e) {
     return;
   }
   const targetElement = e.target;
+  // Ignore focus on iframes/frames to avoid showing a tooltip in the parent frame when
+  // focus is moving into a child browsing context; the child frame will manage its tooltip.
+  if (
+    targetElement &&
+    (targetElement.tagName === "IFRAME" || targetElement.tagName === "FRAME")
+  ) {
+    hideTooltip();
+    return;
+  }
 
   // If we're switching focus between elements, remove value listeners from the previous focused element
   if (lastFocusedElement && lastFocusedElement !== targetElement) {
@@ -594,7 +666,16 @@ function onFocusIn(e) {
     refetchTimers.delete(lastFocusedElement);
   }
   lastFocusedElement = targetElement;
-  inspectedElement = targetElement;
+  // If the focused element manages active item with aria-activedescendant, inspect that item
+  let targetForInspect = targetElement;
+  const activeDescId = targetElement.getAttribute("aria-activedescendant");
+  if (activeDescId) {
+    const activeEl = targetElement.ownerDocument.getElementById(activeDescId);
+    if (activeEl) {
+      targetForInspect = activeEl;
+    }
+  }
+  inspectedElement = targetForInspect;
 
   // Start observing the new focused element
   // Start observing any focusable element for state changes
@@ -605,24 +686,24 @@ function onFocusIn(e) {
   // Show loading after 300ms
   loadingTimeout = setTimeout(() => {
     if (lastFocusedElement === targetElement) {
-      showLoadingTooltip(targetElement);
+      showLoadingTooltip(targetForInspect);
     }
   }, 300);
 
   // Clear any cached entry and start immediately with a forced refresh to avoid any stale cache
-  accessibilityCache.delete(targetElement);
-  getAccessibleInfo(targetElement, true)
+  accessibilityCache.delete(targetForInspect);
+  getAccessibleInfo(targetForInspect, true)
     .then((info) => {
       clearTimeout(loadingTimeout);
       console.log("getAccessibleInfo resolved with:", info);
       if (lastFocusedElement === targetElement) {
-        showTooltip(info, targetElement);
+        showTooltip(info, targetForInspect);
       }
     })
     .catch((error) => {
       clearTimeout(loadingTimeout);
       console.error("Error showing tooltip:", error);
-      hideTooltip(targetElement);
+      hideTooltip(targetForInspect);
     });
   // Listen for native checkbox changes
   if (targetElement.tagName === "INPUT" && targetElement.type === "checkbox") {
@@ -758,16 +839,99 @@ function isInShadowRoot(el) {
 function getLocalAccessibleInfo(el) {
   console.log("getLocalAccessibleInfo called with:", el);
   // Try ARIA attributes and native properties
-  let role = el.getAttribute("role") || el.role || "(no role)";
-  let name =
-    el.getAttribute("aria-label") ||
-    (el.getAttribute("aria-labelledby") &&
-      document.getElementById(el.getAttribute("aria-labelledby"))
-        ?.textContent) ||
-    el.innerText ||
-    el.alt ||
-    el.title ||
-    "(no accessible name)";
+  let role = el.getAttribute("role") || "";
+  const tag = (el.tagName || "").toUpperCase();
+  const type =
+    (el.getAttribute && (el.getAttribute("type") || "").toLowerCase()) || "";
+  // Infer role from native semantics if no explicit role
+  if (!role) {
+    if (tag === "A" && el.hasAttribute("href")) role = "link";
+    else if (tag === "BUTTON") role = "button";
+    else if (tag === "INPUT") {
+      if (type === "button" || type === "submit" || type === "reset")
+        role = "button";
+      else if (type === "checkbox") role = "checkbox";
+      else if (type === "radio") role = "radio";
+      else if (type === "range") role = "slider";
+      else if (
+        type === "search" ||
+        type === "email" ||
+        type === "url" ||
+        type === "tel" ||
+        type === "password" ||
+        type === "text"
+      )
+        role = "textbox";
+      else if (type === "number") role = "spinbutton";
+      else role = "textbox"; // default text-like
+    } else if (tag === "TEXTAREA") role = "textbox";
+    else if (tag === "SELECT") {
+      const multiple = el.hasAttribute("multiple");
+      const sizeAttr = parseInt(el.getAttribute("size") || "0", 10);
+      role = multiple || sizeAttr > 1 ? "listbox" : "combobox";
+    } else if (tag === "OPTION") role = "option";
+    else if (tag === "IMG") role = "img";
+    else if (tag === "SUMMARY") role = "button";
+    else if (tag === "NAV") role = "navigation";
+    else if (tag === "MAIN") role = "main";
+    else if (tag === "ASIDE") role = "complementary";
+    else if (tag === "HEADER") role = "banner";
+    else if (tag === "FOOTER") role = "contentinfo";
+    else if (tag === "UL" || tag === "OL") role = "list";
+    else if (tag === "LI") role = "listitem";
+    else if (tag === "TABLE") role = "table";
+    else if (tag === "TR") role = "row";
+    else if (tag === "TH")
+      role = el.getAttribute("scope") === "row" ? "rowheader" : "columnheader";
+    else if (tag === "TD") role = "cell";
+    else if (el.isContentEditable) role = "textbox";
+    else if (
+      typeof el.tabIndex === "number" &&
+      el.tabIndex >= 0 &&
+      typeof el.onclick === "function"
+    )
+      role = "button";
+  }
+
+  // Compute accessible name: aria first, then labels, then text/alt/title
+  let name = el.getAttribute("aria-label") || "";
+  if (!name) {
+    const labelledby = el.getAttribute("aria-labelledby");
+    if (labelledby) {
+      name = labelledby
+        .split(/\s+/)
+        .map((id) =>
+          (el.ownerDocument.getElementById(id)?.textContent || "").trim()
+        )
+        .filter(Boolean)
+        .join(" ");
+    }
+  }
+  if (!name && (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT")) {
+    // Associated <label for>
+    const id = el.getAttribute("id");
+    if (id) {
+      const lbl = el.ownerDocument.querySelector(
+        `label[for="${CSS.escape(id)}"]`
+      );
+      if (lbl) name = (lbl.textContent || "").trim();
+    }
+    // Nested label
+    if (!name) {
+      const parentLabel = el.closest("label");
+      if (parentLabel) name = (parentLabel.textContent || "").trim();
+    }
+  }
+  if (!name && tag === "IMG") {
+    name = el.getAttribute("alt") || "";
+  }
+  if (!name) {
+    name = (el.innerText || el.textContent || "").trim();
+  }
+  if (!name) {
+    name = el.getAttribute("title") || "";
+  }
+  if (!name) name = "(no accessible name)";
   let description =
     el.getAttribute("aria-description") ||
     (el.getAttribute("aria-describedby") &&
@@ -805,7 +969,7 @@ function getLocalAccessibleInfo(el) {
   }
 
   return {
-    role,
+    role: role || "(no role)",
     name,
     description,
     value: el.value || "(no value)",

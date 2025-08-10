@@ -3,7 +3,13 @@
   "name": "Nexus Accessibility Testing Toolkit",
   "version": "1.0",
   "description": "Nexus Accessibility Testing Toolkit: A Chrome extension for accessibility inspection and testing.",
-  "permissions": ["activeTab", "scripting", "debugger", "storage"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "debugger",
+    "storage",
+    "webNavigation"
+  ],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background.js"
@@ -11,6 +17,8 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
+      "all_frames": true,
+      "match_about_blank": true,
       "js": [
         "src/utils/logger.js",
         "src/utils/formatter.js",
