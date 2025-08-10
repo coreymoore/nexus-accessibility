@@ -66,12 +66,27 @@ class Tooltip {
             : "not pressed"
         );
       }
-      if (info.ariaProperties && "aria-checked" in info.ariaProperties) {
-        parts.push(
-          info.ariaProperties["aria-checked"] === "true"
-            ? "checked"
-            : "not checked"
+      if (info.states && "checked" in info.states) {
+        let checked = info.states.checked;
+        // Coerce wrapped objects to primitive if coming from protocol
+        if (checked && typeof checked === "object" && "value" in checked) {
+          checked = checked.value;
+        }
+        console.debug(
+          "[AX Tooltip] checked value:",
+          checked,
+          "type:",
+          typeof checked
         );
+        if (checked === true || checked === "true") {
+          parts.push("checked");
+        } else if (checked === false || checked === "false") {
+          parts.push("unchecked");
+        } else if (checked === "mixed") {
+          parts.push("mixed");
+        } else {
+          parts.push("unchecked");
+        }
       }
       if (info.states) {
         if (info.states.disabled === true) parts.push("disabled");

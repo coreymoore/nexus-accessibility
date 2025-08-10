@@ -109,6 +109,7 @@ const observer = new MutationObserver((mutations) => {
         const prevTimer = refetchTimers.get(target);
         if (prevTimer) clearTimeout(prevTimer);
         const timer = setTimeout(() => {
+          accessibilityCache.delete(target);
           getAccessibleInfo(target, true)
             .then((info) => {
               if (lastFocusedElement === target) {
@@ -287,15 +288,7 @@ async function getAccessibleInfo(target, forceUpdate = false) {
     let cached;
     if (!forceUpdate) {
       cached = accessibilityCache.get(target);
-      if (
-        cached &&
-        cached.role !== "(no role)" &&
-        cached.name !== "(no accessible name)"
-      ) {
-        console.log("Using cached accessibility info:", cached);
-        showTooltip(cached, target);
-        return cached;
-      }
+      // Do not show cached; we always fetch fresh now. Cached is kept only as a hard error fallback.
     }
 
     if (isInShadowRoot(target)) {
@@ -383,6 +376,42 @@ async function getAccessibleInfo(target, forceUpdate = false) {
         ignoredReasons: info?.ignoredReasons || [],
       };
 
+      // Normalize native checkbox states from DOM to avoid stale/misaligned AX tri-state
+      // Prefer the element's actual properties: checked and indeterminate
+      try {
+        if (
+          target instanceof Element &&
+          target.tagName === "INPUT" &&
+          target.type === "checkbox"
+        ) {
+          const domChecked = !!target.checked;
+          const domIndeterminate = !!target.indeterminate;
+          if (domIndeterminate) {
+            result.states.checked = "mixed";
+            // Reflect mixed in ariaProperties for visibility, but states drives UI
+            result.ariaProperties["aria-checked"] = "mixed";
+          } else {
+            result.states.checked = domChecked;
+            // Remove conflicting aria-checked if present to prevent ambiguity
+            if ("aria-checked" in result.ariaProperties) {
+              delete result.ariaProperties["aria-checked"];
+            }
+          }
+        } else if ("aria-checked" in result.ariaProperties) {
+          // Non-native checkbox or ARIA widget: trust aria-checked attribute
+          const a = String(result.ariaProperties["aria-checked"]).toLowerCase();
+          if (a === "mixed") {
+            result.states.checked = "mixed";
+          } else if (a === "true") {
+            result.states.checked = true;
+          } else if (a === "false") {
+            result.states.checked = false;
+          }
+        }
+      } catch (e) {
+        console.warn("Checkbox normalization failed:", e);
+      }
+
       // Only cache if not a forceUpdate (mutation observer or explicit refresh)
       if (
         !forceUpdate &&
@@ -469,8 +498,9 @@ function onFocusIn(e) {
     }
   }, 300);
 
-  // Start immediately - no delay
-  getAccessibleInfo(targetElement)
+  // Clear any cached entry and start immediately with a forced refresh to avoid any stale cache
+  accessibilityCache.delete(targetElement);
+  getAccessibleInfo(targetElement, true)
     .then((info) => {
       clearTimeout(loadingTimeout);
       console.log("getAccessibleInfo resolved with:", info);
@@ -482,6 +512,24 @@ function onFocusIn(e) {
       clearTimeout(loadingTimeout);
       console.error("Error showing tooltip:", error);
       hideTooltip(targetElement);
+    });
+  // Listen for native checkbox changes
+  if (targetElement.tagName === "INPUT" && targetElement.type === "checkbox") {
+    targetElement.addEventListener("change", onNativeCheckboxChange);
+  }
+}
+
+function onNativeCheckboxChange(e) {
+  const el = e.target;
+  accessibilityCache.delete(el);
+  getAccessibleInfo(el, true)
+    .then((info) => {
+      if (lastFocusedElement === el) {
+        showTooltip(info, el);
+      }
+    })
+    .catch((error) => {
+      console.error("Error updating tooltip for native checkbox:", error);
     });
 }
 
@@ -517,7 +565,9 @@ function onKeyDown(e) {
     let target = lastFocusedElement || document.activeElement;
     if (target && target !== document.body) {
       lastFocusedElement = target;
-      getAccessibleInfo(target)
+      // Clear cache and force a fresh fetch when reopening via Shift+Escape
+      accessibilityCache.delete(target);
+      getAccessibleInfo(target, true)
         .then((info) => {
           showTooltip(info, target);
         })
@@ -595,11 +645,23 @@ function getLocalAccessibleInfo(el) {
   });
 
   // Add common states
-  ["disabled", "checked", "selected", "pressed"].forEach((state) => {
+  ["disabled", "selected", "pressed"].forEach((state) => {
     if (el.hasAttribute(state)) {
       states[state] = true;
     }
   });
+
+  // Normalize checkbox states from DOM properties
+  if (el.tagName === "INPUT" && el.type === "checkbox") {
+    if (el.indeterminate) {
+      states.checked = "mixed";
+    } else {
+      states.checked = !!el.checked;
+    }
+  } else if (el.hasAttribute("checked")) {
+    // For non-input elements using ARIA tri-state patterns, reflect attribute presence only
+    states.checked = true;
+  }
 
   return {
     role,
