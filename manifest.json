@@ -21,7 +21,15 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/components/tooltip/tooltip.css"],
+      "resources": [
+        "src/components/tooltip/tooltip.css",
+        "src/assets/fonts/inter.css",
+        "src/assets/fonts/inter-latin-400.woff2",
+        "src/assets/fonts/inter-latin-ext-400.woff2",
+        "src/assets/fonts/jetbrains-mono-local.css",
+        "src/assets/fonts/jetbrains-mono-latin-400.woff2",
+        "src/assets/fonts/jetbrains-mono-latin-ext-400.woff2"
+      ],
       "matches": ["<all_urls>"]
     }
   ],
