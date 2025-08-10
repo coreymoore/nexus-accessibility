@@ -12,9 +12,53 @@ class Tooltip {
     this.miniMode = false;
     this._mutObserver = null;
     this._isHiding = false;
+    // Cache of valid anchors parsed from alerts.html
+    this._validAnchors = null; // Set<string> once loaded
+    this._anchorsLoadPromise = null;
+    // Anchors that map to warning severity; defaults are danger
+    this._warningAnchors = new Set([
+      "unsupported_role_value",
+      "too_many_scope_levels",
+      "pres_table_not_have",
+      "table_nontypical_role",
+      "header_missing_role",
+      "cells_not_contained_by_row_role",
+      "ref_id_not_found",
+      "ref_legend",
+      "ref_has_ref",
+      "ref_is_duplicate",
+      "ref_is_direct_and_indirect",
+      "headers_refs_no_text",
+      "headers_ref_is_td",
+      "headers_ref_external",
+      "nested_label_for_no_match",
+      "deprecated_html",
+      "scope_value_invalid",
+      "alt_only_for_images",
+      "explicit_label_for_forms",
+      "unreliable_component_combine",
+      "role_tab_order",
+      "iframe_contents_not_in_tab_order",
+      "canvas_not_keyboard_accessible",
+      "character_length",
+      "ambiguous_link",
+      "link_click_no_keyboard_access",
+      "not_recognized_as_link",
+      "image_alt_contains_file_name",
+      "non_unique_button",
+      "not_semantic_heading",
+      "conflicting_heading_level",
+      "role_heading_no_arialevel",
+      "arialevel_not_gt_zero_integar",
+      "pseudo_before_after",
+      "manual_contrast_test_bgimage",
+      "disabled_elements",
+    ]);
     chrome.storage.sync.get({ miniMode: false }, (data) => {
       this.miniMode = !!data.miniMode;
     });
+    // Load valid anchors in background so we can filter alerts
+    this._loadValidAnchors();
     this._registerShortcut();
     // Listen for miniMode changes from popup once
     if (!window.chromeAxMiniModeListenerRegistered) {
@@ -32,6 +76,31 @@ class Tooltip {
       });
       window.chromeAxMiniModeListenerRegistered = true;
     }
+  }
+
+  _loadValidAnchors() {
+    if (this._anchorsLoadPromise) return this._anchorsLoadPromise;
+    const url = chrome.runtime.getURL("src/alerts.html");
+    this._anchorsLoadPromise = fetch(url)
+      .then((r) => r.text())
+      .then((html) => {
+        const ids = new Set();
+        const re = /\bid\s*=\s*"([^"]+)"/g;
+        let m;
+        while ((m = re.exec(html))) ids.add(m[1]);
+        // Remove non-alert structural ids if present
+        ["skipnav", "pageTitle", "tableOfContents"].forEach((k) =>
+          ids.delete(k)
+        );
+        this._validAnchors = ids;
+        return ids;
+      })
+      .catch((e) => {
+        console.warn("[AX Tooltip] Failed to load alerts.html anchors", e);
+        this._validAnchors = new Set();
+        return this._validAnchors;
+      });
+    return this._anchorsLoadPromise;
   }
 
   ensureStylesInjected() {
@@ -271,59 +340,89 @@ class Tooltip {
       </div>
     `;
 
-    // Focus Alerts Section with links to help page anchors
+    // Build Focus Alerts entries to integrate with the DL
     const alertsHelpUrl = chrome.runtime.getURL("src/alerts.html");
-    let focusAlertsSection = "";
+    const iconDangerUrl = chrome.runtime.getURL("src/assets/icon-danger.svg");
+    const iconWarningUrl = chrome.runtime.getURL("src/assets/icon-warning.svg");
+    let focusAlertsEntries = "";
     if (Array.isArray(info.focusAlerts) && info.focusAlerts.length > 0) {
-      const alertLinks = info.focusAlerts
+      const anchorsReady = !!this._validAnchors;
+      if (!anchorsReady) {
+        // Load anchors and re-render so we can filter accurately
+        this._loadValidAnchors().then(() => {
+          try {
+            if (this.tooltip) {
+              this.showTooltip(
+                this._lastInfo,
+                this._lastTarget,
+                this._lastOptions
+              );
+            }
+          } catch {}
+        });
+      }
+      const items = info.focusAlerts
         .map((alertObj) => {
-          if (
-            alertObj &&
-            typeof alertObj === "object" &&
-            alertObj.text &&
-            alertObj.anchor
-          ) {
-            return `<li><a href="#" class="ax-focus-alert-link" data-anchor="${alertObj.anchor}">${alertObj.text}</a></li>`;
+          let text = null;
+          let anchor = null;
+          if (alertObj && typeof alertObj === "object") {
+            text = alertObj.text || null;
+            anchor = alertObj.anchor || null;
           } else if (typeof alertObj === "string") {
-            return `<li>${alertObj}</li>`;
+            // Ignore plain strings without anchors; not linkable to help page
+            text = null;
           }
-          return "";
+          // Only include if the anchor exists in alerts.html
+          if (
+            !anchor ||
+            !this._validAnchors ||
+            !this._validAnchors.has(anchor)
+          ) {
+            return "";
+          }
+          const sev =
+            anchor && this._warningAnchors.has(anchor) ? "warning" : "danger";
+          const icon = sev === "warning" ? iconWarningUrl : iconDangerUrl;
+          const cls =
+            sev === "warning" ? "ax-alert-warning" : "ax-alert-danger";
+          return `<li class="${cls}"><img class="ax-icon" alt="${sev} icon" src="${icon}"><a href="#" class="ax-focus-alert-link" data-anchor="${anchor}">${
+            text || anchor
+          }</a></li>`;
         })
         .join("");
-      focusAlertsSection =
-        '<div class="chrome-ax-tooltip-focus-alerts" style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 8px;">' +
-        "<strong>Focus Alerts:</strong>" +
-        '<ul style="margin: 8px 0 0 16px; padding: 0;">' +
-        alertLinks +
-        "</ul>" +
-        "</div>";
+      if (items) {
+        focusAlertsEntries = `<dt>Alerts</dt><dd class="ax-focus-alerts"><ul>${items}</ul></dd>`;
+      }
     }
 
     let propertiesSection = "";
     const propertiesList = this.getPropertiesList(info);
     if (Array.isArray(propertiesList)) {
-      propertiesSection =
-        `<dl>` +
-        propertiesList
-          .map(({ label, value }) => `<dt>${label}</dt><dd>${value}</dd>`)
-          .join("") +
-        `</dl>`;
+      const basePairs = propertiesList
+        .map(({ label, value }) => `<dt>${label}</dt><dd>${value}</dd>`)
+        .join("");
+      if (this.miniMode) {
+        propertiesSection = focusAlertsEntries
+          ? `<dl>${focusAlertsEntries}</dl>`
+          : "";
+      } else {
+        propertiesSection = `<dl>${basePairs}${focusAlertsEntries}</dl>`;
+      }
     } else {
-      propertiesSection = propertiesList;
+      if (this.miniMode) {
+        propertiesSection = focusAlertsEntries
+          ? `<dl>${focusAlertsEntries}</dl>`
+          : "";
+      } else {
+        propertiesSection =
+          propertiesList +
+          (focusAlertsEntries ? `<dl>${focusAlertsEntries}</dl>` : "");
+      }
     }
 
     // Compose the tooltip content based on miniMode
-    let tooltipContent;
-    if (this.miniMode) {
-      tooltipContent =
-        closeButtonHtml + screenReaderSection + focusAlertsSection;
-    } else {
-      tooltipContent =
-        closeButtonHtml +
-        screenReaderSection +
-        propertiesSection +
-        focusAlertsSection;
-    }
+    let tooltipContent =
+      closeButtonHtml + screenReaderSection + propertiesSection;
     this.tooltip.innerHTML = tooltipContent;
 
     // Position offscreen to measure
@@ -345,9 +444,7 @@ class Tooltip {
     }
 
     // Delegate focus alert link clicks to background to open extension page in new tab
-    const alertsContainer = this.tooltip.querySelector(
-      ".chrome-ax-tooltip-focus-alerts"
-    );
+    const alertsContainer = this.tooltip.querySelector(".ax-focus-alerts");
     if (alertsContainer) {
       alertsContainer.addEventListener("click", (e) => {
         const a =

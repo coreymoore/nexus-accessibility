@@ -24,7 +24,8 @@
       "resources": [
         "src/components/tooltip/tooltip.css",
         "src/focus-alerts.html",
-        "src/alerts.html"
+        "src/alerts.html",
+        "src/assets/*"
       ],
       "matches": ["<all_urls>"]
     }

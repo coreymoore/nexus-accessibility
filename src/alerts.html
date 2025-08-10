@@ -20,8 +20,75 @@
       </div>
     </header>
     <main class="alerts" id="skipnav" tabindex="-1" aria-label="main content">
+      <div class="division">
+        <section tabindex="-1">
+          <h2>What is an Accessibility Alert?</h2>
+          <div class="details">
+            <p>
+              When <span class="brand">Nexus</span> finds a potential
+              accessibility issue, it generates an Alert which helps a user
+              pinpoint what may be causing it.
+            </p>
+            <p>
+              This help page explains the conditions that cause Alerts to
+              appear, the reason why they appear, and how to fix or further
+              investigate the issue.
+            </p>
+          </div>
+
+          <h2>What are the Alert levels?</h2>
+
+          <p>Alerts are categorized into two priority levels:</p>
+          <div class="example">
+            <ul>
+              <li>
+                Danger Alerts provide notification that accessibility defects
+                are highly likely. These should be corrected to improve the
+                page's accessibility.<br /><br />
+                <span class="message danger" style="padding: 5px"
+                  >1.
+                  <img
+                    alt="danger icon"
+                    src="assets/icon-danger.svg"
+                    class="noshadow"
+                  />
+                  Danger Alerts: Red Alerts containing a triangle icon with an
+                  "x" signify the highest alert level</span
+                ><br /><br />
+              </li>
+              <li>
+                Warning Alerts signal that screen reader inconsistencies are
+                likely or information on the page may not be communicated
+                consistently to all users.<br /><br />
+                <span class="message warning" style="padding: 5px"
+                  >2.
+                  <img
+                    alt="warning icon"
+                    src="assets/icon-warning.svg"
+                    class="noshadow"
+                  />
+                  Warning Alerts: Orange Alerts containing a triangle icon with
+                  an "!" signify a moderate alert level</span
+                >
+              </li>
+            </ul>
+          </div>
+
+          <h2>Does an Alert mean there is definitely a problem?</h2>
+          <div class="details">
+            <p>
+              No, not always. It's up to a human to evaluate
+              <span class="brand">Nexus</span>'s results and make the final
+              decision on whether or not there is an accessibility issue.
+              <span class="brand">Nexus</span> is merely an inspection tool used
+              for this purpose.
+            </p>
+          </div>
+        </section>
+      </div>
       <nav id="tableOfContents">
-        <h3 tabindex="0">Elements with No Accessible Name</h3>
+        <h2>Table of Contents</h2>
+        <h3>Elements with No Accessible Name</h3>
         <ul>
           <li class="danger">
             <a href="#no_name_form_element"
@@ -44,19 +111,19 @@
             <a href="#no_name_iframe">No Accessible Name (Iframe)</a>
           </li>
         </ul>
-        <h3 tabindex="0">Duplicate Attributes Found</h3>
+        <h3>Duplicate Attributes Found</h3>
         <ul>
           <li class="danger"><a href="#dup_id">Duplicate ID</a></li>
           <li class="danger"><a href="#dup_for">Duplicate For</a></li>
         </ul>
-        <h3 tabindex="0">Components That Should Not Be Used Alone</h3>
+        <h3>Components That Should Not Be Used Alone</h3>
         <ul>
           <li class="danger">
             <a href="#dby_alone">ARIA-describedBy Alone</a>
           </li>
           <li class="danger"><a href="#legend_alone">Legend Alone</a></li>
         </ul>
-        <h3 tabindex="0">ARIA Alerts</h3>
+        <h3>ARIA Alerts</h3>
         <ul>
           <li class="danger"><a href="#misspell">Misspelled attribute</a></li>
           <li class="danger"><a href="#aria_role">ARIA-Role not valid</a></li>
@@ -67,7 +134,7 @@
             <a href="#unsupported_role_value">Unsupported Value for Role</a>
           </li>
         </ul>
-        <h3 tabindex="0">Table Alerts</h3>
+        <h3>Table Alerts</h3>
         <ul>
           <li class="danger">
             <a href="#scope_invalid">Scope Value Invalid</a>
@@ -114,13 +181,13 @@
             >
           </li>
         </ul>
-        <h3 tabindex="0">Accesskey Alerts</h3>
+        <h3>Accesskey Alerts</h3>
         <ul>
           <li class="danger">
             <a href="#accesskey_more_one">Accesskey Multiple Values</a>
           </li>
         </ul>
-        <h3 tabindex="0">Reference Alerts</h3>
+        <h3>Reference Alerts</h3>
         <ul>
           <li class="warning">
             <a href="#ref_id_not_found">ARIA Reference ID Not Found</a>
@@ -167,7 +234,7 @@
             >
           </li>
         </ul>
-        <h3 tabindex="0">Invalid HTML Alerts</h3>
+        <h3>Invalid HTML Alerts</h3>
         <ul>
           <li class="danger">
             <a href="#page_title_empty">Page Title Empty</a>
@@ -201,13 +268,13 @@
             <a href="#scope_value_invalid">Scope Value Invalid</a>
           </li>
         </ul>
-        <h3 tabindex="0">Misuses of Alt attribute</h3>
+        <h3>Misuses of Alt attribute</h3>
         <ul>
           <li class="warning">
             <a href="#alt_only_for_images">Alt Only For Images</a>
           </li>
         </ul>
-        <h3 tabindex="0">Misuses of Label Tag</h3>
+        <h3>Misuses of Label Tag</h3>
         <ul>
           <li class="warning">
             <a href="#explicit_label_for_forms"
@@ -215,7 +282,7 @@
             >
           </li>
         </ul>
-        <h3 tabindex="0">Unreliable Component Combinations</h3>
+        <h3>Unreliable Component Combinations</h3>
         <ul>
           <li class="warning">
             <a href="#unreliable_component_combine"
@@ -223,7 +290,7 @@
             >
           </li>
         </ul>
-        <h3 tabindex="0">Keyboard Access Alerts</h3>
+        <h3>Keyboard Access Alerts</h3>
         <ul>
           <li class="danger">
             <a href="#decorative_image_tab_order"
@@ -244,7 +311,7 @@
             >
           </li>
         </ul>
-        <h3 tabindex="0">Excessive Text</h3>
+        <h3>Excessive Text</h3>
         <ul>
           <li class="warning">
             <a href="#character_length"
@@ -252,7 +319,7 @@
             >
           </li>
         </ul>
-        <h3 tabindex="0">Link Alerts</h3>
+        <h3>Link Alerts</h3>
         <ul>
           <li class="warning"><a href="#ambiguous_link">Ambiguous Link</a></li>
           <li class="warning">
@@ -264,7 +331,7 @@
             <a href="#not_recognized_as_link">Not Recognized As Link</a>
           </li>
         </ul>
-        <h3 tabindex="0">Graphics Alerts</h3>
+        <h3>Graphics Alerts</h3>
         <ul>
           <li class="danger"><a href="#marquee_found">Marquee Found</a></li>
           <li class="danger"><a href="#blink_found">Blink Found</a></li>
@@ -279,7 +346,7 @@
             <a href="#image_alt_contains_file_name">Image Alt File Name</a>
           </li>
         </ul>
-        <h3 tabindex="0">Live Regions Alerts</h3>
+        <h3>Live Regions Alerts</h3>
         <ul>
           <li class="danger">
             <a href="#live_region_form_element">Form Element in Live Region</a>
@@ -288,13 +355,13 @@
             <a href="#live_region_not_container">Live Region not Container</a>
           </li>
         </ul>
-        <h3 tabindex="0">Button Alerts</h3>
+        <h3>Button Alerts</h3>
         <ul>
           <li class="warning">
             <a href="#non_unique_button">Non-Unique Button</a>
           </li>
         </ul>
-        <h3 tabindex="0">Structure Alerts</h3>
+        <h3>Structure Alerts</h3>
         <ul>
           <li class="warning">
             <a href="#not_semantic_heading"
@@ -316,13 +383,13 @@
             <a href="#non_list_role">List Container Has Non-List Role</a>
           </li>
         </ul>
-        <h3 tabindex="0">Inaccessible CSS Content</h3>
+        <h3>Inaccessible CSS Content</h3>
         <ul>
           <li class="warning">
             <a href="#pseudo_before_after">Content injected using CSS</a>
           </li>
         </ul>
-        <h3 tabindex="0">Manual Tests Needed</h3>
+        <h3>Manual Tests Needed</h3>
         <ul>
           <li class="warning">
             <a href="#manual_contrast_test_bgimage"
@@ -330,92 +397,25 @@
             >
           </li>
         </ul>
-        <h3 tabindex="0">Contrast Alerts</h3>
+        <h3>Contrast Alerts</h3>
         <ul>
           <li class="danger">
             <a href="#min_contrast">Contrast ratio minimum requirement</a>
           </li>
         </ul>
-        <h3 tabindex="0">Disabled Element Alerts</h3>
+        <h3>Disabled Element Alerts</h3>
         <ul>
           <li class="warning">
             <a href="#disabled_elements">Disabled Elements Found</a>
           </li>
         </ul>
-        <h3 tabindex="0">Aria-hidden Alerts</h3>
+        <h3>Aria-hidden Alerts</h3>
         <ul>
           <li class="danger">
             <a href="#ariahidden">Element has Aria-hidden</a>
           </li>
         </ul>
       </nav>
-
-      <div class="division">
-        <section tabindex="-1">
-          <h2>What is an Accessibility Alert?</h2>
-          <div class="details">
-            <p>
-              When <span class="brand">Nexus</span> finds a potential
-              accessibility issue, it generates an Alert which helps a user
-              pinpoint what may be causing it.
-            </p>
-            <p>
-              This help page explains the conditions that cause Alerts to
-              appear, the reason why they appear, and how to fix or further
-              investigate the issue.
-            </p>
-          </div>
-
-          <h2>What are the Alert levels?</h2>
-
-          <p>Alerts are categorized into two priority levels:</p>
-          <div class="example">
-            <ul>
-              <li>
-                Danger Alerts provide notification that accessibility defects
-                are highly likely. These should be corrected to improve the
-                page's accessibility. <br />
-                <span class="message danger" style="padding: 5px"
-                  >1.
-                  <img
-                    alt="danger icon"
-                    src="assets/icon-danger.svg"
-                    class="noshadow"
-                  />
-                  Danger Alerts: Red Alerts containing a triangle icon with an
-                  "x" signify the highest alert level</span
-                ><br />
-              </li>
-              <li>
-                Warning Alerts signal that screen reader inconsistencies are
-                likely or information on the page may not be communicated
-                consistently to all users. <br />
-                <span class="message warning" style="padding: 5px"
-                  >2.
-                  <img
-                    alt="warning icon"
-                    src="assets/icon-warning.svg"
-                    class="noshadow"
-                  />
-                  Warning Alerts: Orange Alerts containing a triangle icon with
-                  an "!" signify a moderate alert level</span
-                ><br />
-              </li>
-            </ul>
-          </div>
-
-          <h2>Does an Alert mean there is definitely a problem?</h2>
-          <div class="details">
-            <p>
-              No, not always. It's up to a human to evaluate
-              <span class="brand">Nexus</span>'s results and make the final
-              decision on whether or not there is an accessibility issue.
-              <span class="brand">Nexus</span> is merely an inspection tool used
-              for this purpose.
-            </p>
-          </div>
-        </section>
-      </div>
       <div class="division">
         <section
           tabindex="-1"
@@ -436,7 +436,7 @@
                 Form Element has no accessible name, associated label, or title.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This form element has no HTML markup that would provide an
@@ -507,7 +507,7 @@
                 Element has no accessible name.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has no HTML markup that would provide an accessible
@@ -575,7 +575,7 @@
                 Image has no accessible name, alt, or title.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This image element has no HTML markup that would provide an
@@ -670,7 +670,7 @@
                 Table has no accessible name, caption, or title.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This table element has no HTML markup that would provide an
@@ -771,7 +771,7 @@
                 Figure has no accessible name, figcaption, or title.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This <code>&lt;figure&gt;</code> element has no HTML markup that
@@ -840,7 +840,7 @@
                 Iframe has no accessible name or [title].
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This iframe element has no HTML markup that would provide an
@@ -912,7 +912,7 @@
                 &lt;label[for]&gt;; Element ids should be unique.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has an accessibility component that is referencing a
@@ -977,7 +977,7 @@
                 element [id=%%%].
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element is associated with a <code>&lt;label&gt;</code> whose
@@ -1035,7 +1035,7 @@
                 component that provides an accessible name.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               The only HTML markup found on the element that provides
@@ -1086,7 +1086,7 @@
                 that provides an accessible name.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This type of element, can make use of the
@@ -1130,7 +1130,7 @@
                 [aria-labeledby] is misspelled, use [aria-labelledby].
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               The element contains a typo or misspelling of an ARIA attribute.
@@ -1177,7 +1177,7 @@
                 [aria-role] not a valid attribute, use [role] instead.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               The element contains an attribute that does not exist:
@@ -1217,7 +1217,7 @@
                 [role=image] is invalid; Use [role=img].
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has a <code>role</code> attribute with a value of
@@ -1257,7 +1257,7 @@
                 '%%%' is an unsupported value for [role].
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element's <code>role</code> attribute contains a value that
@@ -1304,7 +1304,7 @@
                 Scope attribute value [scope=%%%] is invalid.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               <span class="brand">Nexus</span>'s Table Analysis Mode is set to
@@ -1314,7 +1314,7 @@
             <p>
               If <code>scope</code> associations are not appropriate for this
               table's design, change the Table Analysis Mode to "headers".
-              <br /><a href="modules.html#tNexus-tableAnalysisMode"
+              <a href="modules.html#tNexus-tableAnalysisMode"
                 >How to choose the right Table Analysis Mode</a
               >
             </p>
@@ -1352,7 +1352,7 @@
                 />[headers] attribute only valid on &lt;th&gt; or &lt;td&gt;.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               <span class="brand">Nexus</span>'s Table Analysis Mode is set to
@@ -1362,7 +1362,7 @@
             <p>
               If <code>headers</code> associations are not appropriate for this
               table's design, change the Table Analysis Mode to "scope".
-              <br /><a href="modules.html#tNexus-tableAnalysisMode"
+              <a href="modules.html#tNexus-tableAnalysisMode"
                 >How to choose the right Table Analysis Mode</a
               >
             </p>
@@ -1397,7 +1397,7 @@
                 />Table has no &lt;th&gt; cells.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>This table doesn't have any <code>&lt;th&gt;</code> cells.</p>
 
@@ -1452,7 +1452,7 @@
                 reader issues.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This table has cells using both <code>scope</code> attributes and
@@ -1497,7 +1497,7 @@
                 />Table has no [headers/id] associations.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               <span class="brand">Nexus</span>'s Table Analysis Mode is set to
@@ -1509,7 +1509,7 @@
             <p>
               If <code>headers</code> associations are not appropriate for this
               table's design, change the Table Analysis Mode to "scope".
-              <br /><a href="modules.html#tNexus-tableAnalysisMode"
+              <a href="modules.html#tNexus-tableAnalysisMode"
                 >How to choose the right Table Analysis Mode</a
               >
             </p>
@@ -1564,7 +1564,7 @@
                 'scope mode'.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               <span class="brand">Nexus</span> is suggesting that the user test
@@ -1602,7 +1602,7 @@
                 />Scope association needed at intersection of &lt;th&gt;.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This table contains column or row headers
@@ -1671,7 +1671,7 @@
                 />ARIA table/grid has no [role=row] rows.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This page has a tabular structure built using an ARIA table or
@@ -1718,7 +1718,7 @@
                 />Table has no &lt;th&gt; or &lt;td&gt; cells.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This table has no <code>&lt;th&gt;</code> cells or
@@ -1772,7 +1772,7 @@
                 table?
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This layout table, marked with <code>role="presentation"</code>,
@@ -1828,7 +1828,7 @@
                 table.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This table has a <code>role</code> with a value that is not
@@ -1879,7 +1879,7 @@
                 columnheader or rowheader role.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This <code>&lt;table&gt;</code> has an ARIA <code>role</code> of
@@ -1928,7 +1928,7 @@
                 />&lt;table[role=%%%]&gt; has cells not contained by [role=row].
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This <code>[role=table]</code> or <code>[role=grid]</code> element
@@ -1948,14 +1948,12 @@
               contained by a row (an element with <code>[role=row]</code>).
             </p>
             <p>
-              Example:<br />
+              Example:
               <code>
-                &lt;div role="table" aria-label="Fruit Inventory"&gt;<br />
-                &nbsp;&lt;div <b>role="row"</b>&gt;<br />
-                &nbsp;&nbsp;&lt;div role="cell"&gt; Apples &lt;/div&gt;<br />
-                &nbsp;&nbsp;&lt;div role="cell"&gt; Oranges &lt;/div&gt;<br />
-                &nbsp;&lt;/div&gt;<br />
-                ...<br />
+                &lt;div role="table" aria-label="Fruit Inventory"&gt;
+                &nbsp;&lt;div <b>role="row"</b>&gt; &nbsp;&nbsp;&lt;div
+                role="cell"&gt; Apples &lt;/div&gt; &nbsp;&nbsp;&lt;div
+                role="cell"&gt; Oranges &lt;/div&gt; &nbsp;&lt;/div&gt; ...
                 &lt;/div&gt;
               </code>
             </p>
@@ -1980,7 +1978,7 @@
                 [accessKey] value "%%%" has more than one character.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               An <code>accesskey</code> with more than one character as its
@@ -2024,7 +2022,7 @@
                 Element referenced by [%%%] with [id=%%%] not found.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has an <code>aria-labelledby</code> or
@@ -2141,7 +2139,7 @@
                 found.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               More than one <code>id</code> referenced by an
@@ -2209,7 +2207,7 @@
                 &lt;th&gt;.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               <span class="brand">Nexus</span>'s Table Analysis Mode is set to
@@ -2219,7 +2217,7 @@
             <p>
               If <code>headers</code> associations are not appropriate for this
               table's design, change the Table Analysis Mode to "scope".
-              <br /><a href="modules.html#tNexus-tableAnalysisMode"
+              <a href="modules.html#tNexus-tableAnalysisMode"
                 >How to choose the right Table Analysis Mode</a
               >
             </p>
@@ -2255,7 +2253,7 @@
                 &lt;img&gt; referenced by image map %%% not found.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               <span class="brand">Nexus</span> found an image map element,
@@ -2286,7 +2284,7 @@
                 [%%%] is referencing a legend which may cause speech verbosity.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has an <code>aria-labelledby</code> or
@@ -2331,7 +2329,7 @@
                 used for this Output.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has an <code>aria-labelledby</code>|<code
@@ -2380,7 +2378,7 @@
                 cause speech verbosity.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has an <code>aria-labelledby</code> or
@@ -2425,7 +2423,7 @@
                 cause speech verbosity.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has an <code>aria-labelledby</code> or
@@ -2468,7 +2466,7 @@
                 Element's [headers] references provide no association text.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               <span class="brand">Nexus</span>'s Table Analysis Mode is set to
@@ -2479,7 +2477,7 @@
             <p>
               If <code>headers</code> associations are not appropriate for this
               table's design, change the Table Analysis Mode to "scope".
-              <br /><a href="modules.html#tNexus-tableAnalysisMode"
+              <a href="modules.html#tNexus-tableAnalysisMode"
                 >How to choose the right Table Analysis Mode</a
               >
             </p>
@@ -2524,7 +2522,7 @@
                 In-page anchor target with [id=%%%] not found.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This link's href points to the id of an element on the page that
@@ -2568,7 +2566,7 @@
                 [headers] attribute is referencing a &lt;td&gt; with [id=%%%].
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               <span class="brand">Nexus</span>'s Table Analysis Mode is set to
@@ -2578,7 +2576,7 @@
             <p>
               If <code>headers</code> associations are not appropriate for this
               table's design, change the Table Analysis Mode to "scope".
-              <br /><a href="modules.html#tNexus-tableAnalysisMode"
+              <a href="modules.html#tNexus-tableAnalysisMode"
                 >How to choose the right Table Analysis Mode</a
               >
             </p>
@@ -2617,7 +2615,7 @@
                 to its own table.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This table cell has a <code>headers</code> attribute which is
@@ -2661,7 +2659,7 @@
                 match element [id=%%%].
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element is nested within a <code>&lt;label&gt;</code> that
@@ -2714,7 +2712,7 @@
                 Page &lt;title&gt; cannot be empty.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               A <code>&lt;title&gt;</code> tag was found in the page's
@@ -2753,7 +2751,7 @@
                 Page has no &lt;title&gt;.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               A <code>&lt;title&gt;</code> tag could not be found in the page's
@@ -2793,7 +2791,7 @@
                 Page has more than one &lt;title&gt; tag.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               More than one <code>&lt;title&gt;</code> tag was found in the
@@ -2840,7 +2838,7 @@
                 There are more legends (%%%) than fieldsets (%%%).
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               More <code>&lt;legend&gt;</code> tags were found on the page than
@@ -2901,7 +2899,7 @@
                 There are more figcaptions (%%%) than figures (%%%).
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               More <code>&lt;figcaption&gt;</code> tags were found on the page
@@ -2967,7 +2965,7 @@
                 There are more captions (%%%) than tables (%%%).
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               More <code>&lt;caption&gt;</code> tags were found on the page than
@@ -3024,7 +3022,7 @@
                 Tabindex value "%%%" is not a number.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               An element was found on the page with a non-numeric value for the
@@ -3071,7 +3069,7 @@
                 &lt;ol&gt; or &lt;ul&gt;.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This list item (<code>&lt;li&gt;</code>) is not contained by a
@@ -3118,7 +3116,7 @@
                 container &lt;dl&gt;.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This description list item (<code>&lt;dd&gt;</code> or
@@ -3161,7 +3159,7 @@
                 Using HTML5, found deprecated {attribute/tag}
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               Nexus detected an HTML5 doctype and the presence of a deprecated
@@ -3222,7 +3220,7 @@
                 colgroup, or rowgroup.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has a <code>scope</code> attribute with a value that
@@ -3273,7 +3271,7 @@
                 [alt] attribute is meant for &lt;img&gt; elements.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has an <code>alt</code> attribute and is not an
@@ -3328,7 +3326,7 @@
                 Explicit &lt;label[for]&gt; only works with form elements.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               The <code>for</code> attribute of a <code>&lt;label&gt;</code> is
@@ -3377,7 +3375,7 @@
                 Combining %%% may produce inconsistent screen reader results.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element contains multiple accessibility components which
@@ -3452,7 +3450,7 @@
                 Image defined as decorative is in the keyboard tab order.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This image contains a programmatic contradiction: it was defined
@@ -3498,7 +3496,7 @@
                 Element with [role=%%%] not in the keyboard tab order.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has a <code>role</code> attribute with a value that
@@ -3562,7 +3560,7 @@
                 negative tabindex.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This <code>iframe</code> element has a <code>tabindex</code> value
@@ -3611,7 +3609,7 @@
                 content.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               A <code>&lt;canvas&gt;</code> element was found that has no
@@ -3680,7 +3678,7 @@
                 be a link that only works with a mouse.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element is not in the tab order (no <code>href</code> or
@@ -3775,7 +3773,7 @@
                 condensing.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element's <code>title</code>, <code>alt</code>, or
@@ -3826,7 +3824,7 @@
                 different href.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This link shares an identical accessible name and accessible
@@ -3880,7 +3878,7 @@
                 Link has click event but not keyboard accessible.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This link does not have an <code>href</code> or
@@ -3933,7 +3931,7 @@
                 [role=link] or [href].
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This <code>&lt;a&gt;</code> element has a
@@ -3989,7 +3987,7 @@
                 &lt;marquee&gt; element found, do not use.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>This element is a <code>&lt;marquee&gt;</code>.</p>
 
@@ -4027,7 +4025,7 @@
                 &lt;blink&gt; element found, do not use.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>This element is a <code>&lt;blink&gt;</code>.</p>
 
@@ -4066,7 +4064,7 @@
                 Server side image map found.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>This element contains a sever side image map.</p>
 
@@ -4105,7 +4103,7 @@
                 Image [alt] text is not descriptive.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This image has <code>alt</code> text that does not provide an
@@ -4154,7 +4152,7 @@
                 &lt;area&gt; not contained in &lt;map&gt;.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               <span class="brand">Nexus</span> has found an image map element,
@@ -4191,7 +4189,7 @@
                 Image [alt] text contains file name.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               The image alt text contains a file name such as ".jpg", ".gif",
@@ -4236,13 +4234,13 @@
               <li>
                 <img
                   alt="danger icon"
-                  src="images/icon-danger.png"
+                  src="assets/icon-danger.svg"
                   class="noshadow"
                 />
                 Live Region contains a form element.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               There is a "live region" on this page (<code>aria-live</code>)
@@ -4281,13 +4279,13 @@
               <li>
                 <img
                   alt="danger icon"
-                  src="images/icon-danger.png"
+                  src="assets/icon-danger.svg"
                   class="noshadow"
                 />
                 A live region can only be a container element.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element is not a container element (cannot contain text or
@@ -4326,14 +4324,14 @@
               <li>
                 <img
                   alt="danger icon"
-                  src="images/icon-danger.png"
+                  src="assets/icon-danger.svg"
                   class="noshadow"
                 />
                 List item's container is not recognized as a list because it has
                 [role=%%%].
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This list element <code>&lt;li&gt;</code> is contained by a list
@@ -4370,14 +4368,14 @@
               <li>
                 <img
                   alt="warning icon"
-                  src="images/icon-warning.png"
+                  src="assets/icon-warning.svg"
                   class="noshadow"
                 />
                 [aria-level] is not a greater-than-zero integer; level 2 will be
                 assumed.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               The <code>aria-level</code> attribute is not greater than zero
@@ -4410,13 +4408,13 @@
               <li>
                 <img
                   alt="warning icon"
-                  src="images/icon-warning.png"
+                  src="assets/icon-warning.svg"
                   class="noshadow"
                 />
                 Non-unique button: same name/description as another button.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This button has the same accessible name and description as
@@ -4463,14 +4461,14 @@
               <li>
                 <img
                   alt="warning icon"
-                  src="images/icon-warning.png"
+                  src="assets/icon-warning.svg"
                   class="noshadow"
                 />
                 Element visually conveys heading meaning but not using semantic
                 heading markup.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>This element appears to be a false heading.</p>
             <h3>Why is this an accessibility concern?</h3>
@@ -4511,14 +4509,14 @@
               <li>
                 <img
                   alt="warning icon"
-                  src="images/icon-warning.png"
+                  src="assets/icon-warning.svg"
                   class="noshadow"
                 />
                 Heading element level &lt;h#&gt; conflicts with
                 [aria-level=%%%].
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This heading element's heading level implied by its tag name,
@@ -4582,14 +4580,14 @@
               <li>
                 <img
                   alt="warning icon"
-                  src="images/icon-warning.png"
+                  src="assets/icon-warning.svg"
                   class="noshadow"
                 />
                 [role=heading] used without [aria-level]; level 2 will be
                 assumed.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element was defined as a heading using
@@ -4640,7 +4638,7 @@
                 ::after.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This page has content injected using the CSS pseudo-elements
@@ -4702,7 +4700,7 @@
                 Element has background-image; Perform a manual contrast test.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element is "on top of" a background-image, therefore, the
@@ -4775,7 +4773,7 @@
                 Opacity less than 100%; Perform manual contrast test.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has a CSS property <code>opacity</code> with a value
@@ -4848,7 +4846,7 @@
               <li>
                 <img
                   alt="danger icon"
-                  src="images/icon-danger.png"
+                  src="assets/icon-danger.svg"
                   class="noshadow"
                 />
                 Text does not meet minimum AA contrast ratio (4.5:1).
@@ -4856,13 +4854,13 @@
               <li>
                 <img
                   alt="danger icon"
-                  src="images/icon-danger.png"
+                  src="assets/icon-danger.svg"
                   class="noshadow"
                 />
                 Text does not meet large text minimum AA contrast ratio (3:1).
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has very low contrast between foreground and
@@ -4918,7 +4916,7 @@
               <li>
                 <img
                   alt="warning icon"
-                  src="images/icon-warning.png"
+                  src="assets/icon-warning.svg"
                   class="noshadow"
                 />
                 Page has %%% disabled elements; Disabled elements are not in the
@@ -4927,7 +4925,7 @@
               <li>
                 <img
                   alt="warning icon"
-                  src="images/icon-warning.png"
+                  src="assets/icon-warning.svg"
                   class="noshadow"
                 />
                 Page has %%% disabled buttons; Disabled elements are not in the
@@ -4936,14 +4934,14 @@
               <li>
                 <img
                   alt="warning icon"
-                  src="images/icon-warning.png"
+                  src="assets/icon-warning.svg"
                   class="noshadow"
                 />
                 Page has %%% disabled links; Disabled elements are not in the
                 keyboard tab order.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               Disabled elements (<code>disabled="disabled"</code>) were found on
@@ -5028,7 +5026,7 @@
               <li>
                 <img
                   alt="danger icon"
-                  src="images/icon-danger.png"
+                  src="assets/icon-danger.svg"
                   class="noshadow"
                 />
                 Element is hidden from screen reader using [aria-hidden=true]
@@ -5039,14 +5037,14 @@
               <li>
                 <img
                   alt="warning icon"
-                  src="images/icon-warning.png"
+                  src="assets/icon-warning.svg"
                   class="noshadow"
                 />
                 Element is hidden from screen reader using [aria-hidden=true]
                 resulting in no output.
               </li>
             </ul>
-            <br />
+
             <h3>Why did Nexus alert this?</h3>
             <p>
               This element has been hidden from a screen reader using
