@@ -1,3 +1,5 @@
+![Nexus Logo](nexus-logo.svg)
+
 # Nexus Accessibility Testing Toolkit
 
 A Chrome extension for real-time accessibility inspection and testing. This toolkit provides developers and QA teams with instant feedback about accessibility properties, ARIA attributes, and screen reader output of any focused element.
