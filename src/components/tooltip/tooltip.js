@@ -14,6 +14,9 @@ class Tooltip {
     this._isHiding = false;
     // Spacing between tooltip and focused element
     this._margin = 32;
+    // Focus guard state
+    this._acceptingFocus = false;
+    this._onFocusInCapture = null;
     chrome.storage.sync.get({ miniMode: false }, (data) => {
       this.miniMode = !!data.miniMode;
     });
@@ -276,19 +279,20 @@ class Tooltip {
     this.tooltip.setAttribute("role", "tooltip");
     this.tooltip.setAttribute("id", "chrome-ax-tooltip");
     this.tooltip.innerHTML = `
-      <div role="status" aria-live="polite" aria-atomic="true" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="animation: spin 1s linear infinite;" aria-hidden="true" focusable="false">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
-            <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
-            <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
-          </circle>
-        </svg>
-        <span>Loading Nexus Accessibility Info</span>
+      <div class="chrome-ax-tooltip-body" inert>
+        <div role="status" aria-live="polite" aria-atomic="true" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="animation: spin 1s linear infinite;" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
+              <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
+              <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+          <span>Loading Nexus Accessibility Info</span>
+        </div>
       </div>
     `;
     document.body.appendChild(this.tooltip);
-    // Keep tooltip out of the tab order until explicitly focused via shortcut
-    this.tooltip.setAttribute("inert", "");
+    // Keep content body out of the tab order until explicitly focused via shortcut
     this.tooltip.style.display = "block";
 
     // Compute placement once, without overlapping the element
@@ -326,6 +330,8 @@ class Tooltip {
     this._lastInfo = info;
     this._lastTarget = target;
     this._lastOptions = { onClose, enabled };
+    // Reset focus guard for new tooltip instance
+    this._acceptingFocus = false;
     this.ensureStylesInjected();
     if (!info) return;
     if (this.tooltip) {
@@ -349,11 +355,11 @@ class Tooltip {
 
     // Split tooltip content into parts for flexible composition
     const closeButtonHtml = `
-      <button class="chrome-ax-tooltip-close" aria-label="Close Nexus Inspector">
+      <div class="chrome-ax-tooltip-close" aria-label="Close Nexus Inspector" aria-hidden="true" role="presentation">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
         </svg>
-      </button>
+      </div>
     `;
 
     const screenReaderSection = `
@@ -382,17 +388,24 @@ class Tooltip {
     }
 
     // Compose the tooltip content based on miniMode
+    // Keep the close button outside an inert body so it remains clickable by mouse
+    const bodyOpen = `<div class="chrome-ax-tooltip-body" inert style="pointer-events: none;">`;
+    const bodyClose = `</div>`;
     let tooltipContent;
     if (this.miniMode) {
       tooltipContent = `
         ${closeButtonHtml}
-        ${screenReaderSection}
+        ${bodyOpen}
+          ${screenReaderSection}
+        ${bodyClose}
       `;
     } else {
       tooltipContent = `
         ${closeButtonHtml}
-        ${screenReaderSection}
-        ${propertiesSection}
+        ${bodyOpen}
+          ${screenReaderSection}
+          ${propertiesSection}
+        ${bodyClose}
       `;
     }
     this.tooltip.innerHTML = tooltipContent;
@@ -404,18 +417,68 @@ class Tooltip {
     this.tooltip.style.setProperty("z-index", "2147483648", "important");
     this.tooltip.style.setProperty("display", "block", "important");
     document.body.appendChild(this.tooltip);
-    // Keep tooltip out of the tab order until explicitly focused via shortcut
-    this.tooltip.setAttribute("inert", "");
+    // Hide from AT until user opts in via Alt+[
+    this.tooltip.setAttribute("aria-hidden", "true");
+    // Keep content body out of the tab order until explicitly focused via shortcut
     this.tooltip.style.display = "block";
 
     const closeButton = this.tooltip.querySelector(".chrome-ax-tooltip-close");
     if (closeButton) {
-      closeButton.setAttribute("tabindex", "-1");
+      // Prevent mouse click from moving focus into the tooltip
+      closeButton.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+      });
+      closeButton.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+      });
+      // Support keyboard activation when user has opted-in (Alt+[) and the control is focusable
+      closeButton.addEventListener("keydown", (e) => {
+        const isEnter = e.key === "Enter" || e.keyCode === 13;
+        const isSpace =
+          e.key === " " || e.key === "Spacebar" || e.keyCode === 32;
+        if (isEnter || isSpace) {
+          e.preventDefault();
+          onClose && onClose();
+        }
+      });
       closeButton.addEventListener("click", (e) => {
         e.preventDefault();
-        if (enabled()) onClose();
+        onClose && onClose();
       });
     }
+
+    // Guard against accidental focus landing inside the tooltip when not opted-in
+    if (this._onFocusInCapture) {
+      document.removeEventListener("focusin", this._onFocusInCapture, true);
+    }
+    this._onFocusInCapture = (e) => {
+      try {
+        if (
+          !this._acceptingFocus &&
+          this.tooltip &&
+          this.tooltip.style.display === "block" &&
+          this.tooltip.contains(e.target)
+        ) {
+          e.stopPropagation();
+          // Return focus to the inspected element if possible
+          if (
+            this._lastTarget &&
+            typeof this._lastTarget.focus === "function"
+          ) {
+            try {
+              this._lastTarget.focus({ preventScroll: true });
+            } catch {}
+          }
+          // Blur the node inside tooltip to avoid sticky focus
+          if (e.target && typeof e.target.blur === "function") {
+            try {
+              e.target.blur();
+            } catch {}
+          }
+        }
+      } catch {}
+    };
+    document.addEventListener("focusin", this._onFocusInCapture, true);
 
     // Remove old connector
     if (this.connector) {
@@ -664,6 +727,10 @@ class Tooltip {
         this._scrollHandler = null;
       }
       this._removeFocusTrap();
+      if (this._onFocusInCapture) {
+        document.removeEventListener("focusin", this._onFocusInCapture, true);
+        this._onFocusInCapture = null;
+      }
       if (this.tooltip && this.tooltip.parentNode) {
         this.tooltip.parentNode.removeChild(this.tooltip);
         this.tooltip = null;
@@ -675,6 +742,7 @@ class Tooltip {
     } finally {
       this._isHiding = false;
     }
+    this._acceptingFocus = false;
     if (onRefocus) onRefocus();
   }
 
@@ -693,15 +761,24 @@ class Tooltip {
             this.tooltip &&
             this.tooltip.style.display === "block"
           ) {
-            // Allow focus into tooltip only when user intentionally invokes the shortcut
-            this.tooltip.removeAttribute("inert");
+            // Allow focus into tooltip content only when user intentionally invokes the shortcut
+            const body = this.tooltip.querySelector(".chrome-ax-tooltip-body");
+            if (body) {
+              body.removeAttribute("inert");
+              body.style.pointerEvents = "";
+            }
             const srNode = this.tooltip.querySelector(".chrome-ax-tooltip-sr");
             const closeButton = this.tooltip.querySelector(
               ".chrome-ax-tooltip-close"
             );
             if (closeButton) {
-              closeButton.removeAttribute("tabindex");
+              // Upgrade close control to an accessible button
+              closeButton.setAttribute("role", "button");
+              closeButton.setAttribute("tabindex", "0");
+              closeButton.setAttribute("aria-hidden", "false");
             }
+            this.tooltip.removeAttribute("aria-hidden");
+            this._acceptingFocus = true;
             if (srNode) {
               srNode.focus();
               e.preventDefault();
