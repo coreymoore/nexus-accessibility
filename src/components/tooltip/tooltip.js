@@ -130,9 +130,7 @@ class Tooltip {
         const req = this._deepUnwrap(info.states.required);
         if (this._isTrue(req) || ariaReq)
           extras.push(`<span class=\"sr-required\">required</span>`);
-        const inv = this._deepUnwrap(info.states.invalid);
-        if (this._isTrue(inv))
-          extras.push(`<span class=\"sr-state\">invalid</span>`);
+        // Do not include invalid in SR output
       }
     }
     // Value
