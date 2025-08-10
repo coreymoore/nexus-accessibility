@@ -155,6 +155,43 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               ignoredReasons: node.ignoredReasons || [],
             };
 
+            // Compute nearest group/radiogroup ancestor from AX tree and include its accessible name
+            try {
+              if (Array.isArray(nodes) && nodes.length) {
+                const roleOf = (n) => n?.role?.value || n?.role || "";
+                const nameOf = (n) => {
+                  const nn = n?.name;
+                  const v = nn && (nn.value ?? nn);
+                  return v ? String(v).trim() : "";
+                };
+                // Build map AX nodeId -> node and child->parent links
+                const byId = new Map(nodes.map((n) => [n.nodeId, n]));
+                const parentByChild = new Map();
+                for (const n of nodes) {
+                  const children = n.childIds || [];
+                  for (const cid of children) parentByChild.set(cid, n.nodeId);
+                }
+                // The first node is the target AX node; walk up to find nearest group
+                let current = node;
+                const wanted = new Set(["group", "radiogroup"]);
+                while (current) {
+                  const pid = parentByChild.get(current.nodeId);
+                  if (!pid) break;
+                  const parent = byId.get(pid);
+                  if (!parent) break;
+                  const r = roleOf(parent);
+                  if (wanted.has(r)) {
+                    const label = nameOf(parent);
+                    out.group = { role: r, label: label || undefined };
+                    break;
+                  }
+                  current = parent;
+                }
+              }
+            } catch (e) {
+              console.warn("Failed to compute AX group:", e);
+            }
+
             // Extract ARIA properties from DOM attributes (more reliable)
             if (attributes && Array.isArray(attributes)) {
               console.log("Processing DOM attributes:", attributes);

@@ -45,22 +45,25 @@ class Tooltip {
   }
 
   getScreenReaderOutput(info) {
-    const parts = [];
-    parts.push(info.role);
-    if (info.name && info.name !== "(no accessible name)")
-      parts.push(info.name);
+    // Base: role, name, description
+    const base = [];
+    base.push(info.role);
+    if (info.name && info.name !== "(no accessible name)") base.push(info.name);
     if (info.description && info.description !== "(no description)")
-      parts.push(info.description);
+      base.push(info.description);
+
+    // Extras: states, aria-derived states, group
+    const extras = [];
     if (info.ariaProperties || info.states) {
       if (info.ariaProperties && "aria-expanded" in info.ariaProperties) {
-        parts.push(
+        extras.push(
           info.ariaProperties["aria-expanded"] === "true"
             ? "expanded"
             : "collapsed"
         );
       }
       if (info.ariaProperties && "aria-pressed" in info.ariaProperties) {
-        parts.push(
+        extras.push(
           info.ariaProperties["aria-pressed"] === "true"
             ? "pressed"
             : "not pressed"
@@ -68,7 +71,6 @@ class Tooltip {
       }
       if (info.states && "checked" in info.states) {
         let checked = info.states.checked;
-        // Coerce wrapped objects to primitive if coming from protocol
         if (checked && typeof checked === "object" && "value" in checked) {
           checked = checked.value;
         }
@@ -79,22 +81,43 @@ class Tooltip {
           typeof checked
         );
         if (checked === true || checked === "true") {
-          parts.push("checked");
+          extras.push("checked");
         } else if (checked === false || checked === "false") {
-          parts.push("unchecked");
+          extras.push("unchecked");
         } else if (checked === "mixed") {
-          parts.push("mixed");
+          extras.push("mixed");
         } else {
-          parts.push("unchecked");
+          extras.push("unchecked");
         }
       }
       if (info.states) {
-        if (info.states.disabled === true) parts.push("disabled");
-        if (info.states.required === true) parts.push("required");
-        if (info.states.invalid === true) parts.push("invalid");
+        if (info.states.disabled === true) extras.push("disabled");
+        const ariaReq =
+          info.ariaProperties &&
+          (info.ariaProperties["aria-required"] === true ||
+            info.ariaProperties["aria-required"] === "true");
+        if (info.states.required === true || ariaReq) extras.push("required");
+        if (info.states.invalid === true) extras.push("invalid");
       }
     }
-    return parts.join(" ");
+    // Include current value if present (raw value only)
+    if (info.value && info.value !== "(no value)") {
+      extras.push(String(info.value));
+    }
+    if (info.group && info.group.role) {
+      if (info.group.label) {
+        extras.push(`${info.group.role}, ${info.group.label}`);
+      } else {
+        extras.push(info.group.role);
+      }
+    }
+
+    // Compose: base joined by space; if extras exist, add a comma, then extras joined by ", "
+    const baseStr = base.join(" ");
+    if (extras.length > 0) {
+      return (baseStr ? baseStr + ", " : "") + extras.join(", ");
+    }
+    return baseStr;
   }
 
   getPropertiesList(accessibilityInfo) {
@@ -103,22 +126,38 @@ class Tooltip {
         { label: "Role", value: accessibilityInfo.role },
         { label: "Name", value: accessibilityInfo.name },
       ];
-      if (
+      const hasDesc =
         accessibilityInfo.description !== "(no description)" &&
-        !String(accessibilityInfo.description).includes("Screen Reader Output")
-      ) {
+        !String(accessibilityInfo.description).includes("Screen Reader Output");
+      if (hasDesc) {
         pairs.push({
           label: "Description",
           value: accessibilityInfo.description,
         });
       }
+      // Place Group immediately after Description (or at this position if no description)
+      if (accessibilityInfo.group && accessibilityInfo.group.role) {
+        let groupText = accessibilityInfo.group.role;
+        if (accessibilityInfo.group.label) {
+          groupText += ` (${accessibilityInfo.group.label})`;
+        }
+        pairs.push({ label: "Group", value: groupText });
+      }
+      // Value appears after Group
       if (accessibilityInfo.value && accessibilityInfo.value !== "(no value)") {
         pairs.push({ label: "Value", value: accessibilityInfo.value });
       }
       return pairs;
     }
-    // If custom formatter, fallback to HTML string
-    return window.formatAccessibilityInfo(accessibilityInfo);
+    // If custom formatter, fallback to HTML string, but append Group if present
+    let html = window.formatAccessibilityInfo(accessibilityInfo);
+    if (accessibilityInfo.group && accessibilityInfo.group.role) {
+      const role = accessibilityInfo.group.role;
+      const label = accessibilityInfo.group.label;
+      const groupText = label ? `${role} (${label})` : role;
+      html += `\n<dl><dt>Group</dt><dd>${groupText}</dd></dl>`;
+    }
+    return html;
   }
 
   showLoadingTooltip(target) {
@@ -162,6 +201,10 @@ class Tooltip {
   }
 
   showTooltip(info, target, { onClose, enabled }) {
+    // Debug: log group information presence
+    try {
+      console.debug("[AX Tooltip] group info:", info && info.group);
+    } catch {}
     // Store last info for mini mode toggle
     this._lastInfo = info;
     this._lastTarget = target;

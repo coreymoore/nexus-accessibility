@@ -92,6 +92,53 @@ function getUniqueSelector(el) {
   return path.length ? path.join(" > ") : ":focus";
 }
 
+// Helpers to derive group info (role + label) from DOM ancestors
+function getTextFromId(id) {
+  if (!id) return "";
+  const n = document.getElementById(id);
+  return (n && n.textContent ? n.textContent : "").trim();
+}
+
+function getAriaLabel(el) {
+  if (!el) return "";
+  const ariaLabel = el.getAttribute("aria-label");
+  if (ariaLabel) return ariaLabel.trim();
+  const labelledby = el.getAttribute("aria-labelledby");
+  if (labelledby) {
+    // aria-labelledby can be space-separated ids
+    return labelledby.split(/\s+/).map(getTextFromId).filter(Boolean).join(" ");
+  }
+  return "";
+}
+
+function getFieldsetLegend(el) {
+  const legend = el.querySelector(":scope > legend");
+  return (legend && legend.textContent ? legend.textContent : "").trim();
+}
+
+function computeGroupInfo(el) {
+  try {
+    let node = el && el.parentElement;
+    while (node && node !== document.body) {
+      // HTML fieldset acts as a group, label from legend if present
+      if (node.tagName === "FIELDSET") {
+        const label = getFieldsetLegend(node) || getAriaLabel(node);
+        return { role: "group", label: label || undefined };
+      }
+      // ARIA group containers
+      const role = (node.getAttribute && node.getAttribute("role")) || "";
+      if (role === "group" || role === "radiogroup") {
+        const label = getAriaLabel(node);
+        return { role, label: label || undefined };
+      }
+      node = node.parentElement;
+    }
+  } catch (e) {
+    console.warn("computeGroupInfo failed:", e);
+  }
+  return undefined;
+}
+
 // Create mutation observer to watch for ARIA changes
 const observer = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
@@ -412,6 +459,9 @@ async function getAccessibleInfo(target, forceUpdate = false) {
         console.warn("Checkbox normalization failed:", e);
       }
 
+      // Prefer group from CDP response if present; fallback to DOM-derived group
+      result.group = info?.group ?? computeGroupInfo(target);
+
       // Only cache if not a forceUpdate (mutation observer or explicit refresh)
       if (
         !forceUpdate &&
@@ -670,6 +720,7 @@ function getLocalAccessibleInfo(el) {
     value: el.value || "(no value)",
     states,
     ariaProperties,
+    group: computeGroupInfo(el),
     ignored: false,
     ignoredReasons: [],
   };
