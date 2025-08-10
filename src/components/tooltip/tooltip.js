@@ -44,6 +44,42 @@ class Tooltip {
     document.head.appendChild(link);
   }
 
+  // Recursively unwrap CDP-shaped values and node lists to plain text/value
+  _deepUnwrap(v) {
+    if (v == null) return v;
+    if (typeof v !== "object") return v;
+    if (Array.isArray(v)) {
+      return v
+        .map((x) => this._deepUnwrap(x))
+        .filter((x) => x != null && x !== "")
+        .join(" ");
+    }
+    if ("value" in v) return this._deepUnwrap(v.value);
+    if (v.type === "nodeList" && Array.isArray(v.relatedNodes)) {
+      const texts = v.relatedNodes
+        .map(
+          (n) =>
+            n && (n.text ?? n.name ?? n.label ?? n.innerText ?? n.nodeValue)
+        )
+        .filter((t) => t != null && t !== "");
+      if (texts.length) return texts.join(" ");
+    }
+    if ("text" in v) return this._deepUnwrap(v.text);
+    if ("name" in v) return this._deepUnwrap(v.name);
+    if ("label" in v) return this._deepUnwrap(v.label);
+    if ("innerText" in v) return this._deepUnwrap(v.innerText);
+    if ("nodeValue" in v) return this._deepUnwrap(v.nodeValue);
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(v);
+    }
+  }
+
+  _isTrue(v) {
+    return v === true || v === "true" || v === 1 || v === "1";
+  }
+
   getScreenReaderOutput(info) {
     // Base: role, name, description
     const base = [];
@@ -57,29 +93,24 @@ class Tooltip {
     const extras = [];
     if (info.ariaProperties || info.states) {
       if (info.ariaProperties && "aria-expanded" in info.ariaProperties) {
+        const exp = this._deepUnwrap(info.ariaProperties["aria-expanded"]);
         extras.push(
           `<span class=\"sr-state\">${
-            info.ariaProperties["aria-expanded"] === "true"
-              ? "expanded"
-              : "collapsed"
+            this._isTrue(exp) ? "expanded" : "collapsed"
           }</span>`
         );
       }
       if (info.ariaProperties && "aria-pressed" in info.ariaProperties) {
+        const prs = this._deepUnwrap(info.ariaProperties["aria-pressed"]);
         extras.push(
           `<span class=\"sr-state\">${
-            info.ariaProperties["aria-pressed"] === "true"
-              ? "pressed"
-              : "not pressed"
+            this._isTrue(prs) ? "pressed" : "not pressed"
           }</span>`
         );
       }
       if (info.states && "checked" in info.states) {
-        let checked = info.states.checked;
-        if (checked && typeof checked === "object" && "value" in checked) {
-          checked = checked.value;
-        }
-        if (checked === true || checked === "true") {
+        const checked = this._deepUnwrap(info.states.checked);
+        if (this._isTrue(checked)) {
           extras.push(`<span class=\"sr-state\">checked</span>`);
         } else if (checked === false || checked === "false") {
           extras.push(`<span class=\"sr-state\">unchecked</span>`);
@@ -90,21 +121,24 @@ class Tooltip {
         }
       }
       if (info.states) {
-        if (info.states.disabled === true)
+        const dis = this._deepUnwrap(info.states.disabled);
+        if (this._isTrue(dis))
           extras.push(`<span class=\"sr-state\">disabled</span>`);
         const ariaReq =
           info.ariaProperties &&
-          (info.ariaProperties["aria-required"] === true ||
-            info.ariaProperties["aria-required"] === "true");
-        if (info.states.required === true || ariaReq)
+          this._isTrue(this._deepUnwrap(info.ariaProperties["aria-required"]));
+        const req = this._deepUnwrap(info.states.required);
+        if (this._isTrue(req) || ariaReq)
           extras.push(`<span class=\"sr-required\">required</span>`);
-        if (info.states.invalid === true)
+        const inv = this._deepUnwrap(info.states.invalid);
+        if (this._isTrue(inv))
           extras.push(`<span class=\"sr-state\">invalid</span>`);
       }
     }
     // Value
     if (info.value && info.value !== "(no value)") {
-      extras.push(`<span class=\"sr-value\">${String(info.value)}</span>`);
+      const v = this._deepUnwrap(info.value);
+      extras.push(`<span class=\"sr-value\">${String(v)}</span>`);
     }
     // Group
     if (info.group && info.group.role) {
@@ -150,7 +184,8 @@ class Tooltip {
       }
       // Value appears after Group
       if (accessibilityInfo.value && accessibilityInfo.value !== "(no value)") {
-        pairs.push({ label: "Value", value: accessibilityInfo.value });
+        const v = this._deepUnwrap(accessibilityInfo.value);
+        pairs.push({ label: "Value", value: v });
       }
       return pairs;
     }
