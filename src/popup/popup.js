@@ -95,7 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Accessible Tabs Logic (WAI-ARIA APG)
   const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
   const panels = Array.from(document.querySelectorAll('[role="tabpanel"]'));
-  function activateTab(tab) {
+  function activateTab(tab, persist = true) {
     tabs.forEach((t, i) => {
       const selected = t === tab;
       t.setAttribute("aria-selected", selected ? "true" : "false");
@@ -103,6 +103,9 @@ document.addEventListener("DOMContentLoaded", () => {
       panels[i].hidden = !selected;
     });
     tab.focus();
+    if (persist) {
+      chrome.storage.sync.set({ nexusSelectedTab: tabs.indexOf(tab) });
+    }
   }
   tabs.forEach((tab, i) => {
     tab.addEventListener("click", () => activateTab(tab));
@@ -123,6 +126,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   });
-  // Activate first tab by default
-  activateTab(tabs[0]);
+  // Restore selected tab from storage, default to first tab
+  chrome.storage.sync.get({ nexusSelectedTab: 0 }, (data) => {
+    const idx = Math.max(0, Math.min(tabs.length - 1, data.nexusSelectedTab));
+    activateTab(tabs[idx], false);
+  });
 });
