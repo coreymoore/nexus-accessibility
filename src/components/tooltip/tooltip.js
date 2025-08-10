@@ -12,8 +12,8 @@ class Tooltip {
     this.miniMode = false;
     this._mutObserver = null;
     this._isHiding = false;
-  // Spacing between tooltip and focused element
-  this._margin = 32;
+    // Spacing between tooltip and focused element
+    this._margin = 32;
     chrome.storage.sync.get({ miniMode: false }, (data) => {
       this.miniMode = !!data.miniMode;
     });
@@ -81,10 +81,7 @@ class Tooltip {
       if (e.key === "Tab" || e.keyCode === 9) {
         const focusables = this._getFocusableElements(this.tooltip);
         if (focusables.length === 0) {
-          // Keep focus on the tooltip itself if nothing is focusable
-          e.preventDefault();
-          this.tooltip.setAttribute("tabindex", "-1");
-          this.tooltip.focus({ preventScroll: true });
+          // If nothing is focusable, do nothing (do not make tooltip itself focusable)
           return;
         }
         const first = focusables[0];
@@ -290,6 +287,8 @@ class Tooltip {
       </div>
     `;
     document.body.appendChild(this.tooltip);
+    // Keep tooltip out of the tab order until explicitly focused via shortcut
+    this.tooltip.setAttribute("inert", "");
     this.tooltip.style.display = "block";
 
     // Compute placement once, without overlapping the element
@@ -298,7 +297,10 @@ class Tooltip {
     const spaceAbove = rect.top - margin;
     const spaceBelow = window.innerHeight - rect.bottom - margin;
     const placeBelow = spaceBelow >= spaceAbove;
-    this.tooltip.style.maxHeight = `${Math.max(0, placeBelow ? spaceBelow : spaceAbove)}px`;
+    this.tooltip.style.maxHeight = `${Math.max(
+      0,
+      placeBelow ? spaceBelow : spaceAbove
+    )}px`;
     const tooltipRect = this.tooltip.getBoundingClientRect();
     const topAbs = placeBelow
       ? window.scrollY + rect.bottom + margin
@@ -311,8 +313,8 @@ class Tooltip {
       window.scrollX,
       Math.min(leftAbs, window.scrollX + window.innerWidth - tooltipRect.width)
     );
-  this.tooltip.style.top = `${top}px`;
-  this.tooltip.style.left = `${left}px`;
+    this.tooltip.style.top = `${top}px`;
+    this.tooltip.style.left = `${left}px`;
   }
 
   showTooltip(info, target, { onClose, enabled }) {
@@ -402,11 +404,13 @@ class Tooltip {
     this.tooltip.style.setProperty("z-index", "2147483648", "important");
     this.tooltip.style.setProperty("display", "block", "important");
     document.body.appendChild(this.tooltip);
+    // Keep tooltip out of the tab order until explicitly focused via shortcut
+    this.tooltip.setAttribute("inert", "");
     this.tooltip.style.display = "block";
 
     const closeButton = this.tooltip.querySelector(".chrome-ax-tooltip-close");
     if (closeButton) {
-      closeButton.removeAttribute("tabindex");
+      closeButton.setAttribute("tabindex", "-1");
       closeButton.addEventListener("click", (e) => {
         e.preventDefault();
         if (enabled()) onClose();
@@ -421,7 +425,7 @@ class Tooltip {
 
     const rect = target.getBoundingClientRect();
     const tooltipRect = this.tooltip.getBoundingClientRect();
-  const margin = this._margin;
+    const margin = this._margin;
 
     let top = window.scrollY + rect.bottom + margin;
     let left = window.scrollX + rect.right + margin;
@@ -585,8 +589,14 @@ class Tooltip {
       if (left + tooltipRect.width > window.scrollX + window.innerWidth) {
         left = window.scrollX + rect.left - tooltipRect.width - margin;
       }
-      top = Math.max(window.scrollY, Math.min(top, window.scrollY + window.innerHeight - tooltipRect.height));
-      left = Math.max(window.scrollX, Math.min(left, window.scrollX + window.innerWidth - tooltipRect.width));
+      top = Math.max(
+        window.scrollY,
+        Math.min(top, window.scrollY + window.innerHeight - tooltipRect.height)
+      );
+      left = Math.max(
+        window.scrollX,
+        Math.min(left, window.scrollX + window.innerWidth - tooltipRect.width)
+      );
       this.tooltip.style.top = `${top - window.scrollY}px`;
       this.tooltip.style.left = `${left - window.scrollX}px`;
       // Reposition connector
@@ -606,10 +616,11 @@ class Tooltip {
         width: rect.width,
         height: rect.height,
       };
-      let [tooltipEdge, elemEdge] = (typeof getClosestEdgePoint === 'function' ? getClosestEdgePoint : window.getClosestEdgePoint)(
-        tooltipRectAbs,
-        elemRectAbs
-      );
+      let [tooltipEdge, elemEdge] = (
+        typeof getClosestEdgePoint === "function"
+          ? getClosestEdgePoint
+          : window.getClosestEdgePoint
+      )(tooltipRectAbs, elemRectAbs);
       const dx = elemEdge.x - tooltipEdge.x;
       const dy = elemEdge.y - tooltipEdge.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
@@ -625,7 +636,9 @@ class Tooltip {
       // Update connector SVG lines
       if (this.connector) {
         const borderLine = this.connector.querySelector('line[stroke="white"]');
-        const whiteLine = this.connector.querySelector('line[stroke="#683ab7"]');
+        const whiteLine = this.connector.querySelector(
+          'line[stroke="#683ab7"]'
+        );
         if (borderLine && whiteLine) {
           borderLine.setAttribute("x1", tooltipEdge.x);
           borderLine.setAttribute("y1", tooltipEdge.y);
@@ -680,7 +693,15 @@ class Tooltip {
             this.tooltip &&
             this.tooltip.style.display === "block"
           ) {
+            // Allow focus into tooltip only when user intentionally invokes the shortcut
+            this.tooltip.removeAttribute("inert");
             const srNode = this.tooltip.querySelector(".chrome-ax-tooltip-sr");
+            const closeButton = this.tooltip.querySelector(
+              ".chrome-ax-tooltip-close"
+            );
+            if (closeButton) {
+              closeButton.removeAttribute("tabindex");
+            }
             if (srNode) {
               srNode.focus();
               e.preventDefault();
