@@ -224,3 +224,11 @@ div.chrome-ax-tooltip[role="tooltip"] dl dd {
     transform: rotate(360deg);
   }
 }
+
+/* Small alert icons inside the tooltip */
+.chrome-ax-tooltip .ax-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  vertical-align: text-bottom;
+}

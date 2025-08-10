@@ -456,6 +456,14 @@ async function getAccessibleInfo(target, forceUpdate = false) {
         ignoredReasons: info?.ignoredReasons || [],
       };
 
+      // Compute focus-related alerts for tooltip linking
+      try {
+        result.focusAlerts = computeFocusAlerts(target, result);
+      } catch (e) {
+        console.warn("computeFocusAlerts failed:", e);
+        result.focusAlerts = [];
+      }
+
       // Normalize native checkbox states from DOM to avoid stale/misaligned AX tri-state
       // Prefer the element's actual properties: checked and indeterminate
       try {
@@ -729,6 +737,322 @@ function isInShadowRoot(el) {
   return el.getRootNode() instanceof ShadowRoot;
 }
 
+// Determine if an element is programmatically focusable
+function isProgrammaticallyFocusable(el) {
+  if (!(el instanceof Element)) return false;
+  if (el.hasAttribute("disabled")) return false;
+  if (!isVisibleForFocus(el)) return false;
+  const tabindex = el.getAttribute("tabindex");
+  if (tabindex !== null) {
+    const ti = parseInt(tabindex, 10);
+    if (!Number.isNaN(ti)) return true; // -1 or >=0 => programmatically focusable
+  }
+  // Natively focusable controls
+  const tag = el.tagName;
+  if (
+    tag === "INPUT" ||
+    tag === "SELECT" ||
+    tag === "TEXTAREA" ||
+    tag === "BUTTON"
+  )
+    return true;
+  if (tag === "A" && el.hasAttribute("href")) return true;
+  if (tag === "AREA" && el.hasAttribute("href")) return true;
+  if (el.isContentEditable) return true;
+  // ARIA widgets often should be focusable
+  const role = el.getAttribute("role");
+  if (
+    role &&
+    /^(button|link|checkbox|radio|switch|tab|tabpanel|slider|spinbutton|textbox|combobox|menuitem|menuitemcheckbox|menuitemradio|option|treeitem)$/i.test(
+      role
+    )
+  )
+    return true;
+  return false;
+}
+
+// Determine if element is tabbable (reachable via Tab)
+function isTabbable(el) {
+  if (!isProgrammaticallyFocusable(el)) return false;
+  const tabindex = el.getAttribute("tabindex");
+  if (tabindex !== null) {
+    const ti = parseInt(tabindex, 10);
+    if (ti < 0) return false; // -1 = focusable but not tabbable
+  }
+  return true;
+}
+
+// Rough visibility check similar to ANDI logic
+function isVisibleForFocus(el) {
+  if (!(el instanceof Element)) return false;
+  const style = window.getComputedStyle(el);
+  if (
+    style.visibility === "hidden" ||
+    style.display === "none" ||
+    parseFloat(style.opacity) === 0
+  )
+    return false;
+  const rect = el.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) return false;
+  // Hidden via hidden attribute
+  if (el.hasAttribute("hidden")) return false;
+  // aria-hidden on self or ancestor
+  let n = el;
+  while (n && n.nodeType === 1) {
+    if (n.getAttribute && n.getAttribute("aria-hidden") === "true")
+      return false;
+    n = n.parentElement;
+  }
+  return true;
+}
+
+// Build focus alerts array with { text, anchor }
+function computeFocusAlerts(el, info) {
+  const alerts = [];
+  try {
+    const tabindexAttr = el.getAttribute("tabindex");
+    const tabindex = tabindexAttr != null ? parseInt(tabindexAttr, 10) : null;
+    const ariaHiddenSelf = el.getAttribute("aria-hidden") === "true";
+    const disabled =
+      el.hasAttribute("disabled") ||
+      (info?.states && info.states.disabled === true);
+    const role = (
+      el.getAttribute("role") ||
+      (info && info.role) ||
+      ""
+    ).toLowerCase();
+    const autofocus = el.hasAttribute("autofocus");
+
+    // Tabindex present/positive (map to keyboard access guidance)
+    if (tabindexAttr !== null) {
+      alerts.push({
+        text: `Has tabindex=${tabindexAttr}`,
+        anchor: "not_in_tab_order",
+      });
+      if (tabindex !== null && tabindex > 0) {
+        alerts.push({
+          text: `Positive tabindex (${tabindex}) affects tab order`,
+          anchor: "not_in_tab_order",
+        });
+      }
+    }
+
+    // Not Tabbable
+    if (!isTabbable(el)) {
+      const noName = !info?.name || info.name === "(no accessible name)";
+      alerts.push({
+        text: "Element is not tabbable",
+        anchor: noName ? "not_in_tab_order_no_name" : "not_in_tab_order",
+      });
+    }
+
+    // ARIA Hidden (self or ancestor)
+    if (ariaHiddenSelf) {
+      alerts.push({
+        text: 'aria-hidden="true" on element',
+        anchor: "ariahidden",
+      });
+    } else {
+      let n = el.parentElement;
+      while (n && n.nodeType === 1) {
+        if (n.getAttribute && n.getAttribute("aria-hidden") === "true") {
+          alerts.push({
+            text: 'Ancestor has aria-hidden="true"',
+            anchor: "ariahidden",
+          });
+          break;
+        }
+        n = n.parentElement;
+      }
+    }
+
+    // Invisible (CSS/hidden/size)
+    const style = window.getComputedStyle(el);
+    const rect = el.getBoundingClientRect();
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      parseFloat(style.opacity) === 0 ||
+      el.hasAttribute("hidden") ||
+      (rect.width === 0 && rect.height === 0)
+    ) {
+      // Closest ANDI help topic available is aria-hidden; link there for guidance about hidden content
+      alerts.push({ text: "Element appears invisible", anchor: "ariahidden" });
+    }
+
+    // Disabled
+    if (disabled) {
+      alerts.push({ text: "Element is disabled", anchor: "disabled_elements" });
+    }
+
+    // role="presentation"|"none"
+    if (role === "presentation" || role === "none") {
+      // Only surface a help link when this impacts images per ANDI docs
+      if (
+        el.tagName === "IMG" &&
+        el.getAttribute("alt") &&
+        el.getAttribute("alt").trim() !== ""
+      ) {
+        alerts.push({
+          text: "Image marked presentational will ignore alt text",
+          anchor: "image_alt_not_used",
+        });
+      }
+    }
+
+    // Focus event handlers
+    const hasFocusHandlers = hasAnyEventHandler(el, [
+      "onfocus",
+      "onblur",
+      "onfocusin",
+      "onfocusout",
+    ]);
+    if (hasFocusHandlers) {
+      alerts.push({
+        text: "Has focus/blur event handler(s)",
+        anchor: "javascript_event_caution",
+      });
+    }
+
+    // Autofocus
+    // Autofocus not covered by ANDI alerts help: omit linking to avoid dead anchors
+
+    // Focusable descendant
+    // Focusable descendant note not mapped in ANDI alerts: skip to avoid dead anchors
+
+    // Custom focusable (role suggests widget but not actually focusable)
+    if (role && !isProgrammaticallyFocusable(el)) {
+      const widgetish =
+        /^(button|link|checkbox|radio|switch|tab|slider|spinbutton|textbox|combobox|menuitem|menuitemcheckbox|menuitemradio|option|treeitem)$/i;
+      if (widgetish.test(role)) {
+        alerts.push({
+          text: `Role \"${role}\" but not focusable`,
+          anchor: "role_tab_order",
+        });
+      }
+    }
+
+    // --- Broader ANDI-like checks ---
+    const tag = el.tagName;
+    const isInputLike =
+      tag === "INPUT" ||
+      tag === "SELECT" ||
+      tag === "TEXTAREA" ||
+      el.isContentEditable;
+
+    // Input: missing label/name
+    if (isInputLike) {
+      const accessibleName = (info && info.name) || "";
+      if (!accessibleName || accessibleName === "(no accessible name)") {
+        alerts.push({
+          text: "Form control is missing an accessible name",
+          anchor: "no_name_form_element",
+        });
+      }
+      // Placeholder/required/invalid not covered in ANDI alerts help page: omit
+    }
+
+    // Button: no name
+    if (tag === "BUTTON" || role === "button") {
+      const nameBtn = (info && info.name) || "";
+      if (!nameBtn || nameBtn === "(no accessible name)") {
+        alerts.push({
+          text: "Button has no accessible name",
+          anchor: "no_name_generic",
+        });
+      }
+    }
+
+    // Link: empty name
+    if ((tag === "A" && el.hasAttribute("href")) || role === "link") {
+      const nameLink = (info && info.name) || "";
+      if (!nameLink || nameLink === "(no accessible name)") {
+        alerts.push({
+          text: "Link has no accessible name",
+          anchor: "no_name_generic",
+        });
+      }
+    }
+
+    // Image: missing alt
+    if (tag === "IMG") {
+      const alt = el.getAttribute("alt");
+      if (alt == null) {
+        alerts.push({
+          text: "Image missing alt attribute",
+          anchor: "no_name_image",
+        });
+      }
+    }
+
+    // Heading: empty text
+    if (/^H[1-6]$/.test(tag)) {
+      const nameHeading = (info && info.name) || "";
+      if (!nameHeading || nameHeading === "(no accessible name)") {
+        alerts.push({
+          text: "Heading has no accessible text",
+          anchor: "no_name_generic",
+        });
+      }
+    }
+
+    // Focusable but aria-hidden
+    if (ariaHiddenSelf && isProgrammaticallyFocusable(el)) {
+      alerts.push({
+        text: "Focusable element with aria-hidden=true",
+        anchor: "ariahidden",
+      });
+    }
+
+    // Duplicate id
+    const id = el.id;
+    if (id) {
+      const count = document.querySelectorAll(`#${CSS.escape(id)}`).length;
+      if (count > 1) {
+        alerts.push({
+          text: `Duplicate id \"${id}\" present`,
+          anchor: "dup_id",
+        });
+      }
+    }
+
+    // iFrame: missing title
+    if (tag === "IFRAME") {
+      const title = el.getAttribute("title");
+      if (!title || !title.trim()) {
+        alerts.push({
+          text: "iFrame is missing a title",
+          anchor: "no_name_iframe",
+        });
+      }
+    }
+
+    // Roles requiring a name
+    const rolesRequiringName =
+      /^(button|link|img|checkbox|radio|switch|tab|slider|spinbutton|textbox|combobox|menuitem|menuitemcheckbox|menuitemradio|option|treeitem)$/i;
+    if (role && rolesRequiringName.test(role)) {
+      const nameRole = (info && info.name) || "";
+      if (!nameRole || nameRole === "(no accessible name)") {
+        alerts.push({
+          text: `Role \"${role}\" requires an accessible name`,
+          anchor: "no_name_generic",
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("computeFocusAlerts error:", e);
+  }
+  return alerts;
+}
+
+function hasAnyEventHandler(el, names) {
+  for (const n of names) {
+    if (n in el && typeof el[n] === "function") return true;
+    if (el.hasAttribute && el.hasAttribute(n)) return true; // inline handler
+  }
+  return false;
+}
+
 function getLocalAccessibleInfo(el) {
   console.log("getLocalAccessibleInfo called with:", el);
   // Try ARIA attributes and native properties
@@ -788,6 +1112,7 @@ function getLocalAccessibleInfo(el) {
     group: computeGroupInfo(el),
     ignored: false,
     ignoredReasons: [],
+    focusAlerts: computeFocusAlerts(el, { role, name, states, ariaProperties }),
   };
 }
 

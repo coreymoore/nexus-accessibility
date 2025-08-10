@@ -39,6 +39,14 @@ async function getAccessibilityTree(tabId) {
 
 // Main message handler
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg && msg.action === "openFocusAlert") {
+    const url =
+      chrome.runtime.getURL("src/alerts.html") +
+      (msg.anchor ? `#${msg.anchor}` : "");
+    chrome.tabs.create({ url });
+    sendResponse && sendResponse({ ok: true });
+    return; // not async
+  }
   if (msg.action === "getAccessibilityTree") {
     (async () => {
       try {

@@ -1,0 +1,158 @@
+/* Nexus Alerts Help Page Styles */
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #f8f9fa;
+  color: #222;
+  margin: 0;
+  padding: 0;
+}
+header {
+  background: #1a237e;
+  color: #fff;
+  padding: 32px 0 16px 0;
+  text-align: center;
+  position: relative;
+}
+.nexus-logo {
+  display: block;
+  margin: 0 auto 8px auto;
+  width: 80px;
+  height: auto;
+}
+.toolName {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin: 0;
+  color: #fff;
+}
+#pageTitle {
+  margin-top: 12px;
+}
+nav#navHeader {
+  background: #283593;
+  padding: 8px 0;
+  margin-bottom: 0;
+}
+nav#navHeader a {
+  color: #fff;
+  text-decoration: none;
+  margin: 0 18px;
+  font-weight: 500;
+  font-size: 1.05rem;
+  transition: color 0.2s;
+}
+nav#navHeader a:hover {
+  color: #ffca28;
+}
+#tableOfContents {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(30, 40, 100, 0.08);
+  margin: 24px auto;
+  max-width: 900px;
+  padding: 24px 32px;
+}
+h2,
+h3 {
+  color: #1a237e;
+}
+h2 {
+  font-size: 1.5rem;
+  margin-top: 32px;
+}
+h3 {
+  font-size: 1.15rem;
+  margin-top: 24px;
+}
+.division {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(30, 40, 100, 0.08);
+  margin: 32px auto;
+  max-width: 900px;
+  padding: 24px 32px;
+}
+.details,
+.example,
+.moreinfo {
+  margin-bottom: 18px;
+}
+ul {
+  padding-left: 24px;
+}
+li.danger {
+  color: #c62828;
+  font-weight: 600;
+}
+li.warning {
+  color: #f9a825;
+  font-weight: 600;
+}
+li.caution {
+  color: #1565c0;
+  font-weight: 600;
+}
+.message.danger {
+  background: #ffcdd2;
+  color: #c62828;
+  border-left: 6px solid #c62828;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+.message.warning {
+  background: #fff8e1;
+  color: #f9a825;
+  border-left: 6px solid #f9a825;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+.message.caution {
+  background: #e3f2fd;
+  color: #1565c0;
+  border-left: 6px solid #1565c0;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+.skipnav {
+  position: absolute;
+  left: -999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.skipnav:focus {
+  left: 0;
+  top: 0;
+  width: auto;
+  height: auto;
+  background: #ffca28;
+  color: #222;
+  padding: 8px 16px;
+  z-index: 1000;
+}
+button {
+  background: #1a237e;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
+button:hover {
+  background: #283593;
+}
+@media (max-width: 700px) {
+  .division,
+  #tableOfContents {
+    padding: 16px 8px;
+    max-width: 98vw;
+  }
+  header {
+    padding: 18px 0 8px 0;
+  }
+}

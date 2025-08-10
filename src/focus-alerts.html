@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Focus Alerts Reference</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2em;
+        background: #fafafa;
+        color: #222;
+      }
+      h1,
+      h2,
+      h3 {
+        color: #005a9c;
+      }
+      ul {
+        margin-left: 1.5em;
+      }
+      .alert-section {
+        margin-bottom: 2em;
+      }
+      .alert-anchor {
+        font-weight: bold;
+        color: #005a9c;
+      }
+      .alert-desc {
+        margin-top: 0.5em;
+        margin-bottom: 1em;
+      }
+      a {
+        color: #005a9c;
+        text-decoration: underline;
+      }
+      a:hover {
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Focusable Element Alerts Reference</h1>
+    <p>
+      This page lists and explains the focus-related alerts used in this
+      extension, based on the
+      <a
+        href="https://github.com/SSAgov/ANDI/blob/master/andi/help/alerts.html"
+        target="_blank"
+        rel="noopener noreferrer"
+        >ANDI Focusable Element Alerts</a
+      >.
+    </p>
+
+    <div class="alert-section" id="tabindex">
+      <span class="alert-anchor">Tabindex Alert</span>
+      <div class="alert-desc">
+        Indicates that the element has a <code>tabindex</code> attribute, which
+        affects its focusability and tab order. <br />
+        <strong>Details:</strong> Elements with <code>tabindex="-1"</code> are
+        not tabbable but can be focused programmatically. Elements with
+        <code>tabindex="0"</code> are tabbable in document order. Positive
+        values set a custom tab order, which can be confusing for keyboard
+        users.
+      </div>
+    </div>
+
+    <div class="alert-section" id="not-tabbable">
+      <span class="alert-anchor">Not Tabbable Alert</span>
+      <div class="alert-desc">
+        Indicates that the element is not tabbable, meaning it cannot be reached
+        using the Tab key. This may be due to <code>tabindex="-1"</code>, being
+        hidden, or other reasons.
+      </div>
+    </div>
+
+    <div class="alert-section" id="aria-hidden">
+      <span class="alert-anchor">ARIA Hidden Alert</span>
+      <div class="alert-desc">
+        Indicates that the element or one of its ancestors has
+        <code>aria-hidden="true"</code>, which removes it from the accessibility
+        tree and prevents screen readers from interacting with it.
+      </div>
+    </div>
+
+    <div class="alert-section" id="invisible">
+      <span class="alert-anchor">Invisible Element Alert</span>
+      <div class="alert-desc">
+        Indicates that the element is visually hidden (e.g.,
+        <code>display:none</code>, <code>visibility:hidden</code>, or
+        <code>opacity:0</code>), which may affect its focusability and
+        accessibility.
+      </div>
+    </div>
+
+    <div class="alert-section" id="disabled">
+      <span class="alert-anchor">Disabled Element Alert</span>
+      <div class="alert-desc">
+        Indicates that the element is disabled (e.g.,
+        <code>disabled</code> attribute on form controls), making it unfocusable
+        and unusable for keyboard users.
+      </div>
+    </div>
+
+    <div class="alert-section" id="role-presentation">
+      <span class="alert-anchor">Role Presentation Alert</span>
+      <div class="alert-desc">
+        Indicates that the element has <code>role="presentation"</code> or
+        <code>role="none"</code>, which removes its semantic meaning from the
+        accessibility tree and may affect its focusability.
+      </div>
+    </div>
+
+    <div class="alert-section" id="focus-event">
+      <span class="alert-anchor">Focus Event Alert</span>
+      <div class="alert-desc">
+        Indicates that the element has JavaScript event handlers related to
+        focus (e.g., <code>onfocus</code>, <code>onblur</code>), which may
+        affect its behavior when focused.
+      </div>
+    </div>
+
+    <div class="alert-section" id="autofocus">
+      <span class="alert-anchor">Autofocus Alert</span>
+      <div class="alert-desc">
+        Indicates that the element has the <code>autofocus</code> attribute,
+        which causes it to receive focus automatically when the page loads.
+      </div>
+    </div>
+
+    <div class="alert-section" id="focusable-descendant">
+      <span class="alert-anchor">Focusable Descendant Alert</span>
+      <div class="alert-desc">
+        Indicates that the element contains a descendant that is focusable,
+        which may affect navigation and accessibility.
+      </div>
+    </div>
+
+    <div class="alert-section" id="custom-focusable">
+      <span class="alert-anchor">Custom Focusable Alert</span>
+      <div class="alert-desc">
+        Indicates that the element is made focusable through custom scripting or
+        ARIA attributes, rather than native HTML properties.
+      </div>
+    </div>
+
+    <hr />
+    <p style="font-size: 12px; color: #888">
+      Alert descriptions adapted from the
+      <a
+        href="https://github.com/SSAgov/ANDI/blob/master/andi/help/alerts.html"
+        target="_blank"
+        rel="noopener noreferrer"
+        >ANDI Focusable Element Alerts</a
+      >
+      by the Social Security Administration.
+    </p>
+  </body>
+</html>

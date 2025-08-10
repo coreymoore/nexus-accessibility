@@ -271,6 +271,34 @@ class Tooltip {
       </div>
     `;
 
+    // Focus Alerts Section with links to help page anchors
+    const alertsHelpUrl = chrome.runtime.getURL("src/alerts.html");
+    let focusAlertsSection = "";
+    if (Array.isArray(info.focusAlerts) && info.focusAlerts.length > 0) {
+      const alertLinks = info.focusAlerts
+        .map((alertObj) => {
+          if (
+            alertObj &&
+            typeof alertObj === "object" &&
+            alertObj.text &&
+            alertObj.anchor
+          ) {
+            return `<li><a href="#" class="ax-focus-alert-link" data-anchor="${alertObj.anchor}">${alertObj.text}</a></li>`;
+          } else if (typeof alertObj === "string") {
+            return `<li>${alertObj}</li>`;
+          }
+          return "";
+        })
+        .join("");
+      focusAlertsSection =
+        '<div class="chrome-ax-tooltip-focus-alerts" style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 8px;">' +
+        "<strong>Focus Alerts:</strong>" +
+        '<ul style="margin: 8px 0 0 16px; padding: 0;">' +
+        alertLinks +
+        "</ul>" +
+        "</div>";
+    }
+
     let propertiesSection = "";
     const propertiesList = this.getPropertiesList(info);
     if (Array.isArray(propertiesList)) {
@@ -287,16 +315,14 @@ class Tooltip {
     // Compose the tooltip content based on miniMode
     let tooltipContent;
     if (this.miniMode) {
-      tooltipContent = `
-        ${closeButtonHtml}
-        ${screenReaderSection}
-      `;
+      tooltipContent =
+        closeButtonHtml + screenReaderSection + focusAlertsSection;
     } else {
-      tooltipContent = `
-        ${closeButtonHtml}
-        ${screenReaderSection}
-        ${propertiesSection}
-      `;
+      tooltipContent =
+        closeButtonHtml +
+        screenReaderSection +
+        propertiesSection +
+        focusAlertsSection;
     }
     this.tooltip.innerHTML = tooltipContent;
 
@@ -315,6 +341,30 @@ class Tooltip {
       closeButton.addEventListener("click", (e) => {
         e.preventDefault();
         if (enabled()) onClose();
+      });
+    }
+
+    // Delegate focus alert link clicks to background to open extension page in new tab
+    const alertsContainer = this.tooltip.querySelector(
+      ".chrome-ax-tooltip-focus-alerts"
+    );
+    if (alertsContainer) {
+      alertsContainer.addEventListener("click", (e) => {
+        const a =
+          e.target &&
+          e.target.closest &&
+          e.target.closest("a.ax-focus-alert-link");
+        if (a) {
+          e.preventDefault();
+          const anchor = a.getAttribute("data-anchor") || "";
+          try {
+            chrome.runtime.sendMessage({ action: "openFocusAlert", anchor });
+          } catch (err) {
+            // fallback: try window.open with extension URL if messaging fails
+            const url = alertsHelpUrl + (anchor ? `#${anchor}` : "");
+            window.open(url, "_blank", "noopener");
+          }
+        }
       });
     }
 

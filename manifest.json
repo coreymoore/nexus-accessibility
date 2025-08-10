@@ -21,7 +21,11 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/components/tooltip/tooltip.css"],
+      "resources": [
+        "src/components/tooltip/tooltip.css",
+        "src/focus-alerts.html",
+        "src/alerts.html"
+      ],
       "matches": ["<all_urls>"]
     }
   ],

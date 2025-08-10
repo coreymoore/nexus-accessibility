@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+  <title>Danger</title>
+  <path d="M12 2l10 18H2L12 2z" fill="#D32F2F"/>
+  <!-- X icon for danger -->
+  <path d="M9 10.5l6 6M15 10.5l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+</svg>
