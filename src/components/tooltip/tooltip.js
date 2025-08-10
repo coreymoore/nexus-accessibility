@@ -12,6 +12,8 @@ class Tooltip {
     this.miniMode = false;
     this._mutObserver = null;
     this._isHiding = false;
+  // Spacing between tooltip and focused element
+  this._margin = 32;
     chrome.storage.sync.get({ miniMode: false }, (data) => {
       this.miniMode = !!data.miniMode;
     });
@@ -290,22 +292,27 @@ class Tooltip {
     document.body.appendChild(this.tooltip);
     this.tooltip.style.display = "block";
 
+    // Compute placement once, without overlapping the element
     const rect = target.getBoundingClientRect();
+    const margin = this._margin;
+    const spaceAbove = rect.top - margin;
+    const spaceBelow = window.innerHeight - rect.bottom - margin;
+    const placeBelow = spaceBelow >= spaceAbove;
+    this.tooltip.style.maxHeight = `${Math.max(0, placeBelow ? spaceBelow : spaceAbove)}px`;
     const tooltipRect = this.tooltip.getBoundingClientRect();
-    const margin = 16;
-
-    let top = window.scrollY + rect.bottom + margin;
-    let left = window.scrollX + rect.right + margin;
-
-    if (top + tooltipRect.height > window.scrollY + window.innerHeight) {
-      top = window.scrollY + rect.top - tooltipRect.height - margin;
+    const topAbs = placeBelow
+      ? window.scrollY + rect.bottom + margin
+      : window.scrollY + rect.top - tooltipRect.height - margin;
+    let leftAbs = window.scrollX + rect.right + margin;
+    if (leftAbs + tooltipRect.width > window.scrollX + window.innerWidth) {
+      leftAbs = window.scrollX + rect.left - tooltipRect.width - margin;
     }
-    if (left + tooltipRect.width > window.scrollX + window.innerWidth) {
-      left = window.scrollX + rect.left - tooltipRect.width - margin;
-    }
-
-    this.tooltip.style.top = `${top}px`;
-    this.tooltip.style.left = `${left}px`;
+    leftAbs = Math.max(
+      window.scrollX,
+      Math.min(leftAbs, window.scrollX + window.innerWidth - tooltipRect.width)
+    );
+  this.tooltip.style.top = `${top}px`;
+  this.tooltip.style.left = `${left}px`;
   }
 
   showTooltip(info, target, { onClose, enabled }) {
@@ -329,6 +336,14 @@ class Tooltip {
     this.tooltip.className = "chrome-ax-tooltip";
     this.tooltip.setAttribute("role", "tooltip");
     this.tooltip.setAttribute("id", "chrome-ax-tooltip");
+    // Store scroll handler for cleanup
+    this._scrollHandler = () => {
+      if (this.tooltip && this.tooltip.style.display === "block" && target) {
+        // Re-run the positioning logic
+        this._repositionTooltipAndConnector(target);
+      }
+    };
+    window.addEventListener("scroll", this._scrollHandler, true);
 
     // Split tooltip content into parts for flexible composition
     const closeButtonHtml = `
@@ -406,7 +421,7 @@ class Tooltip {
 
     const rect = target.getBoundingClientRect();
     const tooltipRect = this.tooltip.getBoundingClientRect();
-    const margin = 16;
+  const margin = this._margin;
 
     let top = window.scrollY + rect.bottom + margin;
     let left = window.scrollX + rect.right + margin;
@@ -550,6 +565,79 @@ class Tooltip {
 
     // Start observing DOM to prevent external removals
     this._ensureObserver();
+    // Helper to reposition tooltip and connector
+    this._repositionTooltipAndConnector = (target) => {
+      if (!this.tooltip || !target) return;
+      // Recalculate position and connector
+      const rect = target.getBoundingClientRect();
+      const tooltipRect = this.tooltip.getBoundingClientRect();
+      const margin = 16;
+      // Calculate available space above and below the element
+      const spaceAbove = rect.top - margin;
+      const spaceBelow = window.innerHeight - rect.bottom - margin;
+      let top, left;
+      if (spaceBelow >= tooltipRect.height || spaceBelow > spaceAbove) {
+        top = window.scrollY + rect.bottom + margin;
+      } else {
+        top = window.scrollY + rect.top - tooltipRect.height - margin;
+      }
+      left = window.scrollX + rect.right + margin;
+      if (left + tooltipRect.width > window.scrollX + window.innerWidth) {
+        left = window.scrollX + rect.left - tooltipRect.width - margin;
+      }
+      top = Math.max(window.scrollY, Math.min(top, window.scrollY + window.innerHeight - tooltipRect.height));
+      left = Math.max(window.scrollX, Math.min(left, window.scrollX + window.innerWidth - tooltipRect.width));
+      this.tooltip.style.top = `${top - window.scrollY}px`;
+      this.tooltip.style.left = `${left - window.scrollX}px`;
+      // Reposition connector
+      const tooltipRectAbs = {
+        left,
+        right: left + tooltipRect.width,
+        top,
+        bottom: top + tooltipRect.height,
+        width: tooltipRect.width,
+        height: tooltipRect.height,
+      };
+      const elemRectAbs = {
+        left: window.scrollX + rect.left,
+        right: window.scrollX + rect.right,
+        top: window.scrollY + rect.top,
+        bottom: window.scrollY + rect.bottom,
+        width: rect.width,
+        height: rect.height,
+      };
+      let [tooltipEdge, elemEdge] = (typeof getClosestEdgePoint === 'function' ? getClosestEdgePoint : window.getClosestEdgePoint)(
+        tooltipRectAbs,
+        elemRectAbs
+      );
+      const dx = elemEdge.x - tooltipEdge.x;
+      const dy = elemEdge.y - tooltipEdge.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const extension = 4;
+      tooltipEdge = {
+        x: tooltipEdge.x - (dx / distance) * extension,
+        y: tooltipEdge.y - (dy / distance) * extension,
+      };
+      elemEdge = {
+        x: elemEdge.x + (dx / distance) * extension,
+        y: elemEdge.y + (dy / distance) * extension,
+      };
+      // Update connector SVG lines
+      if (this.connector) {
+        const borderLine = this.connector.querySelector('line[stroke="white"]');
+        const whiteLine = this.connector.querySelector('line[stroke="#683ab7"]');
+        if (borderLine && whiteLine) {
+          borderLine.setAttribute("x1", tooltipEdge.x);
+          borderLine.setAttribute("y1", tooltipEdge.y);
+          borderLine.setAttribute("x2", elemEdge.x);
+          borderLine.setAttribute("y2", elemEdge.y);
+          whiteLine.setAttribute("x1", tooltipEdge.x);
+          whiteLine.setAttribute("y1", tooltipEdge.y);
+          whiteLine.setAttribute("x2", elemEdge.x);
+          whiteLine.setAttribute("y2", elemEdge.y);
+        }
+      }
+    };
 
     // Install focus trap so tab focus is retained within the tooltip once entered
     this._setupFocusTrap({ onClose, enabled });
@@ -558,6 +646,10 @@ class Tooltip {
   hideTooltip({ onRefocus } = {}) {
     this._isHiding = true;
     try {
+      if (this._scrollHandler) {
+        window.removeEventListener("scroll", this._scrollHandler, true);
+        this._scrollHandler = null;
+      }
       this._removeFocusTrap();
       if (this.tooltip && this.tooltip.parentNode) {
         this.tooltip.parentNode.removeChild(this.tooltip);
