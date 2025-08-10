@@ -38,7 +38,7 @@
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
   z-index: 2147483647 !important;
-  font-size: 14px;
+  font-size: 16px;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
     sans-serif;
   border: none;
@@ -47,8 +47,10 @@
   cursor: default;
   letter-spacing: -0.011em;
   min-width: 280px;
-  max-width: 380px;
-  overflow: visible;
+  max-width: 50%;
+  max-height: 100vh;
+  overflow-y: auto;
+  overflow-x: auto;
 }
 
 /* Close button */
@@ -78,7 +80,7 @@
     rgba(237, 231, 254, 0.9)
   );
   color: #2d1958;
-  font-size: 13px;
+  font-size: 16px;
   padding: 8px 12px;
   border-radius: 6px;
   margin-bottom: 10px;
@@ -95,11 +97,6 @@
   outline: 2px solid #683ab7 !important;
   outline-offset: 2px !important;
   box-shadow: 0 0 0 4px #fff !important;
-}
-
-.chrome-ax-tooltip *:hover {
-  outline: none !important;
-  box-shadow: none !important;
 }
 
 /* Definition list layout */
@@ -119,7 +116,7 @@ div.chrome-ax-tooltip[role="tooltip"] dl {
   flex-wrap: nowrap;
   align-items: center;
   gap: 0.7em;
-  font-size: 12px;
+  font-size: 14px;
   margin: 2px 0;
   padding-top: 10px;
   color: #3a2956;
@@ -159,7 +156,7 @@ div.chrome-ax-tooltip[role="tooltip"] dl {
 div.chrome-ax-tooltip[role="tooltip"] dl dt {
   font-weight: 600 !important;
   color: #683ab7 !important;
-  font-size: 12px !important;
+  font-size: 15px !important;
   letter-spacing: 0.02em !important;
   font-family: inherit !important;
   text-transform: uppercase !important;
@@ -173,7 +170,7 @@ div.chrome-ax-tooltip[role="tooltip"] dl dt {
 
 div.chrome-ax-tooltip[role="tooltip"] dl dd {
   margin: 0 !important;
-  font-size: 13px !important;
+  font-size: 16px !important;
   color: #2d1958 !important;
   font-family: inherit !important;
   font-weight: 450 !important;
@@ -206,7 +203,7 @@ div.chrome-ax-tooltip[role="tooltip"] dl dd {
   display: inline-block;
   padding: 0 2px !important;
   border-radius: 4px;
-  font-size: 12px !important;
+  font-size: 15px !important;
   font-weight: 500;
   background: none !important;
 }
