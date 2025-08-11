@@ -809,18 +809,7 @@ class Tooltip {
             e.stopPropagation();
           }
           // Listen for miniMode changes from popup
-          chrome.runtime.onMessage.addListener((msg) => {
-            if (msg && typeof msg.miniMode === "boolean") {
-              this.miniMode = msg.miniMode;
-              if (this.tooltip && this.tooltip.style.display === "block") {
-                this.showTooltip(
-                  this._lastInfo,
-                  this._lastTarget,
-                  this._lastOptions
-                );
-              }
-            }
-          });
+          // Note: runtime.onMessage is registered once in the constructor to avoid leaks
         },
         true
       );

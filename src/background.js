@@ -1,30 +1,18 @@
+import { queueDebuggerSession } from "./background/queue.js";
+import { attachIfNeeded, scheduleIdleDetach as scheduleDetach, initDetachHandlers, markUsed } from "./background/attachManager.js";
+import { initRouter } from "./background/router.js";
+import { docRoots as __axDocRoots, nodeCache as __axNodeCache } from "./background/caches.js";
+import { getCdpFrameId, getOrCreateIsolatedWorld } from "./background/cdp.js";
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Chrome Accessibility Extension installed");
 });
 
-// Simple per-tab promise queue to serialize debugger sessions
-const __axSessionQueues = new Map(); // tabId -> Promise
-function queueDebuggerSession(tabId, task) {
-  const prev = __axSessionQueues.get(tabId) || Promise.resolve();
-  const run = () => Promise.resolve().then(task);
-  const next = prev.then(run, run);
-  const cleanup = next.finally(() => {
-    // Only clear if this promise is still the head
-    if (__axSessionQueues.get(tabId) === next) {
-      __axSessionQueues.delete(tabId);
-    }
-  });
-  __axSessionQueues.set(tabId, cleanup);
-  return next;
-}
+// Initialize shared detach/cleanup handlers
+initDetachHandlers();
+initRouter();
 
-// Maintain a lightweight persistent debugger attachment per tab to avoid
-// repeated attach/detach overhead on every request.
-const __axAttachedTabs = new Map(); // tabId -> { attached: boolean, detachTimer?: number }
-// Cache of DOM root nodeIds per tab/frame for faster queries
-const __axDocRoots = new Map(); // key: `${tabId}:${frameId||'main'}` -> { nodeId, t }
-// Cache of selector->nodeId per tab/frame to avoid repeated DOM.querySelector
-const __axNodeCache = new Map(); // key: `${tabId}:${frameId||'main'}::${selector}` -> { nodeId, t }
+// Caches are now shared via module to persist across SW runs when possible
 
 // Cache policy
 const AX_DOCROOT_TTL_MS = 30000; // 30s per-frame document root TTL
@@ -42,52 +30,6 @@ function evictOldestNodeCacheEntry() {
     }
   }
   if (oldestKey) __axNodeCache.delete(oldestKey);
-}
-
-async function attachIfNeeded(tabId) {
-  const state = __axAttachedTabs.get(tabId) || {
-    attached: false,
-    detachTimer: null,
-  };
-  if (state.detachTimer) {
-    try {
-      clearTimeout(state.detachTimer);
-    } catch {}
-    state.detachTimer = null;
-  }
-  if (!state.attached) {
-    await chrome.debugger.attach({ tabId }, "1.3");
-    await chrome.debugger.sendCommand({ tabId }, "DOM.enable");
-    await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
-    state.attached = true;
-    __axAttachedTabs.set(tabId, state);
-  }
-}
-
-function scheduleDetach(tabId, idleMs = 3000) {
-  const state = __axAttachedTabs.get(tabId);
-  if (!state || !state.attached) return;
-  if (state.detachTimer) {
-    try {
-      clearTimeout(state.detachTimer);
-    } catch {}
-  }
-  state.detachTimer = setTimeout(async () => {
-    try {
-      await chrome.debugger.detach({ tabId });
-    } catch {}
-    state.attached = false;
-    state.detachTimer = null;
-    __axAttachedTabs.set(tabId, state);
-    // Invalidate cached roots on detach
-    for (const key of Array.from(__axDocRoots.keys())) {
-      if (key.startsWith(`${tabId}:`)) __axDocRoots.delete(key);
-    }
-    for (const key of Array.from(__axNodeCache.keys())) {
-      if (key.startsWith(`${tabId}:`)) __axNodeCache.delete(key);
-    }
-  }, idleMs);
-  __axAttachedTabs.set(tabId, state);
 }
 
 // Helper function for accessibility tree
@@ -177,14 +119,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
         const result = await queueDebuggerSession(tabId, async () => {
           await attachIfNeeded(tabId);
+          await markUsed(tabId);
           try {
-            // Resolve the correct frame: prefer sender.frameId; fall back to main doc
+            // Resolve the correct frame: prefer sender.frameId -> CDP frame; fall back to main doc
             let documentNodeId;
-            const frameId =
+            const chromeFrameId =
               sender && typeof sender.frameId !== "undefined"
-                ? String(sender.frameId)
-                : null;
-            const cacheKey = `${tabId}:${frameId || "main"}`;
+                ? sender.frameId
+                : undefined;
+            let pageFrameId;
+            if (typeof chromeFrameId === "number") {
+              pageFrameId = await getCdpFrameId(tabId, chromeFrameId, msg.frameUrl);
+              if (!pageFrameId && msg.frameUrl) {
+                console.warn("Failed to map CDP frame for", { chromeFrameId, url: msg.frameUrl });
+              }
+            }
+            // Only two cache scopes: main or a concrete CDP frame; never cache under ext frameId
+            const cacheKey = pageFrameId ? `${tabId}:cdp:${pageFrameId}` : `${tabId}:main`;
             const cached = __axDocRoots.get(cacheKey);
             if (
               cached &&
@@ -193,17 +144,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             ) {
               documentNodeId = cached.nodeId;
             } else {
-              const params = frameId ? { depth: 1, frameId } : { depth: 1 };
-              const { root } = await chrome.debugger.sendCommand(
-                { tabId },
-                "DOM.getDocument",
-                params
-              );
-              documentNodeId = root.nodeId;
-              __axDocRoots.set(cacheKey, {
-                nodeId: documentNodeId,
-                t: Date.now(),
-              });
+              // For main frame, cache top-level document root. For subframes, we won't rely on DOM.getDocument.
+              if (!pageFrameId) {
+                const { root } = await chrome.debugger.sendCommand(
+                  { tabId },
+                  "DOM.getDocument",
+                  { depth: 1 }
+                );
+                documentNodeId = root.nodeId;
+                __axDocRoots.set(cacheKey, {
+                  nodeId: documentNodeId,
+                  t: Date.now(),
+                });
+              }
             }
 
             const cacheSelKey = `${cacheKey}::${msg.elementSelector}`;
@@ -238,39 +191,64 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               }
             }
             if (!nodeId) {
-              let q = await chrome.debugger.sendCommand(
-                { tabId },
-                "DOM.querySelector",
-                {
-                  nodeId: documentNodeId,
-                  selector: msg.elementSelector,
-                }
-              );
-              nodeId = q.nodeId;
-              // If query fails (nodeId 0), refresh root once and retry quickly
-              if (!nodeId) {
+              if (pageFrameId) {
+                // Cross-origin or subframe: evaluate in the frame's isolated world
                 try {
-                  const params = frameId ? { depth: 1, frameId } : { depth: 1 };
-                  const { root } = await chrome.debugger.sendCommand(
+                  const ctxId = await getOrCreateIsolatedWorld(tabId, pageFrameId, "AX_Helper");
+                  const expr = `document.querySelector(${JSON.stringify(msg.elementSelector)})`;
+                  const { result } = await chrome.debugger.sendCommand(
                     { tabId },
-                    "DOM.getDocument",
-                    params
+                    "Runtime.evaluate",
+                    { contextId: ctxId, expression: expr, returnByValue: false, awaitPromise: false }
                   );
-                  documentNodeId = root.nodeId;
-                  __axDocRoots.set(cacheKey, {
+                  const objectId = result && result.objectId;
+                  if (objectId) {
+                    const { node } = await chrome.debugger.sendCommand(
+                      { tabId },
+                      "DOM.describeNode",
+                      { objectId }
+                    );
+                    nodeId = node?.nodeId || 0;
+                  }
+                } catch (e) {
+                  console.warn("Frame-world query failed; falling back to main DOM query", e);
+                }
+              }
+              // Fallback to main frame DOM query
+              if (!nodeId && documentNodeId) {
+                let q = await chrome.debugger.sendCommand(
+                  { tabId },
+                  "DOM.querySelector",
+                  {
                     nodeId: documentNodeId,
-                    t: Date.now(),
-                  });
-                  q = await chrome.debugger.sendCommand(
-                    { tabId },
-                    "DOM.querySelector",
-                    {
+                    selector: msg.elementSelector,
+                  }
+                );
+                nodeId = q.nodeId;
+                // If query fails (nodeId 0), refresh root once and retry quickly
+                if (!nodeId && !pageFrameId) {
+                  try {
+                    const { root } = await chrome.debugger.sendCommand(
+                      { tabId },
+                      "DOM.getDocument",
+                      { depth: 1 }
+                    );
+                    documentNodeId = root.nodeId;
+                    __axDocRoots.set(cacheKey, {
                       nodeId: documentNodeId,
-                      selector: msg.elementSelector,
-                    }
-                  );
-                  nodeId = q.nodeId;
-                } catch {}
+                      t: Date.now(),
+                    });
+                    q = await chrome.debugger.sendCommand(
+                      { tabId },
+                      "DOM.querySelector",
+                      {
+                        nodeId: documentNodeId,
+                        selector: msg.elementSelector,
+                      }
+                    );
+                    nodeId = q.nodeId;
+                  } catch {}
+                }
               }
               if (nodeId) {
                 // Enforce cache cap
@@ -487,11 +465,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
         if (tab && tab.id) {
           await queueDebuggerSession(tab.id, async () => {
+            // Only detach if currently attached; when not attached, no-op
             try {
+              await chrome.debugger.sendCommand({ tabId: tab.id }, "Target.getBrowserContexts");
               await chrome.debugger.detach({ tabId: tab.id });
               console.log("Debugger detached from tab", tab.id);
             } catch (err) {
-              console.warn("Failed to detach debugger:", err);
+              // If not attached, ignore; otherwise warn
+              if (!String(err?.message || err).includes("not attached")) {
+                console.warn("Failed to detach debugger:", err);
+              }
             }
           });
         }

@@ -401,6 +401,7 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 8) {
         {
           action: "getBackendNodeIdAndAccessibleInfo",
           elementSelector: selector,
+          frameUrl: window.location.href,
         },
         (response) => {
           clearTimeout(timeoutId);
@@ -756,8 +757,7 @@ function onFocusOut(e) {
       } catch {}
     }
     lastFocusedElement = null;
-    // Request background to detach debugger when focus leaves
-    chrome.runtime.sendMessage({ action: "detachDebugger" });
+  // Do not force detach; background manages idle detach via alarms to avoid races
   }
 }
 
@@ -815,6 +815,13 @@ chrome.storage.sync.get({ extensionEnabled: true }, (data) => {
 chrome.runtime.onMessage.addListener((msg) => {
   try {
     switch (msg.type) {
+      case "AX_TOOLTIP_SHOWN":
+        // This is relayed across frames; if it’s from another frame, hide ours.
+        if (msg.frameToken && msg.frameToken !== FRAME_TOKEN) {
+          const tip = getTooltipEl();
+          if (tip) hideTooltip();
+        }
+        break;
       case "ENABLE_EXTENSION":
         extensionEnabled = true;
         registerEventListeners();
@@ -825,7 +832,7 @@ chrome.runtime.onMessage.addListener((msg) => {
         hideTooltip();
         break;
       default:
-        console.warn("Unknown message type:", msg.type);
+        // ignore
     }
   } catch (error) {
     console.error("Error handling message:", error);
