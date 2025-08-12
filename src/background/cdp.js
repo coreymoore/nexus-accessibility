@@ -1,8 +1,9 @@
 import { CDP_VERSION, CONTEXT_TTL_MS } from "./constants.js";
 import { contextCache } from "./state.js";
+import { chromeAsync } from "../utils/chromeAsync.js";
 
 export async function sendCdp(tabId, method, params) {
-  return chrome.debugger.sendCommand({ tabId }, method, params);
+  return chromeAsync.debugger.sendCommand({ tabId }, method, params);
 }
 
 export async function ensureDomains(tabId) {

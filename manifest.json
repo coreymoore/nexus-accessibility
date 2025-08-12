@@ -12,6 +12,9 @@
   "alarms"
   ],
   "host_permissions": ["<all_urls>"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none';"
+  },
   "background": {
     "service_worker": "src/background.js",
     "type": "module"

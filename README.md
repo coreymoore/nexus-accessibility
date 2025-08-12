@@ -8,11 +8,21 @@ This is an early release and not feature complete.
 
 ## Known Issues
 
-These will be resolved before official release.
+**Recent Improvements (Latest Refactoring):**
+- ✅ Fixed memory leaks from duplicate message listeners
+- ✅ Implemented Chrome API promise wrappers to prevent race conditions
+- ✅ Added smart caching with TTL and LRU eviction
+- ✅ Enhanced error handling and recovery
+- ✅ Improved MV3 compatibility with service worker scheduler
+- ✅ Added proper cleanup on page unload
+- ✅ Enhanced logging and debugging capabilities
+
+**Remaining Known Issues:**
+These will be resolved in upcoming releases.
 
 - Some accessibility properties do not properly display.
 - Potential access barriers on the tooltip or extension menu, as full accessibility testing has not yet been completed. I did try to minimize as many barriers as possible during development but I used a very quick iterative process and may have missed some.
-- The code is a bit spaghetti at this time. The plan is to go back and refine it manually before release.
+- Cross-origin iframe support needs further testing.
 
 ## Features
 
@@ -96,6 +106,24 @@ To keep the inspector responsive on complex pages and sites that use frames/ifra
 - Slightly higher memory usage in the background service worker due to caches. The TTL and size cap bound this usage.
 - The extension uses the `debugger` permission to access CDP. While attached, DevTools may report that another debugger is attached. The extension mitigates this by detaching after short idle periods.
 - The extension requests `webNavigation` to coordinate across frames and improve targeting. No network requests are made; all CDP interactions are scoped to the active tab.
+
+## Technical Architecture
+
+**Modular Structure:**
+- `src/background/` - Service worker modules for debugger management, caching, and CDP communication
+- `src/components/` - UI components including the accessibility tooltip
+- `src/utils/` - Shared utilities for logging, Chrome API wrappers, and scheduling
+
+**Key Components:**
+- **DebuggerConnectionManager** - Serializes debugger operations to prevent race conditions
+- **SmartCache** - TTL-based caching with LRU eviction for memory management
+- **ServiceWorkerScheduler** - Replaces setTimeout/setInterval with chrome.alarms for MV3 compatibility
+- **Promise-wrapped Chrome APIs** - Eliminates callback-based race conditions
+
+**Memory Management:**
+- Automatic cleanup of event listeners on page unload
+- Bounded caches with TTL and size limits
+- Proper tooltip lifecycle management
 
 ## AI Disclosure
 

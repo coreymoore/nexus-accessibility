@@ -2,13 +2,21 @@ import { DETACH_IDLE_MS } from "./constants.js";
 import { attachedTabs, contextCache } from "./state.js";
 import { ensureDomains } from "./cdp.js";
 import { docRoots, nodeCache } from "./caches.js";
+import { chromeAsync } from "../utils/chromeAsync.js";
 
 export async function attachIfNeeded(tabId) {
   const info = attachedTabs.get(tabId);
   if (info?.attached) return;
-  await chrome.debugger.attach({ tabId }, "1.3");
-  await ensureDomains(tabId);
-  attachedTabs.set(tabId, { attached: true, lastUsed: Date.now() });
+  
+  try {
+    await chromeAsync.debugger.attach({ tabId }, "1.3");
+    await ensureDomains(tabId);
+    attachedTabs.set(tabId, { attached: true, lastUsed: Date.now() });
+  } catch (error) {
+    // Clean up if attach failed
+    attachedTabs.delete(tabId);
+    throw error;
+  }
 }
 
 export async function markUsed(tabId) {
@@ -34,18 +42,23 @@ export function initDetachHandlers() {
     attachedTabs.delete(tabId);
     // Invalidate contexts
     for (const k of Array.from(contextCache.keys())) if (k.startsWith(`${tabId}:`)) contextCache.delete(k);
-  for (const k of Array.from(docRoots.keys())) if (k.startsWith(`${tabId}:`)) docRoots.delete(k);
-  for (const k of Array.from(nodeCache.keys())) if (k.startsWith(`${tabId}:`)) nodeCache.delete(k);
+    for (const k of Array.from(docRoots.keys())) if (k.startsWith(`${tabId}:`)) docRoots.delete(k);
+    for (const k of Array.from(nodeCache.keys())) if (k.startsWith(`${tabId}:`)) nodeCache.delete(k);
   });
 }
 
 export async function doDetach(tabId) {
   try {
-    await chrome.debugger.detach({ tabId });
+    await chromeAsync.debugger.detach({ tabId });
+  } catch (error) {
+    // Ignore "not attached" errors
+    if (!error.message.includes("not attached")) {
+      console.warn("Error during debugger detach:", error);
+    }
   } finally {
     attachedTabs.delete(tabId);
     for (const k of Array.from(contextCache.keys())) if (k.startsWith(`${tabId}:`)) contextCache.delete(k);
-  for (const k of Array.from(docRoots.keys())) if (k.startsWith(`${tabId}:`)) docRoots.delete(k);
-  for (const k of Array.from(nodeCache.keys())) if (k.startsWith(`${tabId}:`)) nodeCache.delete(k);
+    for (const k of Array.from(docRoots.keys())) if (k.startsWith(`${tabId}:`)) docRoots.delete(k);
+    for (const k of Array.from(nodeCache.keys())) if (k.startsWith(`${tabId}:`)) nodeCache.delete(k);
   }
 }

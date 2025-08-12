@@ -5,22 +5,58 @@ const logger = window.axLogger;
 // Unique token for this frame to coordinate tooltips across frames
 const FRAME_TOKEN = `${location.origin}|${location.href}`;
 
-// When another frame shows a tooltip, hide ours to prevent duplicates
-chrome.runtime.onMessage.addListener((msg) => {
-  try {
-    if (
-      msg &&
-      msg.type === "AX_TOOLTIP_SHOWN" &&
-      msg.frameToken !== FRAME_TOKEN
-    ) {
-      // Hide our tooltip if visible
-      const tip = getTooltipEl();
-      if (tip) {
-        hideTooltip();
+// Track message listener for cleanup
+let messageListener = null;
+
+// Initialize message listener
+function initMessageListener() {
+  if (messageListener) return; // Prevent duplicates
+  
+  messageListener = (msg) => {
+    try {
+      if (
+        msg &&
+        msg.type === "AX_TOOLTIP_SHOWN" &&
+        msg.frameToken !== FRAME_TOKEN
+      ) {
+        // Hide our tooltip if visible
+        const tip = getTooltipEl();
+        if (tip) {
+          hideTooltip();
+        }
       }
-    }
-  } catch {}
-});
+    } catch {}
+  };
+  
+  chrome.runtime.onMessage.addListener(messageListener);
+}
+
+// Cleanup function for page unload
+function cleanup() {
+  if (messageListener) {
+    chrome.runtime.onMessage.removeListener(messageListener);
+    messageListener = null;
+  }
+  
+  // Clean up tooltip
+  hideTooltip();
+  
+  // Clean up any pending timers
+  for (const timer of refetchTimers.values()) {
+    clearTimeout(timer);
+  }
+  refetchTimers.clear();
+  
+  // Clean up event listeners
+  unregisterEventListeners();
+}
+
+// Initialize
+initMessageListener();
+
+// Clean up on page unload
+window.addEventListener('pagehide', cleanup, { once: true });
+window.addEventListener('beforeunload', cleanup, { once: true });
 
 // Helper to get the tooltip element created by the tooltip module
 function getTooltipEl() {
@@ -401,7 +437,6 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 8) {
         {
           action: "getBackendNodeIdAndAccessibleInfo",
           elementSelector: selector,
-          frameUrl: window.location.href,
         },
         (response) => {
           clearTimeout(timeoutId);
@@ -757,7 +792,8 @@ function onFocusOut(e) {
       } catch {}
     }
     lastFocusedElement = null;
-  // Do not force detach; background manages idle detach via alarms to avoid races
+    // Request background to detach debugger when focus leaves
+    chrome.runtime.sendMessage({ action: "detachDebugger" });
   }
 }
 
@@ -815,13 +851,6 @@ chrome.storage.sync.get({ extensionEnabled: true }, (data) => {
 chrome.runtime.onMessage.addListener((msg) => {
   try {
     switch (msg.type) {
-      case "AX_TOOLTIP_SHOWN":
-        // This is relayed across frames; if it’s from another frame, hide ours.
-        if (msg.frameToken && msg.frameToken !== FRAME_TOKEN) {
-          const tip = getTooltipEl();
-          if (tip) hideTooltip();
-        }
-        break;
       case "ENABLE_EXTENSION":
         extensionEnabled = true;
         registerEventListeners();
@@ -832,7 +861,7 @@ chrome.runtime.onMessage.addListener((msg) => {
         hideTooltip();
         break;
       default:
-        // ignore
+        console.warn("Unknown message type:", msg.type);
     }
   } catch (error) {
     console.error("Error handling message:", error);

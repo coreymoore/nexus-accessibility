@@ -3,6 +3,7 @@ import { attachIfNeeded, scheduleIdleDetach as scheduleDetach, initDetachHandler
 import { initRouter } from "./background/router.js";
 import { docRoots as __axDocRoots, nodeCache as __axNodeCache } from "./background/caches.js";
 import { getCdpFrameId, getOrCreateIsolatedWorld } from "./background/cdp.js";
+import { chromeAsync } from "./utils/chromeAsync.js";
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Chrome Accessibility Extension installed");
@@ -19,6 +20,9 @@ const AX_DOCROOT_TTL_MS = 30000; // 30s per-frame document root TTL
 const AX_NODECACHE_TTL_MS = 10000; // 10s per selector->nodeId cache entry
 const AX_NODECACHE_MAX_ENTRIES = 500; // cap total entries to bound memory
 
+/**
+ * Evicts the oldest entry from the node cache to prevent unbounded growth
+ */
 function evictOldestNodeCacheEntry() {
   let oldestKey = null;
   let oldestT = Infinity;
@@ -32,26 +36,34 @@ function evictOldestNodeCacheEntry() {
   if (oldestKey) __axNodeCache.delete(oldestKey);
 }
 
-// Helper function for accessibility tree
+/**
+ * Helper function to get the full accessibility tree for a tab
+ * @param {number} tabId - The Chrome tab ID
+ * @returns {Promise<Array>} Array of accessibility nodes
+ * @throws {Error} If debugger operations fail
+ */
 async function getAccessibilityTree(tabId) {
   try {
-    await chrome.debugger.attach({ tabId }, "1.3");
-    await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
-    const { nodes } = await chrome.debugger.sendCommand(
+    await chromeAsync.debugger.attach({ tabId }, "1.3");
+    await chromeAsync.debugger.sendCommand({ tabId }, "Accessibility.enable");
+    const { nodes } = await chromeAsync.debugger.sendCommand(
       { tabId },
       "Accessibility.getFullAXTree"
     );
-    await chrome.debugger.detach({ tabId });
+    await chromeAsync.debugger.detach({ tabId });
     return nodes;
   } catch (e) {
     try {
-      await chrome.debugger.detach({ tabId });
+      await chromeAsync.debugger.detach({ tabId });
     } catch {}
     throw e;
   }
 }
 
-// Main message handler
+/**
+ * Main message handler for extension communication
+ * Handles requests for accessibility tree data and element inspection
+ */
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Relay tooltip-coordination messages across all frames in the tab
   if (msg && msg.type === "AX_TOOLTIP_SHOWN") {
@@ -60,10 +72,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (!sender || !sender.tab || !sender.tab.id) return;
         const tabId = sender.tab.id;
         // Get all frames in this tab and broadcast
-        const frames = await chrome.webNavigation.getAllFrames({ tabId });
+        const frames = await chromeAsync.webNavigation.getAllFrames({ tabId });
         for (const f of frames) {
           try {
-            await chrome.tabs.sendMessage(tabId, msg, { frameId: f.frameId });
+            await chromeAsync.tabs.sendMessage(tabId, msg, { frameId: f.frameId });
           } catch (e) {
             // ignore frames without our content script
           }
@@ -77,7 +89,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === "getAccessibilityTree") {
     (async () => {
       try {
-        const [tab] = await chrome.tabs.query({
+        const [tab] = await chromeAsync.tabs.query({
           active: true,
           currentWindow: true,
         });
@@ -85,7 +97,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const tree = await queueDebuggerSession(tabId, async () => {
           await attachIfNeeded(tabId);
           try {
-            const { nodes } = await chrome.debugger.sendCommand(
+            const { nodes } = await chromeAsync.debugger.sendCommand(
               { tabId },
               "Accessibility.getFullAXTree"
             );
@@ -110,7 +122,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       let tabId;
       try {
         console.log("Background: received message", msg);
-        const [tab] = await chrome.tabs.query({
+        const [tab] = await chromeAsync.tabs.query({
           active: true,
           currentWindow: true,
         });
@@ -146,7 +158,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             } else {
               // For main frame, cache top-level document root. For subframes, we won't rely on DOM.getDocument.
               if (!pageFrameId) {
-                const { root } = await chrome.debugger.sendCommand(
+                const { root } = await chromeAsync.debugger.sendCommand(
                   { tabId },
                   "DOM.getDocument",
                   { depth: 1 }
@@ -176,7 +188,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             if (nodeId) {
               // Validate quickly by asking for a small AX slice; if it fails, we'll re-query
               try {
-                const test = await chrome.debugger.sendCommand(
+                const test = await chromeAsync.debugger.sendCommand(
                   { tabId },
                   "Accessibility.getPartialAXTree",
                   { nodeId, fetchRelatives: false }
@@ -196,14 +208,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 try {
                   const ctxId = await getOrCreateIsolatedWorld(tabId, pageFrameId, "AX_Helper");
                   const expr = `document.querySelector(${JSON.stringify(msg.elementSelector)})`;
-                  const { result } = await chrome.debugger.sendCommand(
+                  const { result } = await chromeAsync.debugger.sendCommand(
                     { tabId },
                     "Runtime.evaluate",
                     { contextId: ctxId, expression: expr, returnByValue: false, awaitPromise: false }
                   );
                   const objectId = result && result.objectId;
                   if (objectId) {
-                    const { node } = await chrome.debugger.sendCommand(
+                    const { node } = await chromeAsync.debugger.sendCommand(
                       { tabId },
                       "DOM.describeNode",
                       { objectId }
@@ -216,7 +228,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               }
               // Fallback to main frame DOM query
               if (!nodeId && documentNodeId) {
-                let q = await chrome.debugger.sendCommand(
+                let q = await chromeAsync.debugger.sendCommand(
                   { tabId },
                   "DOM.querySelector",
                   {
@@ -228,7 +240,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 // If query fails (nodeId 0), refresh root once and retry quickly
                 if (!nodeId && !pageFrameId) {
                   try {
-                    const { root } = await chrome.debugger.sendCommand(
+                    const { root } = await chromeAsync.debugger.sendCommand(
                       { tabId },
                       "DOM.getDocument",
                       { depth: 1 }
@@ -238,7 +250,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                       nodeId: documentNodeId,
                       t: Date.now(),
                     });
-                    q = await chrome.debugger.sendCommand(
+                    q = await chromeAsync.debugger.sendCommand(
                       { tabId },
                       "DOM.querySelector",
                       {
@@ -264,7 +276,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             }
 
             // Get the accessibility node with all properties
-            const { nodes } = await chrome.debugger.sendCommand(
+            const { nodes } = await chromeAsync.debugger.sendCommand(
               { tabId },
               "Accessibility.getPartialAXTree",
               {
@@ -397,7 +409,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               attributes === null
             ) {
               try {
-                const resp = await chrome.debugger.sendCommand(
+                const resp = await chromeAsync.debugger.sendCommand(
                   { tabId },
                   "DOM.getAttributes",
                   { nodeId }
@@ -459,7 +471,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === "detachDebugger") {
     (async () => {
       try {
-        const [tab] = await chrome.tabs.query({
+        const [tab] = await chromeAsync.tabs.query({
           active: true,
           currentWindow: true,
         });
@@ -467,8 +479,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           await queueDebuggerSession(tab.id, async () => {
             // Only detach if currently attached; when not attached, no-op
             try {
-              await chrome.debugger.sendCommand({ tabId: tab.id }, "Target.getBrowserContexts");
-              await chrome.debugger.detach({ tabId: tab.id });
+              await chromeAsync.debugger.sendCommand({ tabId: tab.id }, "Target.getBrowserContexts");
+              await chromeAsync.debugger.detach({ tabId: tab.id });
               console.log("Debugger detached from tab", tab.id);
             } catch (err) {
               // If not attached, ignore; otherwise warn

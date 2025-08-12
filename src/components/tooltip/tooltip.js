@@ -17,25 +17,65 @@ class Tooltip {
     // Focus guard state
     this._acceptingFocus = false;
     this._onFocusInCapture = null;
+    // Track message listener for cleanup
+    this._messageListener = null;
+    this._shortcutRegistered = false;
+    
     chrome.storage.sync.get({ miniMode: false }, (data) => {
       this.miniMode = !!data.miniMode;
     });
     this._registerShortcut();
-    // Listen for miniMode changes from popup once
-    if (!window.chromeAxMiniModeListenerRegistered) {
-      chrome.runtime.onMessage.addListener((msg) => {
-        if (msg && typeof msg.miniMode === "boolean") {
-          this.miniMode = msg.miniMode;
-          if (this.tooltip && this.tooltip.style.display === "block") {
-            this.showTooltip(
-              this._lastInfo,
-              this._lastTarget,
-              this._lastOptions
-            );
-          }
+    this._registerMessageListener();
+  }
+
+  _registerMessageListener() {
+    if (this._messageListener) return; // Prevent duplicate listeners
+    
+    this._messageListener = (msg, sender, sendResponse) => {
+      if (msg && typeof msg.miniMode === "boolean") {
+        this.miniMode = msg.miniMode;
+        if (this.tooltip && this.tooltip.style.display === "block") {
+          this.showTooltip(
+            this._lastInfo,
+            this._lastTarget,
+            this._lastOptions
+          );
         }
-      });
-      window.chromeAxMiniModeListenerRegistered = true;
+      }
+    };
+    
+    chrome.runtime.onMessage.addListener(this._messageListener);
+  }
+
+  destroy() {
+    // Clean up message listener
+    if (this._messageListener) {
+      chrome.runtime.onMessage.removeListener(this._messageListener);
+      this._messageListener = null;
+    }
+    
+    // Clean up tooltip elements
+    if (this.tooltip) {
+      this._removeFocusTrap();
+      this.tooltip.remove();
+      this.tooltip = null;
+    }
+    
+    if (this.connector) {
+      this.connector.remove();
+      this.connector = null;
+    }
+    
+    // Clean up observers
+    if (this._mutObserver) {
+      this._mutObserver.disconnect();
+      this._mutObserver = null;
+    }
+    
+    // Clean up focus capture listener
+    if (this._onFocusInCapture) {
+      document.removeEventListener("focusin", this._onFocusInCapture, true);
+      this._onFocusInCapture = null;
     }
   }
 
