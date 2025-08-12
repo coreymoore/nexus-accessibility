@@ -1,6 +1,6 @@
 /**
  * Debugger Connection Manager
- * 
+ *
  * Manages Chrome DevTools Protocol connections with proper serialization,
  * error handling, and resource management to prevent race conditions.
  */
@@ -25,17 +25,19 @@ export class DebuggerConnectionManager {
     chrome.debugger.onDetach.addListener((source, reason) => {
       if (source.tabId) {
         const connection = this.getConnectionState(source.tabId);
-        connection.state = 'DETACHED';
+        connection.state = "DETACHED";
         connection.frameContexts.clear();
         this.clearCaches(source.tabId);
-        console.log(`Debugger detached from tab ${source.tabId}, reason: ${reason}`);
+        console.log(
+          `Debugger detached from tab ${source.tabId}, reason: ${reason}`
+        );
       }
     });
 
     // Handle alarm-based detach scheduling
     chrome.alarms.onAlarm.addListener((alarm) => {
-      if (alarm.name.startsWith('detach-')) {
-        const tabId = parseInt(alarm.name.replace('detach-', ''));
+      if (alarm.name.startsWith("detach-")) {
+        const tabId = parseInt(alarm.name.replace("detach-", ""));
         this.handleScheduledDetach(tabId);
       }
     });
@@ -74,24 +76,21 @@ export class DebuggerConnectionManager {
 
     const queue = this.queues.get(tabId);
     const operation = queue.then(async () => {
-      return await performance.measure(
-        "debugger-operation",
-        async () => {
-          try {
-            await this.ensureAttached(tabId, opts);
-            const result = await callback({
-              connection: this.getConnectionState(tabId),
-              tabId,
-              frameId: opts.frameId,
-            });
-            this.scheduleDetach(tabId);
-            return result;
-          } catch (error) {
-            await this.handleError(tabId, error);
-            throw error;
-          }
+      return await performance.measure("debugger-operation", async () => {
+        try {
+          await this.ensureAttached(tabId, opts);
+          const result = await callback({
+            connection: this.getConnectionState(tabId),
+            tabId,
+            frameId: opts.frameId,
+          });
+          this.scheduleDetach(tabId);
+          return result;
+        } catch (error) {
+          await this.handleError(tabId, error);
+          throw error;
         }
-      );
+      });
     });
 
     this.queues.set(
@@ -100,7 +99,8 @@ export class DebuggerConnectionManager {
     );
 
     return operation;
-  }  /**
+  }
+  /**
    * Ensure debugger is attached to the specified tab
    * @param {number} tabId - Chrome tab ID
    * @param {Object} opts - Options for attachment
@@ -135,10 +135,13 @@ export class DebuggerConnectionManager {
       async () => {
         try {
           await chromeAsync.debugger.attach({ tabId }, "1.3");
-          
+
           // Enable required CDP domains
           await chromeAsync.debugger.sendCommand({ tabId }, "DOM.enable");
-          await chromeAsync.debugger.sendCommand({ tabId }, "Accessibility.enable");
+          await chromeAsync.debugger.sendCommand(
+            { tabId },
+            "Accessibility.enable"
+          );
           await chromeAsync.debugger.sendCommand({ tabId }, "Page.enable");
           await chromeAsync.debugger.sendCommand({ tabId }, "Runtime.enable");
 
@@ -149,7 +152,6 @@ export class DebuggerConnectionManager {
           connection.retryCount = 0;
 
           console.log(`Debugger attached to tab ${tabId}`);
-
         } catch (error) {
           const connection = this.getConnectionState(tabId);
           connection.state = "DETACHED";
@@ -159,9 +161,11 @@ export class DebuggerConnectionManager {
       },
       {
         shouldRetry: (error) => {
-          return !error.message.includes('already attached') && 
-                 !error.message.includes('Permission denied');
-        }
+          return (
+            !error.message.includes("already attached") &&
+            !error.message.includes("Permission denied")
+          );
+        },
       }
     );
   }
@@ -209,25 +213,28 @@ export class DebuggerConnectionManager {
    * @param {number} tabId - Chrome tab ID
    */
   async detach(tabId) {
-    return await errorRecovery.executeWithRecovery(
-      `detach-${tabId}`,
-      async () => {
-        await chromeAsync.debugger.detach({ tabId });
-      },
-      {
-        shouldRetry: (error) => !error.message.includes('not attached')
-      }
-    ).catch((error) => {
-      if (!error.message.includes("not attached")) {
-        console.warn("Error during debugger detach:", error);
-      }
-    }).finally(() => {
-      const connection = this.getConnectionState(tabId);
-      connection.state = "DETACHED";
-      connection.frameContexts.clear();
-      this.clearCaches(tabId);
-      this.clearDetachTimer(tabId);
-    });
+    return await errorRecovery
+      .executeWithRecovery(
+        `detach-${tabId}`,
+        async () => {
+          await chromeAsync.debugger.detach({ tabId });
+        },
+        {
+          shouldRetry: (error) => !error.message.includes("not attached"),
+        }
+      )
+      .catch((error) => {
+        if (!error.message.includes("not attached")) {
+          console.warn("Error during debugger detach:", error);
+        }
+      })
+      .finally(() => {
+        const connection = this.getConnectionState(tabId);
+        connection.state = "DETACHED";
+        connection.frameContexts.clear();
+        this.clearCaches(tabId);
+        this.clearDetachTimer(tabId);
+      });
   }
 
   /**
@@ -257,12 +264,15 @@ export class DebuggerConnectionManager {
     const connection = this.getConnectionState(tabId);
     connection.retryCount++;
 
-    console.warn(`Debugger error for tab ${tabId} (attempt ${connection.retryCount}):`, error.message);
+    console.warn(
+      `Debugger error for tab ${tabId} (attempt ${connection.retryCount}):`,
+      error.message
+    );
 
     // For certain errors, force detach and reset state
     if (
-      error.message.includes('not attached') ||
-      error.message.includes('Target closed') ||
+      error.message.includes("not attached") ||
+      error.message.includes("Target closed") ||
       connection.retryCount > 3
     ) {
       connection.state = "DETACHED";
@@ -306,7 +316,6 @@ export class DebuggerConnectionManager {
       });
 
       return executionContextId;
-
     } catch (error) {
       console.warn("Failed to create isolated world:", error);
       throw error;

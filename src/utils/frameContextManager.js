@@ -1,6 +1,6 @@
 /**
  * Frame Context Manager
- * 
+ *
  * Manages execution contexts across frames for better cross-origin support
  * and more reliable element targeting.
  */
@@ -36,14 +36,14 @@ export class FrameContextManager {
    */
   async getOrCreateContext(tabId, frameId, worldName = "NexusAccessibility") {
     const frameKey = `${frameId}`;
-    
+
     if (!this.frameContexts.has(tabId)) {
       this.frameContexts.set(tabId, new Map());
     }
-    
+
     const tabContexts = this.frameContexts.get(tabId);
     const existing = tabContexts.get(frameKey);
-    
+
     // Check if existing context is still valid
     if (existing && this.isContextValid(existing)) {
       return existing.executionContextId;
@@ -71,28 +71,31 @@ export class FrameContextManager {
 
       tabContexts.set(frameKey, contextInfo);
       return executionContextId;
-
     } catch (error) {
-      console.warn("Failed to create isolated world for frame:", frameId, error);
-      
+      console.warn(
+        "Failed to create isolated world for frame:",
+        frameId,
+        error
+      );
+
       // Fallback: try to get the default execution context
       try {
         const { contexts } = await chromeAsync.debugger.sendCommand(
           { tabId },
           "Runtime.getIsolatedWorlds"
         );
-        
-        const mainContext = contexts.find(ctx => 
-          ctx.frameId === frameId && ctx.type === "main"
+
+        const mainContext = contexts.find(
+          (ctx) => ctx.frameId === frameId && ctx.type === "main"
         );
-        
+
         if (mainContext) {
           return mainContext.executionContextId;
         }
       } catch (fallbackError) {
         console.warn("Fallback context lookup failed:", fallbackError);
       }
-      
+
       throw error;
     }
   }
@@ -100,13 +103,13 @@ export class FrameContextManager {
   /**
    * Execute code in a frame's isolated context
    * @param {number} tabId - Chrome tab ID
-   * @param {string} frameId - CDP frame ID  
+   * @param {string} frameId - CDP frame ID
    * @param {string} expression - JavaScript expression to evaluate
    * @returns {Promise<any>} Evaluation result
    */
   async evaluateInFrame(tabId, frameId, expression) {
     const contextId = await this.getOrCreateContext(tabId, frameId);
-    
+
     const { result } = await chromeAsync.debugger.sendCommand(
       { tabId },
       "Runtime.evaluate",
@@ -165,7 +168,7 @@ export class FrameContextManager {
   isContextValid(contextInfo) {
     // Context is valid for 5 minutes
     const TTL = 5 * 60 * 1000;
-    return contextInfo.isValid && (Date.now() - contextInfo.created) < TTL;
+    return contextInfo.isValid && Date.now() - contextInfo.created < TTL;
   }
 
   /**

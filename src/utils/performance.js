@@ -1,7 +1,7 @@
 /**
  * Performance Monitoring Utilities
  * Priority 3: Performance improvements and monitoring
- * 
+ *
  * Provides tools for monitoring extension performance, memory usage,
  * and operation timing to ensure the extension meets performance targets.
  */
@@ -14,7 +14,7 @@ class PerformanceMonitor {
     this.metrics = new Map();
     this.timers = new Map();
     this.memoryBaseline = null;
-    
+
     // Track performance thresholds
     this.thresholds = {
       tooltipDisplay: 100, // ms - target for tooltip display
@@ -61,7 +61,7 @@ class PerformanceMonitor {
     }
     const metrics = this.metrics.get(label);
     metrics.push(duration);
-    
+
     // Keep only last 100 measurements
     if (metrics.length > 100) {
       metrics.shift();
@@ -70,7 +70,7 @@ class PerformanceMonitor {
     // Check threshold
     const isSlowOperation = timer.threshold && duration > timer.threshold;
     const level = isSlowOperation ? "warn" : "debug";
-    
+
     this.log[level](`Timer ended: ${label}`, {
       duration: `${duration.toFixed(2)}ms`,
       threshold: timer.threshold ? `${timer.threshold}ms` : "none",
@@ -113,7 +113,7 @@ class PerformanceMonitor {
 
     const sorted = [...measurements].sort((a, b) => a - b);
     const sum = measurements.reduce((a, b) => a + b, 0);
-    
+
     return {
       count: measurements.length,
       min: Math.min(...measurements),
@@ -129,7 +129,7 @@ class PerformanceMonitor {
    * Record memory usage baseline
    */
   recordMemoryBaseline() {
-    if (typeof performance.memory !== 'undefined') {
+    if (typeof performance.memory !== "undefined") {
       this.memoryBaseline = {
         used: performance.memory.usedJSHeapSize,
         total: performance.memory.totalJSHeapSize,
@@ -145,7 +145,7 @@ class PerformanceMonitor {
    * @returns {Object} Memory usage information
    */
   checkMemoryUsage() {
-    if (typeof performance.memory === 'undefined') {
+    if (typeof performance.memory === "undefined") {
       return { error: "Memory API not available" };
     }
 
@@ -206,14 +206,18 @@ class PerformanceMonitor {
   logSummary() {
     const report = this.generateReport();
     this.log.info("Performance Summary", report);
-    
+
     // Check for performance issues
     const issues = [];
     for (const [operation, stats] of Object.entries(report.metrics)) {
       if (stats && this.thresholds[operation]) {
         const threshold = this.thresholds[operation];
         if (stats.p95 > threshold) {
-          issues.push(`${operation}: P95 ${stats.p95.toFixed(2)}ms > ${threshold}ms threshold`);
+          issues.push(
+            `${operation}: P95 ${stats.p95.toFixed(
+              2
+            )}ms > ${threshold}ms threshold`
+          );
         }
       }
     }
@@ -240,18 +244,18 @@ class PerformanceMonitor {
 const performanceMonitor = new PerformanceMonitor();
 
 // Set up periodic memory monitoring in service worker
-if (typeof chrome !== 'undefined' && chrome.alarms) {
+if (typeof chrome !== "undefined" && chrome.alarms) {
   // Check memory usage every 5 minutes
   chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === 'nexus-memory-check') {
+    if (alarm.name === "nexus-memory-check") {
       performanceMonitor.checkMemoryUsage();
     }
   });
 
   // Create periodic alarm for memory monitoring
-  chrome.alarms.create('nexus-memory-check', { 
-    delayInMinutes: 5, 
-    periodInMinutes: 5 
+  chrome.alarms.create("nexus-memory-check", {
+    delayInMinutes: 5,
+    periodInMinutes: 5,
   });
 }
 

@@ -1,6 +1,6 @@
 /**
  * Error Recovery Manager
- * 
+ *
  * Provides sophisticated error handling and recovery mechanisms
  * for Chrome DevTools Protocol operations.
  */
@@ -33,14 +33,13 @@ export class ErrorRecoveryManager {
     while (retryCount <= maxRetries) {
       try {
         const result = await operation();
-        
+
         // Reset retry counter on success
         this.retryCounters.delete(operationId);
         return result;
-        
       } catch (error) {
         lastError = error;
-        
+
         // Call error handler if provided
         if (onError) {
           try {
@@ -57,9 +56,13 @@ export class ErrorRecoveryManager {
         }
 
         // Calculate backoff delay
-        const delay = this.backoffBase * Math.pow(backoffMultiplier, retryCount);
-        console.warn(`Operation ${operationId} failed, retrying in ${delay}ms:`, error.message);
-        
+        const delay =
+          this.backoffBase * Math.pow(backoffMultiplier, retryCount);
+        console.warn(
+          `Operation ${operationId} failed, retrying in ${delay}ms:`,
+          error.message
+        );
+
         await this.delay(delay);
         retryCount++;
         this.retryCounters.set(operationId, retryCount);
@@ -74,24 +77,24 @@ export class ErrorRecoveryManager {
    * Default retry logic for common Chrome API errors
    */
   defaultShouldRetry(error, retryCount) {
-    const message = error.message || '';
-    
+    const message = error.message || "";
+
     // Don't retry these errors
     if (
-      message.includes('not attached') ||
-      message.includes('Permission denied') ||
-      message.includes('Invalid target') ||
-      message.includes('Node not found')
+      message.includes("not attached") ||
+      message.includes("Permission denied") ||
+      message.includes("Invalid target") ||
+      message.includes("Node not found")
     ) {
       return false;
     }
 
     // Retry these temporary errors
     if (
-      message.includes('timeout') ||
-      message.includes('disconnected') ||
-      message.includes('Target closed') ||
-      message.includes('Connection lost')
+      message.includes("timeout") ||
+      message.includes("disconnected") ||
+      message.includes("Target closed") ||
+      message.includes("Connection lost")
     ) {
       return true;
     }
@@ -104,7 +107,7 @@ export class ErrorRecoveryManager {
    * Delay helper for backoff
    */
   delay(ms) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       if (chrome.alarms) {
         const alarmName = `delay-${Date.now()}-${Math.random()}`;
         chrome.alarms.create(alarmName, { when: Date.now() + ms });

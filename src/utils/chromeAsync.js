@@ -1,6 +1,6 @@
 /**
  * Chrome API Promise Wrappers
- * 
+ *
  * Wraps Chrome extension APIs to return native promises instead of using callbacks.
  * This helps with race conditions and makes async/await usage more reliable.
  */

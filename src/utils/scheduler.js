@@ -1,6 +1,6 @@
 /**
  * Service Worker Scheduler
- * 
+ *
  * Replaces setTimeout/setInterval with chrome.alarms for MV3 compatibility.
  * Service workers can be killed and restarted, so persistent timers need alarms.
  */
@@ -38,15 +38,15 @@ export class ServiceWorkerScheduler {
    */
   schedule(name, delayMs, handler) {
     this.cancel(name);
-    
+
     this.alarmHandlers.set(name, {
       handler,
       recurring: false,
     });
-    
+
     // Chrome alarms minimum delay is 1 minute, use when for shorter delays
     const delayMinutes = Math.max(delayMs / 60000, 0.1);
-    
+
     if (chrome.alarms) {
       chrome.alarms.create(name, { delayInMinutes: delayMinutes });
     }
@@ -60,14 +60,14 @@ export class ServiceWorkerScheduler {
    */
   scheduleRecurring(name, intervalMs, handler) {
     this.cancel(name);
-    
+
     this.alarmHandlers.set(name, {
       handler,
       recurring: true,
     });
-    
+
     const periodInMinutes = Math.max(intervalMs / 60000, 1);
-    
+
     if (chrome.alarms) {
       chrome.alarms.create(name, { periodInMinutes });
     }

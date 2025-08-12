@@ -9,6 +9,7 @@ This is an early release and not feature complete.
 ## Known Issues
 
 **Recent Improvements (Latest Refactoring):**
+
 - ✅ Fixed memory leaks from duplicate message listeners
 - ✅ Implemented Chrome API promise wrappers to prevent race conditions
 - ✅ Added smart caching with TTL and LRU eviction
@@ -114,17 +115,20 @@ To keep the inspector responsive on complex pages and sites that use frames/ifra
 ## Technical Architecture
 
 **Modular Structure:**
+
 - `src/background/` - Service worker modules for debugger management, caching, and CDP communication
 - `src/components/` - UI components including the accessibility tooltip
 - `src/utils/` - Shared utilities for logging, Chrome API wrappers, and scheduling
 
 **Key Components:**
+
 - **DebuggerConnectionManager** - Serializes debugger operations to prevent race conditions
 - **SmartCache** - TTL-based caching with LRU eviction for memory management
 - **ServiceWorkerScheduler** - Replaces setTimeout/setInterval with chrome.alarms for MV3 compatibility
 - **Promise-wrapped Chrome APIs** - Eliminates callback-based race conditions
 
 **Memory Management:**
+
 - Automatic cleanup of event listeners on page unload
 - Bounded caches with TTL and size limits
 - Proper tooltip lifecycle management
@@ -137,8 +141,9 @@ The extension includes built-in testing utilities for developers:
 2. In the console, run: `window.NexusTestUtils.runAllTests()`
 
 Available test commands:
+
 - `testDebuggerStability()` - Tests debugger attach/detach cycles
-- `testCachePerformance()` - Validates cache read/write performance  
+- `testCachePerformance()` - Validates cache read/write performance
 - `testMemoryUsage()` - Monitors memory consumption patterns
 - `testErrorRecovery()` - Validates error handling and retry logic
 

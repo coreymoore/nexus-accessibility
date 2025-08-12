@@ -29,16 +29,24 @@ export function cacheKey(tabId, frameId, worldName) {
   return `${tabId}:${frameId}:${worldName || ""}`;
 }
 
-export async function getOrCreateIsolatedWorld(tabId, frameId, worldName = "AX_Helper") {
+export async function getOrCreateIsolatedWorld(
+  tabId,
+  frameId,
+  worldName = "AX_Helper"
+) {
   const key = cacheKey(tabId, frameId, worldName);
   const now = Date.now();
   const cached = contextCache.get(key);
   if (cached && now - cached.t < CONTEXT_TTL_MS) return cached.id;
 
-  const { executionContextId } = await sendCdp(tabId, "Page.createIsolatedWorld", {
-    frameId,
-    worldName,
-  });
+  const { executionContextId } = await sendCdp(
+    tabId,
+    "Page.createIsolatedWorld",
+    {
+      frameId,
+      worldName,
+    }
+  );
   contextCache.set(key, { id: executionContextId, t: now });
   return executionContextId;
 }
@@ -54,11 +62,17 @@ export async function evalInWorld(tabId, executionContextId, expression) {
 }
 
 export async function resolveNode(tabId, objectId) {
-  const { node: { backendNodeId } } = await sendCdp(tabId, "DOM.describeNode", { objectId });
+  const {
+    node: { backendNodeId },
+  } = await sendCdp(tabId, "DOM.describeNode", { objectId });
   return backendNodeId;
 }
 
-export async function getPartialAXTree(tabId, backendNodeId, fetchRelatives = true) {
+export async function getPartialAXTree(
+  tabId,
+  backendNodeId,
+  fetchRelatives = true
+) {
   const { nodes } = await sendCdp(tabId, "Accessibility.getPartialAXTree", {
     backendNodeId,
     fetchRelatives,
@@ -87,7 +101,7 @@ export async function getCdpFrameId(tabId, chromeFrameId, hintUrl) {
         url.hash = "";
         return url.toString();
       } catch {
-        return u.split('#')[0];
+        return u.split("#")[0];
       }
     };
     const target = strip(targetUrl);
@@ -101,7 +115,11 @@ export async function getCdpFrameId(tabId, chromeFrameId, hintUrl) {
       };
       const wantedOrigin = originOf(targetUrl);
       const byOrigin = framesCdp.filter((f) => {
-        try { return originOf(f.url) === wantedOrigin; } catch { return false; }
+        try {
+          return originOf(f.url) === wantedOrigin;
+        } catch {
+          return false;
+        }
       });
       if (byOrigin.length === 1) return byOrigin[0].id;
       // As a last resort, choose the longest path-prefix match on same origin
@@ -117,7 +135,10 @@ export async function getCdpFrameId(tabId, chromeFrameId, hintUrl) {
           try {
             const p = pathOf(f.url);
             const score = targetPath.startsWith(p) ? p.length : -1;
-            if (score > bestScore) { bestScore = score; best = f; }
+            if (score > bestScore) {
+              bestScore = score;
+              best = f;
+            }
           } catch {}
         }
         if (best) return best.id;

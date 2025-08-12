@@ -1,6 +1,6 @@
 /**
  * Content Script Injection Manager
- * 
+ *
  * Provides programmatic injection of content scripts for better security
  * and performance. Only injects scripts when needed.
  */
@@ -45,7 +45,7 @@ export class ContentScriptInjector {
       // List of scripts to inject in order
       const scripts = [
         "src/utils/logger.js",
-        "src/utils/formatter.js", 
+        "src/utils/formatter.js",
         "src/components/tooltip/tooltip.js",
         "src/content.js",
       ];
@@ -68,7 +68,6 @@ export class ContentScriptInjector {
 
       this.injectedTabs.add(tabId);
       console.log("Content scripts injected successfully into tab", tabId);
-
     } catch (error) {
       console.error("Failed to inject content scripts:", error);
       throw error;

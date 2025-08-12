@@ -1,7 +1,7 @@
 /**
  * Security Utilities
  * Priority 3: Security improvements and input validation
- * 
+ *
  * Provides security utilities for validating inputs, sanitizing data,
  * and preventing common security issues in the extension.
  */
@@ -11,12 +11,12 @@ import { logger } from "./logger.js";
 class SecurityUtils {
   constructor() {
     this.log = logger.security || logger.background;
-    
+
     // Trusted domains for cross-origin operations
     this.trustedOrigins = new Set([
-      'https://www.w3.org',
-      'https://developer.mozilla.org',
-      'https://webaim.org',
+      "https://www.w3.org",
+      "https://developer.mozilla.org",
+      "https://webaim.org",
     ]);
 
     // Maximum allowed string lengths
@@ -34,18 +34,18 @@ class SecurityUtils {
    * @returns {Object} Validation result
    */
   validateSelector(selector) {
-    if (typeof selector !== 'string') {
-      return { valid: false, reason: 'Selector must be a string' };
+    if (typeof selector !== "string") {
+      return { valid: false, reason: "Selector must be a string" };
     }
 
     if (selector.length === 0) {
-      return { valid: false, reason: 'Selector cannot be empty' };
+      return { valid: false, reason: "Selector cannot be empty" };
     }
 
     if (selector.length > this.limits.maxSelectorLength) {
-      return { 
-        valid: false, 
-        reason: `Selector too long (${selector.length} > ${this.limits.maxSelectorLength})` 
+      return {
+        valid: false,
+        reason: `Selector too long (${selector.length} > ${this.limits.maxSelectorLength})`,
       };
     }
 
@@ -62,9 +62,9 @@ class SecurityUtils {
 
     for (const pattern of dangerousPatterns) {
       if (pattern.test(selector)) {
-        return { 
-          valid: false, 
-          reason: `Selector contains potentially dangerous pattern: ${pattern}` 
+        return {
+          valid: false,
+          reason: `Selector contains potentially dangerous pattern: ${pattern}`,
         };
       }
     }
@@ -72,13 +72,13 @@ class SecurityUtils {
     // Try to parse as CSS selector
     try {
       // Use a dummy element to validate the selector
-      if (typeof document !== 'undefined') {
-        document.createElement('div').querySelector(selector);
+      if (typeof document !== "undefined") {
+        document.createElement("div").querySelector(selector);
       }
     } catch (error) {
-      return { 
-        valid: false, 
-        reason: `Invalid CSS selector syntax: ${error.message}` 
+      return {
+        valid: false,
+        reason: `Invalid CSS selector syntax: ${error.message}`,
       };
     }
 
@@ -92,16 +92,16 @@ class SecurityUtils {
    * @returns {string} Sanitized text
    */
   sanitizeText(text, maxLength = this.limits.maxLogMessageLength) {
-    if (typeof text !== 'string') {
+    if (typeof text !== "string") {
       return String(text).substring(0, maxLength);
     }
 
     // Remove potential script content
     return text
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/javascript:/gi, '')
-      .replace(/data:/gi, '')
-      .replace(/vbscript:/gi, '')
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/javascript:/gi, "")
+      .replace(/data:/gi, "")
+      .replace(/vbscript:/gi, "")
       .substring(0, maxLength);
   }
 
@@ -111,18 +111,18 @@ class SecurityUtils {
    * @returns {Object} Validation result
    */
   validateUrl(url) {
-    if (typeof url !== 'string') {
-      return { valid: false, reason: 'URL must be a string' };
+    if (typeof url !== "string") {
+      return { valid: false, reason: "URL must be a string" };
     }
 
     try {
       const urlObj = new URL(url);
-      
+
       // Only allow HTTPS and HTTP
-      if (!['https:', 'http:'].includes(urlObj.protocol)) {
-        return { 
-          valid: false, 
-          reason: `Unsupported protocol: ${urlObj.protocol}` 
+      if (!["https:", "http:"].includes(urlObj.protocol)) {
+        return {
+          valid: false,
+          reason: `Unsupported protocol: ${urlObj.protocol}`,
         };
       }
 
@@ -130,16 +130,16 @@ class SecurityUtils {
       const origin = urlObj.origin;
       const isTrusted = this.trustedOrigins.has(origin);
 
-      return { 
-        valid: true, 
+      return {
+        valid: true,
         trusted: isTrusted,
         origin,
         protocol: urlObj.protocol,
       };
     } catch (error) {
-      return { 
-        valid: false, 
-        reason: `Invalid URL: ${error.message}` 
+      return {
+        valid: false,
+        reason: `Invalid URL: ${error.message}`,
       };
     }
   }
@@ -152,7 +152,7 @@ class SecurityUtils {
   validateMessageData(data) {
     try {
       const serialized = JSON.stringify(data);
-      
+
       if (serialized.length > this.limits.maxMessageSize) {
         return {
           valid: false,
@@ -161,8 +161,8 @@ class SecurityUtils {
       }
 
       // Check for potential code injection in string values
-      const checkObject = (obj, path = '') => {
-        if (typeof obj === 'string') {
+      const checkObject = (obj, path = "") => {
+        if (typeof obj === "string") {
           const sanitized = this.sanitizeText(obj);
           if (sanitized !== obj) {
             return {
@@ -170,7 +170,7 @@ class SecurityUtils {
               reason: `Potentially unsafe content detected at ${path}`,
             };
           }
-        } else if (typeof obj === 'object' && obj !== null) {
+        } else if (typeof obj === "object" && obj !== null) {
           for (const [key, value] of Object.entries(obj)) {
             const result = checkObject(value, `${path}.${key}`);
             if (!result.valid) {
@@ -201,20 +201,20 @@ class SecurityUtils {
    * @returns {string} Secure cache key
    */
   createSecureCacheKey(input) {
-    if (typeof input !== 'string') {
+    if (typeof input !== "string") {
       input = String(input);
     }
 
     // Sanitize and limit length
     const sanitized = this.sanitizeText(input, this.limits.maxCacheKeyLength);
-    
+
     // Create a hash for very long inputs to ensure consistent key length
     if (sanitized.length > 200) {
       // Simple hash for cache key (not cryptographic)
       let hash = 0;
       for (let i = 0; i < sanitized.length; i++) {
         const char = sanitized.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
+        hash = (hash << 5) - hash + char;
         hash = hash & hash; // Convert to 32-bit integer
       }
       return `${sanitized.substring(0, 150)}_${Math.abs(hash).toString(36)}`;
@@ -229,16 +229,16 @@ class SecurityUtils {
    * @returns {Object} Validation result
    */
   validateTabId(tabId) {
-    if (typeof tabId !== 'number' || !Number.isInteger(tabId)) {
-      return { valid: false, reason: 'Tab ID must be an integer' };
+    if (typeof tabId !== "number" || !Number.isInteger(tabId)) {
+      return { valid: false, reason: "Tab ID must be an integer" };
     }
 
     if (tabId < 0) {
-      return { valid: false, reason: 'Tab ID must be positive' };
+      return { valid: false, reason: "Tab ID must be positive" };
     }
 
     if (tabId > Number.MAX_SAFE_INTEGER) {
-      return { valid: false, reason: 'Tab ID too large' };
+      return { valid: false, reason: "Tab ID too large" };
     }
 
     return { valid: true };
@@ -250,12 +250,12 @@ class SecurityUtils {
    * @returns {Object} Validation result
    */
   validateFrameId(frameId) {
-    if (typeof frameId !== 'number' || !Number.isInteger(frameId)) {
-      return { valid: false, reason: 'Frame ID must be an integer' };
+    if (typeof frameId !== "number" || !Number.isInteger(frameId)) {
+      return { valid: false, reason: "Frame ID must be an integer" };
     }
 
     if (frameId < 0) {
-      return { valid: false, reason: 'Frame ID must be non-negative' };
+      return { valid: false, reason: "Frame ID must be non-negative" };
     }
 
     return { valid: true };
@@ -267,7 +267,7 @@ class SecurityUtils {
    * @param {Object} details - Event details
    * @param {string} severity - Severity level
    */
-  logSecurityEvent(event, details = {}, severity = 'warn') {
+  logSecurityEvent(event, details = {}, severity = "warn") {
     this.log[severity](`Security event: ${event}`, {
       event,
       timestamp: new Date().toISOString(),
@@ -280,31 +280,31 @@ class SecurityUtils {
    */
   createRateLimiter(maxRequests = 100, windowMs = 60000) {
     const requests = new Map();
-    
+
     return (identifier) => {
       const now = Date.now();
       const windowStart = now - windowMs;
-      
+
       // Clean old entries
       for (const [id, timestamps] of requests) {
-        const filtered = timestamps.filter(t => t > windowStart);
+        const filtered = timestamps.filter((t) => t > windowStart);
         if (filtered.length === 0) {
           requests.delete(id);
         } else {
           requests.set(id, filtered);
         }
       }
-      
+
       // Check rate limit
       const userRequests = requests.get(identifier) || [];
       if (userRequests.length >= maxRequests) {
-        this.logSecurityEvent('rate_limit_exceeded', { 
-          identifier, 
-          requestCount: userRequests.length 
+        this.logSecurityEvent("rate_limit_exceeded", {
+          identifier,
+          requestCount: userRequests.length,
         });
         return false;
       }
-      
+
       // Record this request
       userRequests.push(now);
       requests.set(identifier, userRequests);

@@ -1,6 +1,6 @@
 /**
  * Smart Caches with TTL and LRU eviction
- * 
+ *
  * Implements bounded caches with time-to-live and least-recently-used eviction
  * to prevent memory leaks while maintaining performance.
  */
@@ -16,7 +16,9 @@ export class SmartCache {
 
   setupCleanup() {
     if (chrome.alarms) {
-      const alarmName = `cache-cleanup-${Math.random().toString(36).substr(2, 9)}`;
+      const alarmName = `cache-cleanup-${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
       chrome.alarms.create(alarmName, { periodInMinutes: 1 });
       chrome.alarms.onAlarm.addListener((alarm) => {
         if (alarm.name === alarmName) {
@@ -29,7 +31,7 @@ export class SmartCache {
   set(key, value, ttl = this.defaultTTL) {
     // Remove expired entries first
     this.cleanup();
-    
+
     // If at capacity and this is a new key, evict oldest
     if (this.cache.size >= this.maxSize && !this.cache.has(key)) {
       this.evictOldest();
@@ -90,7 +92,7 @@ export class SmartCache {
   cleanup() {
     const now = Date.now();
     const expiredKeys = [];
-    
+
     for (const [key, entry] of this.cache.entries()) {
       if (now > entry.expires) {
         expiredKeys.push(key);
@@ -168,12 +170,17 @@ class LegacyMapWrapper {
 
   values() {
     this.smartCache.cleanup();
-    return Array.from(this.smartCache.cache.values()).map(entry => entry.value);
+    return Array.from(this.smartCache.cache.values()).map(
+      (entry) => entry.value
+    );
   }
 
   entries() {
     this.smartCache.cleanup();
-    return Array.from(this.smartCache.cache.entries()).map(([key, entry]) => [key, entry.value]);
+    return Array.from(this.smartCache.cache.entries()).map(([key, entry]) => [
+      key,
+      entry.value,
+    ]);
   }
 
   forEach(callback, thisArg) {

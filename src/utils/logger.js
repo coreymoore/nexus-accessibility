@@ -1,6 +1,6 @@
 /**
  * Enhanced Logger for Chrome Extension
- * 
+ *
  * Provides structured logging with levels and namespaces.
  * Helps with debugging and error tracking across the extension.
  */
@@ -76,13 +76,15 @@ class Logger {
     try {
       const result = await operation();
       const duration = performance.now() - start;
-      this.debug(`${label} completed`, { duration: `${duration.toFixed(2)}ms` });
+      this.debug(`${label} completed`, {
+        duration: `${duration.toFixed(2)}ms`,
+      });
       return result;
     } catch (error) {
       const duration = performance.now() - start;
-      this.error(`${label} failed`, { 
-        duration: `${duration.toFixed(2)}ms`, 
-        error: error.message 
+      this.error(`${label} failed`, {
+        duration: `${duration.toFixed(2)}ms`,
+        error: error.message,
       });
       throw error;
     }

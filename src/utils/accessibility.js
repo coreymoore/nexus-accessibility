@@ -1,7 +1,7 @@
 /**
  * Accessibility Utilities
  * Priority 3: Extension accessibility improvements
- * 
+ *
  * Provides utilities for making the extension itself more accessible,
  * including focus management, ARIA support, and keyboard navigation.
  */
@@ -30,7 +30,10 @@ class AccessibilityUtils {
 
     try {
       element.focus({ preventScroll });
-      this.log.debug("Focus set to element", { tag: element.tagName, id: element.id });
+      this.log.debug("Focus set to element", {
+        tag: element.tagName,
+        id: element.id,
+      });
     } catch (error) {
       this.log.warn("Failed to set focus", { error: error.message });
     }
@@ -47,7 +50,7 @@ class AccessibilityUtils {
         timestamp: Date.now(),
         selector: this.generateSelector(element),
       });
-      
+
       // Limit stack size
       if (this.focusStack.length > 10) {
         this.focusStack.shift();
@@ -62,7 +65,7 @@ class AccessibilityUtils {
   restoreFocus() {
     while (this.focusStack.length > 0) {
       const focusData = this.focusStack.pop();
-      
+
       // Check if element still exists and is focusable
       if (focusData.element && document.contains(focusData.element)) {
         try {
@@ -70,7 +73,9 @@ class AccessibilityUtils {
           this.log.debug("Focus restored to saved element");
           return true;
         } catch (error) {
-          this.log.warn("Failed to restore focus to saved element", { error: error.message });
+          this.log.warn("Failed to restore focus to saved element", {
+            error: error.message,
+          });
         }
       } else {
         // Try to find element by selector
@@ -82,9 +87,9 @@ class AccessibilityUtils {
             return true;
           }
         } catch (error) {
-          this.log.warn("Failed to restore focus using selector", { 
+          this.log.warn("Failed to restore focus using selector", {
             selector: focusData.selector,
-            error: error.message 
+            error: error.message,
           });
         }
       }
@@ -103,7 +108,7 @@ class AccessibilityUtils {
    */
   generateSelector(element) {
     if (!element || element === document.body) {
-      return 'body';
+      return "body";
     }
 
     // Try ID first
@@ -117,18 +122,19 @@ class AccessibilityUtils {
 
     while (current && current !== document.body) {
       let selector = current.tagName.toLowerCase();
-      
+
       if (current.className) {
-        const classes = current.className.split(' ').filter(c => c.trim());
+        const classes = current.className.split(" ").filter((c) => c.trim());
         if (classes.length > 0) {
-          selector += '.' + classes.join('.');
+          selector += "." + classes.join(".");
         }
       }
 
       // Add nth-child if needed for uniqueness
-      const siblings = Array.from(current.parentNode?.children || [])
-        .filter(el => el.tagName === current.tagName);
-      
+      const siblings = Array.from(current.parentNode?.children || []).filter(
+        (el) => el.tagName === current.tagName
+      );
+
       if (siblings.length > 1) {
         const index = siblings.indexOf(current) + 1;
         selector += `:nth-child(${index})`;
@@ -138,7 +144,7 @@ class AccessibilityUtils {
       current = current.parentNode;
     }
 
-    return path.join(' > ');
+    return path.join(" > ");
   }
 
   /**
@@ -149,18 +155,18 @@ class AccessibilityUtils {
    */
   createKeyboardNavigation(container, options = {}) {
     const {
-      selector = '[tabindex], button, input, select, textarea, a[href]',
+      selector = "[tabindex], button, input, select, textarea, a[href]",
       loop = true,
       trapFocus = false,
     } = options;
 
     const handleKeyDown = (event) => {
       const { key, shiftKey } = event;
-      
-      if (key === 'Tab') {
+
+      if (key === "Tab") {
         const focusableElements = Array.from(
           container.querySelectorAll(selector)
-        ).filter(el => !el.disabled && !el.hidden);
+        ).filter((el) => !el.disabled && !el.hidden);
 
         if (focusableElements.length === 0) return;
 
@@ -179,22 +185,26 @@ class AccessibilityUtils {
           }
         }
 
-        if (trapFocus || loop || (nextIndex >= 0 && nextIndex < focusableElements.length)) {
+        if (
+          trapFocus ||
+          loop ||
+          (nextIndex >= 0 && nextIndex < focusableElements.length)
+        ) {
           event.preventDefault();
           focusableElements[nextIndex].focus();
         }
-      } else if (key === 'Escape') {
+      } else if (key === "Escape") {
         // Allow escape to bubble up for modal close, etc.
         this.log.debug("Escape key pressed in keyboard navigation");
       }
     };
 
-    container.addEventListener('keydown', handleKeyDown);
+    container.addEventListener("keydown", handleKeyDown);
     this.keyboardListeners.set(container, handleKeyDown);
 
     // Return cleanup function
     return () => {
-      container.removeEventListener('keydown', handleKeyDown);
+      container.removeEventListener("keydown", handleKeyDown);
       this.keyboardListeners.delete(container);
     };
   }
@@ -204,11 +214,11 @@ class AccessibilityUtils {
    * @param {string} message - Message to announce
    * @param {string} priority - aria-live priority ('polite' or 'assertive')
    */
-  announceToScreenReader(message, priority = 'polite') {
+  announceToScreenReader(message, priority = "polite") {
     const announcer = this.getOrCreateAnnouncer(priority);
-    
+
     // Clear and set message
-    announcer.textContent = '';
+    announcer.textContent = "";
     setTimeout(() => {
       announcer.textContent = message;
       this.log.debug("Screen reader announcement", { message, priority });
@@ -220,15 +230,15 @@ class AccessibilityUtils {
    * @param {string} priority - aria-live priority
    * @returns {HTMLElement} Announcer element
    */
-  getOrCreateAnnouncer(priority = 'polite') {
+  getOrCreateAnnouncer(priority = "polite") {
     const id = `nexus-announcer-${priority}`;
     let announcer = document.getElementById(id);
-    
+
     if (!announcer) {
-      announcer = document.createElement('div');
+      announcer = document.createElement("div");
       announcer.id = id;
-      announcer.setAttribute('aria-live', priority);
-      announcer.setAttribute('aria-atomic', 'true');
+      announcer.setAttribute("aria-live", priority);
+      announcer.setAttribute("aria-atomic", "true");
       announcer.style.cssText = `
         position: absolute;
         left: -10000px;
@@ -238,7 +248,7 @@ class AccessibilityUtils {
       `;
       document.body.appendChild(announcer);
     }
-    
+
     return announcer;
   }
 
@@ -248,7 +258,7 @@ class AccessibilityUtils {
    */
   isHighContrastMode() {
     // Create a test element to detect high contrast
-    const testEl = document.createElement('div');
+    const testEl = document.createElement("div");
     testEl.style.cssText = `
       position: absolute;
       left: -9999px;
@@ -256,10 +266,10 @@ class AccessibilityUtils {
       background-color: rgb(255, 255, 255);
     `;
     document.body.appendChild(testEl);
-    
+
     const computed = window.getComputedStyle(testEl);
-    const isHighContrast = computed.color !== 'rgb(31, 32, 33)';
-    
+    const isHighContrast = computed.color !== "rgb(31, 32, 33)";
+
     document.body.removeChild(testEl);
     return isHighContrast;
   }
@@ -269,7 +279,7 @@ class AccessibilityUtils {
    * @returns {boolean} True if user prefers reduced motion
    */
   prefersReducedMotion() {
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
   /**
@@ -280,13 +290,11 @@ class AccessibilityUtils {
    * @returns {Object} Tooltip management object
    */
   createAccessibleTooltip(trigger, content, options = {}) {
-    const {
-      placement = 'top',
-      delay = 500,
-      role = 'tooltip',
-    } = options;
+    const { placement = "top", delay = 500, role = "tooltip" } = options;
 
-    const tooltipId = `nexus-tooltip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const tooltipId = `nexus-tooltip-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
     let tooltip = null;
     let showTimeout = null;
     let hideTimeout = null;
@@ -294,19 +302,19 @@ class AccessibilityUtils {
     const show = () => {
       if (tooltip) return;
 
-      tooltip = document.createElement('div');
+      tooltip = document.createElement("div");
       tooltip.id = tooltipId;
       tooltip.role = role;
       tooltip.textContent = content;
-      tooltip.className = 'nexus-accessible-tooltip';
-      
+      tooltip.className = "nexus-accessible-tooltip";
+
       // Position tooltip
       document.body.appendChild(tooltip);
       this.positionTooltip(tooltip, trigger, placement);
-      
+
       // Update ARIA
-      trigger.setAttribute('aria-describedby', tooltipId);
-      
+      trigger.setAttribute("aria-describedby", tooltipId);
+
       this.log.debug("Accessible tooltip shown", { tooltipId, content });
     };
 
@@ -314,7 +322,7 @@ class AccessibilityUtils {
       if (tooltip) {
         tooltip.remove();
         tooltip = null;
-        trigger.removeAttribute('aria-describedby');
+        trigger.removeAttribute("aria-describedby");
         this.log.debug("Accessible tooltip hidden", { tooltipId });
       }
     };
@@ -330,10 +338,10 @@ class AccessibilityUtils {
     };
 
     // Event listeners
-    trigger.addEventListener('mouseenter', showWithDelay);
-    trigger.addEventListener('mouseleave', hideWithDelay);
-    trigger.addEventListener('focus', show);
-    trigger.addEventListener('blur', hide);
+    trigger.addEventListener("mouseenter", showWithDelay);
+    trigger.addEventListener("mouseleave", hideWithDelay);
+    trigger.addEventListener("focus", show);
+    trigger.addEventListener("blur", hide);
 
     return {
       show,
@@ -342,11 +350,11 @@ class AccessibilityUtils {
         clearTimeout(showTimeout);
         clearTimeout(hideTimeout);
         hide();
-        trigger.removeEventListener('mouseenter', showWithDelay);
-        trigger.removeEventListener('mouseleave', hideWithDelay);
-        trigger.removeEventListener('focus', show);
-        trigger.removeEventListener('blur', hide);
-      }
+        trigger.removeEventListener("mouseenter", showWithDelay);
+        trigger.removeEventListener("mouseleave", hideWithDelay);
+        trigger.removeEventListener("focus", show);
+        trigger.removeEventListener("blur", hide);
+      },
     };
   }
 
@@ -359,23 +367,23 @@ class AccessibilityUtils {
   positionTooltip(tooltip, trigger, placement) {
     const triggerRect = trigger.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
-    
+
     let top, left;
-    
+
     switch (placement) {
-      case 'top':
+      case "top":
         top = triggerRect.top - tooltipRect.height - 8;
         left = triggerRect.left + (triggerRect.width - tooltipRect.width) / 2;
         break;
-      case 'bottom':
+      case "bottom":
         top = triggerRect.bottom + 8;
         left = triggerRect.left + (triggerRect.width - tooltipRect.width) / 2;
         break;
-      case 'left':
+      case "left":
         top = triggerRect.top + (triggerRect.height - tooltipRect.height) / 2;
         left = triggerRect.left - tooltipRect.width - 8;
         break;
-      case 'right':
+      case "right":
         top = triggerRect.top + (triggerRect.height - tooltipRect.height) / 2;
         left = triggerRect.right + 8;
         break;
@@ -383,20 +391,20 @@ class AccessibilityUtils {
         top = triggerRect.bottom + 8;
         left = triggerRect.left;
     }
-    
+
     // Keep tooltip within viewport
     const viewport = {
       width: window.innerWidth,
       height: window.innerHeight,
     };
-    
+
     top = Math.max(8, Math.min(top, viewport.height - tooltipRect.height - 8));
     left = Math.max(8, Math.min(left, viewport.width - tooltipRect.width - 8));
-    
-    tooltip.style.position = 'fixed';
+
+    tooltip.style.position = "fixed";
     tooltip.style.top = `${top}px`;
     tooltip.style.left = `${left}px`;
-    tooltip.style.zIndex = '10000';
+    tooltip.style.zIndex = "10000";
   }
 
   /**
@@ -404,7 +412,7 @@ class AccessibilityUtils {
    */
   cleanup() {
     for (const [container, handler] of this.keyboardListeners) {
-      container.removeEventListener('keydown', handler);
+      container.removeEventListener("keydown", handler);
     }
     this.keyboardListeners.clear();
     this.focusStack = [];

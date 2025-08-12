@@ -24,7 +24,7 @@ class Tooltip {
     // Track message listener for cleanup
     this._messageListener = null;
     this._shortcutRegistered = false;
-    
+
     chrome.storage.sync.get({ miniMode: false }, (data) => {
       this.miniMode = !!data.miniMode;
     });
@@ -34,20 +34,16 @@ class Tooltip {
 
   _registerMessageListener() {
     if (this._messageListener) return; // Prevent duplicate listeners
-    
+
     this._messageListener = (msg, sender, sendResponse) => {
       if (msg && typeof msg.miniMode === "boolean") {
         this.miniMode = msg.miniMode;
         if (this.tooltip && this.tooltip.style.display === "block") {
-          this.showTooltip(
-            this._lastInfo,
-            this._lastTarget,
-            this._lastOptions
-          );
+          this.showTooltip(this._lastInfo, this._lastTarget, this._lastOptions);
         }
       }
     };
-    
+
     chrome.runtime.onMessage.addListener(this._messageListener);
   }
 
@@ -57,34 +53,34 @@ class Tooltip {
       chrome.runtime.onMessage.removeListener(this._messageListener);
       this._messageListener = null;
     }
-    
+
     // Clean up keyboard navigation
     if (this._keyboardNavigation) {
       this._keyboardNavigation();
       this._keyboardNavigation = null;
     }
-    
+
     // Clean up tooltip elements
     if (this.tooltip) {
       this._removeFocusTrap();
       this.tooltip.remove();
       this.tooltip = null;
     }
-    
+
     if (this.connector) {
       this.connector.remove();
       this.connector = null;
     }
-    
+
     // Clean up observers
     if (this._mutObserver) {
       this._mutObserver.disconnect();
       this._mutObserver = null;
     }
-    
+
     // Restore focus using accessibility utilities
     accessibility.restoreFocus();
-    
+
     // Clean up focus capture listener
     if (this._onFocusInCapture) {
       document.removeEventListener("focusin", this._onFocusInCapture, true);
@@ -399,12 +395,12 @@ class Tooltip {
     this.tooltip.setAttribute("id", "chrome-ax-tooltip");
     this.tooltip.setAttribute("aria-live", "polite");
     this.tooltip.setAttribute("aria-atomic", "true");
-    
+
     // Establish ARIA relationship with target element if it has an ID
     if (target && target.id) {
       this.tooltip.setAttribute("aria-controls", target.id);
     }
-    
+
     // Make tooltip keyboard focusable for screen reader users
     this.tooltip.setAttribute("tabindex", "-1");
     // Store scroll handler for cleanup

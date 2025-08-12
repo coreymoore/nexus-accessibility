@@ -8,7 +8,7 @@ import { errorRecovery } from "../utils/errorRecovery.js";
 export async function attachIfNeeded(tabId) {
   const info = attachedTabs.get(tabId);
   if (info?.attached) return;
-  
+
   return await errorRecovery.executeWithRecovery(
     `attach-${tabId}`,
     async () => {
@@ -18,13 +18,18 @@ export async function attachIfNeeded(tabId) {
     },
     {
       onError: (error, retryCount) => {
-        console.warn(`Debugger attach failed (attempt ${retryCount + 1}):`, error.message);
+        console.warn(
+          `Debugger attach failed (attempt ${retryCount + 1}):`,
+          error.message
+        );
       },
       shouldRetry: (error) => {
         // Don't retry if already attached or permission denied
-        return !error.message.includes('already attached') && 
-               !error.message.includes('Permission denied');
-      }
+        return (
+          !error.message.includes("already attached") &&
+          !error.message.includes("Permission denied")
+        );
+      },
     }
   );
 }
@@ -35,7 +40,9 @@ export async function markUsed(tabId) {
 }
 
 export function scheduleIdleDetach(tabId) {
-  chrome.alarms.create(`ax-detach-${tabId}`, { when: Date.now() + DETACH_IDLE_MS });
+  chrome.alarms.create(`ax-detach-${tabId}`, {
+    when: Date.now() + DETACH_IDLE_MS,
+  });
 }
 
 export function initDetachHandlers() {
@@ -51,33 +58,42 @@ export function initDetachHandlers() {
   chrome.debugger.onDetach.addListener(({ tabId }) => {
     attachedTabs.delete(tabId);
     // Invalidate contexts
-    for (const k of Array.from(contextCache.keys())) if (k.startsWith(`${tabId}:`)) contextCache.delete(k);
-    for (const k of Array.from(docRoots.keys())) if (k.startsWith(`${tabId}:`)) docRoots.delete(k);
-    for (const k of Array.from(nodeCache.keys())) if (k.startsWith(`${tabId}:`)) nodeCache.delete(k);
+    for (const k of Array.from(contextCache.keys()))
+      if (k.startsWith(`${tabId}:`)) contextCache.delete(k);
+    for (const k of Array.from(docRoots.keys()))
+      if (k.startsWith(`${tabId}:`)) docRoots.delete(k);
+    for (const k of Array.from(nodeCache.keys()))
+      if (k.startsWith(`${tabId}:`)) nodeCache.delete(k);
   });
 }
 
 export async function doDetach(tabId) {
-  return await errorRecovery.executeWithRecovery(
-    `detach-${tabId}`,
-    async () => {
-      await chromeAsync.debugger.detach({ tabId });
-    },
-    {
-      shouldRetry: (error) => {
-        // Don't retry if not attached
-        return !error.message.includes('not attached');
+  return await errorRecovery
+    .executeWithRecovery(
+      `detach-${tabId}`,
+      async () => {
+        await chromeAsync.debugger.detach({ tabId });
+      },
+      {
+        shouldRetry: (error) => {
+          // Don't retry if not attached
+          return !error.message.includes("not attached");
+        },
       }
-    }
-  ).catch((error) => {
-    // Ignore "not attached" errors in final catch
-    if (!error.message.includes("not attached")) {
-      console.warn("Error during debugger detach:", error);
-    }
-  }).finally(() => {
-    attachedTabs.delete(tabId);
-    for (const k of Array.from(contextCache.keys())) if (k.startsWith(`${tabId}:`)) contextCache.delete(k);
-    for (const k of Array.from(docRoots.keys())) if (k.startsWith(`${tabId}:`)) docRoots.delete(k);
-    for (const k of Array.from(nodeCache.keys())) if (k.startsWith(`${tabId}:`)) nodeCache.delete(k);
-  });
+    )
+    .catch((error) => {
+      // Ignore "not attached" errors in final catch
+      if (!error.message.includes("not attached")) {
+        console.warn("Error during debugger detach:", error);
+      }
+    })
+    .finally(() => {
+      attachedTabs.delete(tabId);
+      for (const k of Array.from(contextCache.keys()))
+        if (k.startsWith(`${tabId}:`)) contextCache.delete(k);
+      for (const k of Array.from(docRoots.keys()))
+        if (k.startsWith(`${tabId}:`)) docRoots.delete(k);
+      for (const k of Array.from(nodeCache.keys()))
+        if (k.startsWith(`${tabId}:`)) nodeCache.delete(k);
+    });
 }

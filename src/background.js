@@ -1,6 +1,14 @@
-import { attachIfNeeded, scheduleIdleDetach as scheduleDetach, initDetachHandlers, markUsed } from "./background/attachManager.js";
+import {
+  attachIfNeeded,
+  scheduleIdleDetach as scheduleDetach,
+  initDetachHandlers,
+  markUsed,
+} from "./background/attachManager.js";
 import { initRouter } from "./background/router.js";
-import { docRoots as __axDocRoots, nodeCache as __axNodeCache } from "./background/caches.js";
+import {
+  docRoots as __axDocRoots,
+  nodeCache as __axNodeCache,
+} from "./background/caches.js";
 import { getCdpFrameId, getOrCreateIsolatedWorld } from "./background/cdp.js";
 import { chromeAsync } from "./utils/chromeAsync.js";
 import { errorRecovery } from "./utils/errorRecovery.js";
@@ -86,7 +94,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const frames = await chromeAsync.webNavigation.getAllFrames({ tabId });
         for (const f of frames) {
           try {
-            await chromeAsync.tabs.sendMessage(tabId, msg, { frameId: f.frameId });
+            await chromeAsync.tabs.sendMessage(tabId, msg, {
+              frameId: f.frameId,
+            });
           } catch (e) {
             // ignore frames without our content script
           }
@@ -132,7 +142,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       try {
         const tabId = sender?.tab?.id;
         const frameId = sender?.frameId;
-        
+
         if (!tabId) {
           sendResponse({ error: "No tab ID available" });
           return;
@@ -174,7 +184,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           await connectionManager.executeWithDebugger(tab.id, async () => {
             // Only detach if currently attached; when not attached, no-op
             try {
-              await chromeAsync.debugger.sendCommand({ tabId: tab.id }, "Target.getBrowserContexts");
+              await chromeAsync.debugger.sendCommand(
+                { tabId: tab.id },
+                "Target.getBrowserContexts"
+              );
               await chromeAsync.debugger.detach({ tabId: tab.id });
               console.log("Debugger detached from tab", tab.id);
             } catch (err) {
