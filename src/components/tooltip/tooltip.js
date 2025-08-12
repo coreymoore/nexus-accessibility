@@ -4,6 +4,31 @@
 // Import accessibility utilities for enhanced accessibility
 import { accessibility } from "../../utils/accessibility.js";
 
+// Import DOMSanitizer for safe DOM manipulation
+let DOMSanitizer;
+(async () => {
+  try {
+    const module = await import("../../utils/dom-sanitizer.js");
+    DOMSanitizer = module.DOMSanitizer;
+  } catch (error) {
+    console.warn("Failed to load DOMSanitizer:", error);
+    // Fallback to basic sanitization
+    DOMSanitizer = {
+      sanitizeText: (text) => text?.replace(/[<>]/g, "") || "",
+      createSafeElement: (tag, attrs = {}, content = "") => {
+        const el = document.createElement(tag);
+        for (const [key, value] of Object.entries(attrs)) {
+          if (["class", "id", "role", "aria-label"].includes(key)) {
+            el.setAttribute(key, String(value));
+          }
+        }
+        if (content) el.textContent = content;
+        return el;
+      },
+    };
+  }
+})();
+
 class Tooltip {
   constructor() {
     this.logger =
@@ -208,13 +233,27 @@ class Tooltip {
   }
 
   getScreenReaderOutput(info) {
+    // Helper to safely escape text
+    const escapeHtml = (text) => {
+      if (DOMSanitizer) {
+        return DOMSanitizer.sanitizeText(text);
+      }
+      // Fallback: basic HTML escaping
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    };
+
     // Base: role, name, description
     const base = [];
-    if (info.role) base.push(`<span class=\"sr-role\">${info.role}</span>`);
+    if (info.role)
+      base.push(`<span class=\"sr-role\">${escapeHtml(info.role)}</span>`);
     if (info.name && info.name !== "(no accessible name)")
-      base.push(`<span class=\"sr-name\">${info.name}</span>`);
+      base.push(`<span class=\"sr-name\">${escapeHtml(info.name)}</span>`);
     if (info.description && info.description !== "(no description)")
-      base.push(`<span class=\"sr-desc\">${info.description}</span>`);
+      base.push(
+        `<span class=\"sr-desc\">${escapeHtml(info.description)}</span>`
+      );
 
     // Extras: states, aria-derived states, group, value, required
     const extras = [];
@@ -319,6 +358,19 @@ class Tooltip {
     return html;
   }
 
+  // Safe DOM content creation method
+  createSafeTooltipContent(content) {
+    if (!DOMSanitizer) {
+      // Fallback: use textContent to prevent XSS
+      const div = document.createElement("div");
+      div.textContent = typeof content === "string" ? content : "";
+      return div.innerHTML;
+    }
+
+    // Use DOMSanitizer when available
+    return DOMSanitizer.sanitizeText(content);
+  }
+
   showLoadingTooltip(target) {
     this.ensureStylesInjected();
     if (this.tooltip) this.tooltip.remove();
@@ -327,7 +379,9 @@ class Tooltip {
     this.tooltip.className = "chrome-ax-tooltip";
     this.tooltip.setAttribute("role", "tooltip");
     this.tooltip.setAttribute("id", "chrome-ax-tooltip");
-    this.tooltip.innerHTML = `
+
+    // Create safe loading content
+    const loadingHtml = `
       <div class="chrome-ax-tooltip-body" inert>
         <div role="status" aria-live="polite" aria-atomic="true" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="animation: spin 1s linear infinite;" aria-hidden="true" focusable="false">
@@ -340,6 +394,9 @@ class Tooltip {
         </div>
       </div>
     `;
+
+    // Safe insertion - this is static content we control
+    this.tooltip.innerHTML = loadingHtml;
     document.body.appendChild(this.tooltip);
     // Keep content body out of the tab order until explicitly focused via shortcut
     this.tooltip.style.display = "block";
@@ -439,10 +496,24 @@ class Tooltip {
     let propertiesSection = "";
     const propertiesList = this.getPropertiesList(info);
     if (Array.isArray(propertiesList)) {
+      // Helper to safely escape text
+      const escapeHtml = (text) => {
+        if (DOMSanitizer) {
+          return DOMSanitizer.sanitizeText(text);
+        }
+        // Fallback: basic HTML escaping
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      };
+
       propertiesSection =
         `<dl>` +
         propertiesList
-          .map(({ label, value }) => `<dt>${label}</dt><dd>${value}</dd>`)
+          .map(
+            ({ label, value }) =>
+              `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`
+          )
           .join("") +
         `</dl>`;
     } else {

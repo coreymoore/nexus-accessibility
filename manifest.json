@@ -16,7 +16,7 @@
     "extension_pages": "script-src 'self'; object-src 'none';"
   },
   "background": {
-    "service_worker": "src/background.js",
+    "service_worker": "src/background/index.js",
     "type": "module"
   },
   "content_scripts": [
@@ -36,6 +36,8 @@
     {
       "resources": [
         "src/components/tooltip/tooltip.css",
+        "src/utils/*.js",
+        "src/components/*.js",
         "src/assets/fonts/inter.css",
         "src/assets/fonts/inter-latin-400.woff2",
         "src/assets/fonts/inter-latin-ext-400.woff2",

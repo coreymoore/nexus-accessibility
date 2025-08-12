@@ -112,24 +112,27 @@ const loggers = {
   injector: new Logger("injector"),
 };
 
-// Export both Logger class and instances for modern imports
+// Remove the window assignment for content scripts
+// Instead, create a separate initialization function
+export function initializeLogger() {
+  if (typeof window !== "undefined" && !window.axLogger) {
+    window.axLogger = {
+      log(context, ...args) {
+        if (DEBUG) {
+          console.log(`[${context}]`, ...args);
+        }
+      },
+      error(context, ...args) {
+        if (DEBUG) {
+          console.error(`[${context}]`, ...args);
+        }
+      },
+      ...loggers,
+    };
+  }
+}
+
+// Export for ES6 modules
 export { Logger };
 export const logger = loggers;
-
-// Backward compatibility - maintain existing interface
-window.axLogger = {
-  log(context, ...args) {
-    if (DEBUG) {
-      console.log(`[${context}]`, ...args);
-    }
-  },
-
-  error(context, ...args) {
-    if (DEBUG) {
-      console.error(`[${context}]`, ...args);
-    }
-  },
-
-  // New enhanced loggers
-  ...loggers,
-};
+export default loggers;

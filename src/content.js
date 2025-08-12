@@ -1,5 +1,10 @@
 console.log("Content script loading...");
 
+// Initialize logger
+if (window.initializeLogger) {
+  window.initializeLogger();
+}
+
 const logger = window.axLogger;
 
 // Unique token for this frame to coordinate tooltips across frames
@@ -46,6 +51,18 @@ function cleanup() {
     clearTimeout(timer);
   }
   refetchTimers.clear();
+
+  // Clean up observers
+  activeObservers.forEach((observer) => observer.disconnect());
+
+  // Clean up cleanup timeouts
+  observerCleanupTimeouts.forEach((timeout) => clearTimeout(timeout));
+
+  // Cancel any pending accessibility requests
+  if (pendingAccessibilityRequest) {
+    pendingAccessibilityRequest.cancelled = true;
+    pendingAccessibilityRequest = null;
+  }
 
   // Clean up event listeners
   unregisterEventListeners();
@@ -239,6 +256,10 @@ function computeGroupInfo(el) {
   return undefined;
 }
 
+// Add at the top level
+const activeObservers = new WeakMap();
+const observerCleanupTimeouts = new WeakMap();
+
 // Create mutation observer to watch for ARIA changes
 const observer = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
@@ -316,8 +337,70 @@ const observer = new MutationObserver((mutations) => {
         refetchTimers.set(target, timer);
       }
     }
+
+    // Schedule cleanup check for all mutation targets
+    if (mutation.target && mutation.target.nodeType === Node.ELEMENT_NODE) {
+      scheduleObserverCleanup(mutation.target);
+    }
   });
 });
+
+function startObservingElement(element) {
+  // Check if already observing
+  if (activeObservers.has(element)) {
+    return;
+  }
+
+  const observerOptions = {
+    attributes: true,
+    attributeFilter: [
+      "aria-label",
+      "aria-describedby",
+      "aria-labelledby",
+      "title",
+      "value",
+    ],
+    subtree: false,
+    childList: false,
+  };
+
+  observer.observe(element, observerOptions);
+  activeObservers.set(element, observer);
+
+  // Schedule periodic cleanup check
+  scheduleObserverCleanup(element);
+}
+
+function scheduleObserverCleanup(element) {
+  // Clear existing timeout
+  const existingTimeout = observerCleanupTimeouts.get(element);
+  if (existingTimeout) {
+    clearTimeout(existingTimeout);
+  }
+
+  // Schedule new cleanup check
+  const timeout = setTimeout(() => {
+    if (!document.contains(element)) {
+      stopObservingElement(element);
+    }
+  }, 30000); // Check every 30 seconds
+
+  observerCleanupTimeouts.set(element, timeout);
+}
+
+function stopObservingElement(element) {
+  const observer = activeObservers.get(element);
+  if (observer) {
+    observer.disconnect();
+    activeObservers.delete(element);
+  }
+
+  const timeout = observerCleanupTimeouts.get(element);
+  if (timeout) {
+    clearTimeout(timeout);
+    observerCleanupTimeouts.delete(element);
+  }
+}
 
 function startObserving(element) {
   const isSelect = element && element.tagName === "SELECT";
@@ -347,61 +430,66 @@ function startObserving(element) {
       "value",
     ],
   });
+
+  // Also start observing with new memory-safe method
+  startObservingElement(element);
 }
 
 function stopObserving() {
   observer.disconnect();
 }
 
+// Add at the top of the file after logger initialization
+let pendingAccessibilityRequest = null;
+
 async function waitForAccessibilityUpdate(target, maxAttempts = 8) {
+  // Cancel any pending request
+  if (pendingAccessibilityRequest) {
+    pendingAccessibilityRequest.cancelled = true;
+  }
+
+  // Create new request tracker
+  const currentRequest = { cancelled: false };
+  pendingAccessibilityRequest = currentRequest;
+
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Check if this request was cancelled
+    if (currentRequest.cancelled) {
+      console.log("[NEXUS] Request cancelled");
+      return null;
+    }
+
     try {
       const selector = getUniqueSelector(target);
-      const info = await new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(
-          () => reject(new Error("Message timeout")),
-          5000
-        );
-
-        chrome.runtime.sendMessage(
-          {
-            action: "getBackendNodeIdAndAccessibleInfo",
-            elementSelector: selector,
-            frameUrl: window.location.href,
-          },
-          (response) => {
-            clearTimeout(timeoutId);
-            if (chrome.runtime.lastError) {
-              reject(chrome.runtime.lastError);
-              return;
-            }
-            // Treat structured error responses from background as failures
-            if (response && response.error) {
-              const err = new Error(response.error);
-              if (response.errorCode) err.code = response.errorCode;
-              reject(err);
-              return;
-            }
-            resolve(response);
-          }
-        );
+      const response = await chrome.runtime.sendMessage({
+        action: "getBackendNodeIdAndAccessibleInfo",
+        elementSelector: selector,
+        tabId: chrome.runtime.id, // Use extension ID as fallback
+        frameId: 0,
       });
+
+      if (currentRequest.cancelled) return null;
+
+      if (response && response.accessibleNode) {
+        return response;
+      }
 
       // Check if we have meaningful data
       const hasData =
-        (info?.role && info.role !== "(no role)") ||
-        (info?.name && info.name !== "(no accessible name)") ||
-        (info?.states && Object.keys(info.states).length > 0) ||
-        (info?.ariaProperties && Object.keys(info.ariaProperties).length > 0);
+        (response?.role && response.role !== "(no role)") ||
+        (response?.name && response.name !== "(no accessible name)") ||
+        (response?.states && Object.keys(response.states).length > 0) ||
+        (response?.ariaProperties &&
+          Object.keys(response.ariaProperties).length > 0);
 
       if (hasData) {
         console.log(`Got accessibility data on attempt ${attempt + 1}:`, {
-          role: info?.role,
-          name: info?.name,
-          statesCount: Object.keys(info?.states || {}).length,
-          ariaCount: Object.keys(info?.ariaProperties || {}).length,
+          role: response?.role,
+          name: response?.name,
+          statesCount: Object.keys(response?.states || {}).length,
+          ariaCount: Object.keys(response?.ariaProperties || {}).length,
         });
-        return info;
+        return response;
       }
 
       // Short backoff: 50ms, 100ms, 150ms, ...
@@ -409,56 +497,42 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 8) {
         const delay = 50 * (attempt + 1);
         console.log(
           `No meaningful data on attempt ${attempt + 1}, waiting ${delay}ms...`,
-          { role: info?.role, name: info?.name }
+          { role: response?.role, name: response?.name }
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     } catch (error) {
-      console.log(`Attempt ${attempt + 1} failed:`, error);
-      // Do NOT abort on debugger-attached errors; keep retrying to allow final result
-      // Previously we threw on "Another debugger is already attached"; now we backoff and continue
+      if (currentRequest.cancelled) return null;
+      console.error("[NEXUS] Attempt failed:", error);
+
+      // Wait before retry with exponential backoff
       if (attempt < maxAttempts - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) =>
+          setTimeout(resolve, 100 * Math.pow(2, attempt))
+        );
       }
     }
+  }
+
+  // Clean up
+  if (pendingAccessibilityRequest === currentRequest) {
+    pendingAccessibilityRequest = null;
   }
 
   // Final attempt - return whatever we get
   console.log("Final attempt after all retries...");
   try {
     const selector = getUniqueSelector(target);
-    const info = await new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(
-        () => reject(new Error("Message timeout")),
-        5000
-      );
+    const response = await chrome.runtime.sendMessage({
+      action: "getBackendNodeIdAndAccessibleInfo",
+      elementSelector: selector,
+    });
 
-      chrome.runtime.sendMessage(
-        {
-          action: "getBackendNodeIdAndAccessibleInfo",
-          elementSelector: selector,
-        },
-        (response) => {
-          clearTimeout(timeoutId);
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-            return;
-          }
-          if (response && response.error) {
-            const err = new Error(response.error);
-            if (response.errorCode) err.code = response.errorCode;
-            reject(err);
-            return;
-          }
-          resolve(response);
-        }
-      );
-    });
     console.log("Final attempt result:", {
-      role: info?.role,
-      name: info?.name,
+      role: response?.role,
+      name: response?.name,
     });
-    return info;
+    return response;
   } catch (error) {
     throw new Error("Failed to get accessibility info after all attempts");
   }

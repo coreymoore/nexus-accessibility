@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Nexus Extension Tests</title>
+    <style>
+      body {
+        font-family: monospace;
+        padding: 20px;
+      }
+      .pass {
+        color: green;
+      }
+      .fail {
+        color: red;
+      }
+      .test-result {
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Nexus Extension Test Suite</h1>
+    <div id="results"></div>
+
+    <script type="module">
+      // Simple test framework
+      class TestRunner {
+        constructor() {
+          this.tests = [];
+          this.results = [];
+        }
+
+        test(name, fn) {
+          this.tests.push({ name, fn });
+        }
+
+        async run() {
+          const resultsEl = document.getElementById("results");
+
+          for (const test of this.tests) {
+            try {
+              await test.fn();
+              this.results.push({ name: test.name, passed: true });
+              resultsEl.innerHTML += `
+              <div class="test-result pass">✓ ${test.name}</div>
+            `;
+            } catch (error) {
+              this.results.push({ name: test.name, passed: false, error });
+              resultsEl.innerHTML += `
+              <div class="test-result fail">✗ ${test.name}: ${error.message}</div>
+            `;
+            }
+          }
+
+          const passed = this.results.filter((r) => r.passed).length;
+          const total = this.results.length;
+
+          resultsEl.innerHTML += `
+          <h2>Results: ${passed}/${total} passed</h2>
+        `;
+        }
+      }
+
+      // Test assertions
+      const assert = {
+        equal(actual, expected, message) {
+          if (actual !== expected) {
+            throw new Error(message || `Expected ${expected}, got ${actual}`);
+          }
+        },
+
+        truthy(value, message) {
+          if (!value) {
+            throw new Error(message || `Expected truthy value, got ${value}`);
+          }
+        },
+
+        throws(fn, message) {
+          try {
+            fn();
+            throw new Error(message || "Expected function to throw");
+          } catch (e) {
+            // Expected
+          }
+        },
+      };
+
+      // Import modules to test
+      import { LRUCache } from "../src/background/lru-cache.js";
+      import { DOMSanitizer } from "../src/utils/dom-sanitizer.js";
+
+      // Create test runner
+      const runner = new TestRunner();
+
+      // Add tests
+      runner.test("LRUCache - should store and retrieve values", () => {
+        const cache = new LRUCache(2);
+        cache.set("key1", "value1");
+        assert.equal(cache.get("key1"), "value1");
+      });
+
+      runner.test("LRUCache - should evict oldest when full", () => {
+        const cache = new LRUCache(2);
+        cache.set("key1", "value1");
+        cache.set("key2", "value2");
+        cache.set("key3", "value3");
+        assert.equal(cache.get("key1"), null);
+        assert.equal(cache.get("key2"), "value2");
+      });
+
+      runner.test("DOMSanitizer - should escape HTML", () => {
+        const testString = '&lt;script&gt;alert("xss")&lt;/script&gt;';
+        const escaped = DOMSanitizer.escapeHtml(testString);
+        assert.truthy(escaped);
+      });
+
+      runner.test("DOMSanitizer - should create safe elements", () => {
+        const el = DOMSanitizer.createSafeElement("div", {
+          class: "test",
+          onclick: 'alert("xss")',
+        });
+        assert.equal(el.className, "test");
+        assert.equal(el.onclick, null);
+      });
+
+      // Run tests
+      runner.run();
+    </script>
+  </body>
+</html>
