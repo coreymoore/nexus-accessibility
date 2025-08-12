@@ -1,33 +1,37 @@
 // Tooltip module: creates, positions, updates, and removes the tooltip and its connector line.
 // Exposes window.chromeAxTooltip API used by content.js
 
-// Import accessibility utilities for enhanced accessibility
-import { accessibility } from "../../utils/accessibility.js";
-
-// Import DOMSanitizer for safe DOM manipulation
-let DOMSanitizer;
-(async () => {
-  try {
-    const module = await import("../../utils/dom-sanitizer.js");
-    DOMSanitizer = module.DOMSanitizer;
-  } catch (error) {
-    console.warn("Failed to load DOMSanitizer:", error);
-    // Fallback to basic sanitization
-    DOMSanitizer = {
-      sanitizeText: (text) => text?.replace(/[<>]/g, "") || "",
-      createSafeElement: (tag, attrs = {}, content = "") => {
-        const el = document.createElement(tag);
-        for (const [key, value] of Object.entries(attrs)) {
-          if (["class", "id", "role", "aria-label"].includes(key)) {
-            el.setAttribute(key, String(value));
-          }
-        }
-        if (content) el.textContent = content;
-        return el;
-      },
-    };
+// Access accessibility utilities if available
+const accessibility = window.accessibility || {
+  // Fallback minimal implementation
+  announceToScreenReader: (text) => {
+    console.log('[Accessibility]', text);
   }
-})();
+};
+
+// Initialize DOMSanitizer with fallback
+const DOMSanitizer = window.DOMSanitizer || {
+  sanitizeText: (text) => {
+    if (typeof text !== 'string') return '';
+    return text.replace(/[<>]/g, '');
+  },
+  createSafeElement: (tag, attrs = {}, content = '') => {
+    const el = document.createElement(tag);
+    const safeAttributes = ['class', 'id', 'role', 'aria-label', 'aria-describedby', 'aria-live', 'aria-atomic', 'tabindex'];
+    for (const [key, value] of Object.entries(attrs)) {
+      if (safeAttributes.includes(key.toLowerCase())) {
+        el.setAttribute(key, String(value));
+      }
+    }
+    if (content) el.textContent = content;
+    return el;
+  },
+  escapeHtml: (text) => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+};
 
 class Tooltip {
   constructor() {

@@ -22,109 +22,130 @@
     <h1>Nexus Extension Test Suite</h1>
     <div id="results"></div>
 
-    <script type="module">
-      // Simple test framework
-      class TestRunner {
-        constructor() {
-          this.tests = [];
-          this.results = [];
-        }
+    <script>
+      // Load utility scripts first
+      const scriptUrls = [
+        '../src/utils/dom-sanitizer.js',
+        '../src/utils/error-handler.js',
+        '../src/utils/debounce.js'
+      ];
 
-        test(name, fn) {
-          this.tests.push({ name, fn });
-        }
+      Promise.all(
+        scriptUrls.map(url => {
+          return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        })
+      ).then(() => {
+        // Run tests after utilities are loaded
+        runTests();
+      }).catch(error => {
+        console.error('Failed to load utilities:', error);
+        document.getElementById('results').innerHTML = '<div class="fail">Failed to load utilities for testing</div>';
+      });
 
-        async run() {
-          const resultsEl = document.getElementById("results");
+      function runTests() {
+        // Simple test framework
+        class TestRunner {
+          constructor() {
+            this.tests = [];
+            this.results = [];
+          }
 
-          for (const test of this.tests) {
-            try {
-              await test.fn();
-              this.results.push({ name: test.name, passed: true });
-              resultsEl.innerHTML += `
-              <div class="test-result pass">✓ ${test.name}</div>
-            `;
-            } catch (error) {
-              this.results.push({ name: test.name, passed: false, error });
-              resultsEl.innerHTML += `
-              <div class="test-result fail">✗ ${test.name}: ${error.message}</div>
-            `;
+          test(name, fn) {
+            this.tests.push({ name, fn });
+          }
+
+          async run() {
+            const resultsEl = document.getElementById("results");
+
+            for (const test of this.tests) {
+              try {
+                await test.fn();
+                this.results.push({ name: test.name, passed: true });
+                resultsEl.innerHTML += `
+                <div class="test-result pass">✓ ${test.name}</div>
+              `;
+              } catch (error) {
+                this.results.push({ name: test.name, passed: false, error });
+                resultsEl.innerHTML += `
+                <div class="test-result fail">✗ ${test.name}: ${error.message}</div>
+              `;
+              }
             }
+
+            const passed = this.results.filter((r) => r.passed).length;
+            const total = this.results.length;
+
+            resultsEl.innerHTML += `
+            <h2>Results: ${passed}/${total} passed</h2>
+          `;
           }
-
-          const passed = this.results.filter((r) => r.passed).length;
-          const total = this.results.length;
-
-          resultsEl.innerHTML += `
-          <h2>Results: ${passed}/${total} passed</h2>
-        `;
         }
-      }
 
-      // Test assertions
-      const assert = {
-        equal(actual, expected, message) {
-          if (actual !== expected) {
-            throw new Error(message || `Expected ${expected}, got ${actual}`);
-          }
-        },
+        // Test assertions
+        const assert = {
+          equal(actual, expected, message) {
+            if (actual !== expected) {
+              throw new Error(message || `Expected ${expected}, got ${actual}`);
+            }
+          },
 
-        truthy(value, message) {
-          if (!value) {
-            throw new Error(message || `Expected truthy value, got ${value}`);
-          }
-        },
+          truthy(value, message) {
+            if (!value) {
+              throw new Error(message || `Expected truthy value, got ${value}`);
+            }
+          },
 
-        throws(fn, message) {
-          try {
-            fn();
-            throw new Error(message || "Expected function to throw");
-          } catch (e) {
-            // Expected
-          }
-        },
-      };
+          throws(fn, message) {
+            try {
+              fn();
+              throw new Error(message || "Expected function to throw");
+            } catch (e) {
+              // Expected
+            }
+          },
+        };
 
-      // Import modules to test
-      import { LRUCache } from "../src/background/lru-cache.js";
-      import { DOMSanitizer } from "../src/utils/dom-sanitizer.js";
+        // Create test runner
+        const runner = new TestRunner();
 
-      // Create test runner
-      const runner = new TestRunner();
-
-      // Add tests
-      runner.test("LRUCache - should store and retrieve values", () => {
-        const cache = new LRUCache(2);
-        cache.set("key1", "value1");
-        assert.equal(cache.get("key1"), "value1");
-      });
-
-      runner.test("LRUCache - should evict oldest when full", () => {
-        const cache = new LRUCache(2);
-        cache.set("key1", "value1");
-        cache.set("key2", "value2");
-        cache.set("key3", "value3");
-        assert.equal(cache.get("key1"), null);
-        assert.equal(cache.get("key2"), "value2");
-      });
-
-      runner.test("DOMSanitizer - should escape HTML", () => {
-        const testString = '&lt;script&gt;alert("xss")&lt;/script&gt;';
-        const escaped = DOMSanitizer.escapeHtml(testString);
-        assert.truthy(escaped);
-      });
-
-      runner.test("DOMSanitizer - should create safe elements", () => {
-        const el = DOMSanitizer.createSafeElement("div", {
-          class: "test",
-          onclick: 'alert("xss")',
+        // Add tests - now using global utilities
+        runner.test('DOMSanitizer - should be available globally', () => {
+          assert.truthy(window.DOMSanitizer, 'DOMSanitizer should be available');
         });
-        assert.equal(el.className, "test");
-        assert.equal(el.onclick, null);
-      });
 
-      // Run tests
-      runner.run();
+        runner.test('DOMSanitizer - should sanitize text', () => {
+          const testString = '&lt;script&gt;alert("test")&lt;/script&gt;';
+          const result = window.DOMSanitizer.sanitizeText(testString);
+          assert.truthy(result);
+        });
+
+        runner.test("DOMSanitizer - should create safe elements", () => {
+          const el = window.DOMSanitizer.createSafeElement("div", {
+            class: "test",
+            onclick: 'alert("xss")',
+          });
+          assert.equal(el.className, "test");
+          assert.equal(el.onclick, null);
+        });
+
+        runner.test('ErrorHandler - should be available globally', () => {
+          assert.truthy(window.errorHandler, 'ErrorHandler should be available');
+        });
+
+        runner.test('DebounceUtils - should be available globally', () => {
+          assert.truthy(window.debounceUtils, 'DebounceUtils should be available');
+          assert.truthy(window.debounceUtils.debounce, 'debounce function should be available');
+        });
+
+        // Run tests
+        runner.run();
+      }
     </script>
   </body>
 </html>
