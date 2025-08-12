@@ -1,63 +1,83 @@
 /**
- * Enhanced Logger for Chrome Extension
+ * Enhanced Logger for Chrome Extension - Content Script Version
  *
  * Provides structured logging with levels and namespaces.
  * Helps with debugging and error tracking across the extension.
+ * This version is designed for content scripts without ES6 exports.
  */
 
 const DEBUG = true;
 
 class Logger {
-  constructor(namespace) {
+  constructor(namespace = "default") {
     this.namespace = namespace;
-    this.levels = {
-      ERROR: 0,
-      WARN: 1,
-      INFO: 2,
-      DEBUG: 3,
-    };
-    this.currentLevel = DEBUG ? this.levels.DEBUG : this.levels.INFO;
-  }
-
-  setLevel(level) {
-    this.currentLevel = this.levels[level] || this.levels.INFO;
-  }
-
-  _format(level, message, data = {}) {
-    return {
-      timestamp: new Date().toISOString(),
-      namespace: this.namespace,
-      level,
-      message,
-      data,
-    };
+    this.levels = ["ERROR", "WARN", "INFO", "DEBUG"];
+    this.currentLevel = DEBUG ? "DEBUG" : "WARN";
   }
 
   _shouldLog(level) {
-    return this.currentLevel >= this.levels[level];
+    const currentIndex = this.levels.indexOf(this.currentLevel);
+    const messageIndex = this.levels.indexOf(level);
+    return messageIndex <= currentIndex;
+  }
+
+  _format(level, message, data) {
+    const timestamp = new Date().toISOString();
+    const prefix = `[${timestamp}] [${this.namespace}] [${level}]`;
+
+    if (data) {
+      return `${prefix} ${message}`, data;
+    }
+    return `${prefix} ${message}`;
   }
 
   error(message, data) {
     if (this._shouldLog("ERROR")) {
-      console.error("[NEXUS]", this._format("ERROR", message, data));
+      if (data) {
+        console.error("[NEXUS]", this._format("ERROR", message), data);
+      } else {
+        console.error("[NEXUS]", this._format("ERROR", message));
+      }
     }
   }
 
   warn(message, data) {
     if (this._shouldLog("WARN")) {
-      console.warn("[NEXUS]", this._format("WARN", message, data));
+      if (data) {
+        console.warn("[NEXUS]", this._format("WARN", message), data);
+      } else {
+        console.warn("[NEXUS]", this._format("WARN", message));
+      }
+    }
+  }
+
+  log(message, data) {
+    if (this._shouldLog("INFO")) {
+      if (data) {
+        console.log("[NEXUS]", this._format("INFO", message), data);
+      } else {
+        console.log("[NEXUS]", this._format("INFO", message));
+      }
     }
   }
 
   info(message, data) {
     if (this._shouldLog("INFO")) {
-      console.info("[NEXUS]", this._format("INFO", message, data));
+      if (data) {
+        console.info("[NEXUS]", this._format("INFO", message), data);
+      } else {
+        console.info("[NEXUS]", this._format("INFO", message));
+      }
     }
   }
 
   debug(message, data) {
     if (this._shouldLog("DEBUG")) {
-      console.log("[NEXUS]", this._format("DEBUG", message, data));
+      if (data) {
+        console.log("[NEXUS]", this._format("DEBUG", message), data);
+      } else {
+        console.log("[NEXUS]", this._format("DEBUG", message));
+      }
     }
   }
 
@@ -70,30 +90,15 @@ class Logger {
     console.timeEnd(`[NEXUS:${this.namespace}] ${label}`);
   }
 
-  // Helper method for measuring async operations
-  async measure(label, operation) {
-    const start = performance.now();
-    try {
-      const result = await operation();
-      const duration = performance.now() - start;
-      this.debug(`${label} completed`, {
-        duration: `${duration.toFixed(2)}ms`,
-      });
-      return result;
-    } catch (error) {
-      const duration = performance.now() - start;
-      this.error(`${label} failed`, {
-        duration: `${duration.toFixed(2)}ms`,
-        error: error.message,
-      });
-      throw error;
-    }
+  // Create a child logger with extended namespace
+  child(suffix) {
+    return new Logger(`${this.namespace}:${suffix}`);
   }
 
-  // Backward compatibility
-  log(context, ...args) {
-    if (DEBUG) {
-      console.log(`[${context}]`, ...args);
+  // Set log level
+  setLevel(level) {
+    if (this.levels.includes(level)) {
+      this.currentLevel = level;
     }
   }
 }
@@ -132,20 +137,8 @@ function initializeLogger() {
   }
 }
 
-// Export for ES6 modules (for background scripts)
-export { Logger };
-export const logger = loggers;
-export { initializeLogger };
-export default loggers;
-
-// Also provide exports for different environments
-if (typeof module !== "undefined" && module.exports) {
-  // Node.js/CommonJS environment
-  module.exports = { Logger, logger: loggers, initializeLogger };
-}
-
+// Browser environment - attach to window for content scripts
 if (typeof window !== "undefined") {
-  // Browser environment - attach to window for content scripts
   window.Logger = Logger;
   window.logger = loggers;
   window.initializeLogger = initializeLogger;

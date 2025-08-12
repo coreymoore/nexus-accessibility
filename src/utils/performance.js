@@ -31,7 +31,7 @@ class PerformanceMonitor {
    */
   startTimer(label, threshold = null) {
     const timer = {
-      start: performance.now(),
+      start: globalThis.performance.now(),
       threshold: threshold || this.thresholds[label],
       label,
     };
@@ -52,7 +52,7 @@ class PerformanceMonitor {
       return 0;
     }
 
-    const duration = performance.now() - timer.start;
+    const duration = globalThis.performance.now() - timer.start;
     this.timers.delete(label);
 
     // Store metric
@@ -129,11 +129,11 @@ class PerformanceMonitor {
    * Record memory usage baseline
    */
   recordMemoryBaseline() {
-    if (typeof performance.memory !== "undefined") {
-      this.memoryBaseline = {
-        used: performance.memory.usedJSHeapSize,
-        total: performance.memory.totalJSHeapSize,
-        limit: performance.memory.jsHeapSizeLimit,
+    if (typeof globalThis.performance.memory !== "undefined") {
+      return {
+        used: globalThis.performance.memory.usedJSHeapSize,
+        total: globalThis.performance.memory.totalJSHeapSize,
+        limit: globalThis.performance.memory.jsHeapSizeLimit,
         timestamp: Date.now(),
       };
       this.log.debug("Memory baseline recorded", this.memoryBaseline);
@@ -145,14 +145,14 @@ class PerformanceMonitor {
    * @returns {Object} Memory usage information
    */
   checkMemoryUsage() {
-    if (typeof performance.memory === "undefined") {
+    if (typeof globalThis.performance.memory === "undefined") {
       return { error: "Memory API not available" };
     }
 
     const current = {
-      used: performance.memory.usedJSHeapSize,
-      total: performance.memory.totalJSHeapSize,
-      limit: performance.memory.jsHeapSizeLimit,
+      used: globalThis.performance.memory.usedJSHeapSize,
+      total: globalThis.performance.memory.totalJSHeapSize,
+      limit: globalThis.performance.memory.jsHeapSizeLimit,
       timestamp: Date.now(),
     };
 

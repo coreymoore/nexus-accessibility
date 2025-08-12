@@ -1,4 +1,5 @@
 import { MessageValidator } from "./message-validator.js";
+import { getAccessibilityInfoForElement } from "./accessibilityInfo.js";
 
 export class MessageHandler {
   constructor(cacheManager, debuggerManager) {
@@ -22,6 +23,9 @@ export class MessageHandler {
 
         case "AX_TOOLTIP_SHOWN":
           return await this.handleTooltipShown(msg, sender);
+
+        case "detachDebugger":
+          return await this.handleDetachDebugger(msg, sender);
 
         case "keepAlive":
           return { status: "alive" };
@@ -60,25 +64,43 @@ export class MessageHandler {
   }
 
   async handleGetElementInfo(msg, sender) {
-    const { elementSelector, frameId = 0 } = msg;
-    const tabId = sender.tab.id;
-    const cacheKey = `element-${tabId}-${frameId}-${elementSelector}`;
-
-    // Check cache first
-    const cached = this.cache.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
-      // This would need to be implemented based on your existing logic
-      // For now, return a placeholder
-      const result = {
-        backendNodeId: null,
-        accessibleNode: null,
-        error: "Implementation needed",
-      };
+      const tabId = sender.tab?.id;
+      const frameId = sender.frameId;
 
+      if (!tabId) {
+        throw new Error("No tab ID available");
+      }
+
+      const cacheKey = `element-${tabId}-${frameId || 0}-${
+        msg.elementSelector
+      }`;
+
+      // Check cache first
+      const cached = this.cache.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
+      console.log(
+        "Background: getting accessibility info for",
+        msg.elementSelector,
+        "in tab",
+        tabId
+      );
+
+      // Ensure debugger is attached and get connection
+      const connection = await this.debugger.attach(tabId);
+
+      // Get accessibility info using the debugger connection
+      const result = await getAccessibilityInfoForElement(
+        tabId,
+        frameId || 0,
+        msg.elementSelector,
+        connection
+      );
+
+      // Cache the result
       this.cache.set(cacheKey, result);
       return result;
     } catch (error) {
@@ -106,6 +128,19 @@ export class MessageHandler {
       return { status: "broadcasted" };
     } catch (error) {
       throw new Error(`Failed to handle tooltip shown: ${error.message}`);
+    }
+  }
+
+  async handleDetachDebugger(msg, sender) {
+    try {
+      const tabId = sender.tab?.id || msg.tabId;
+      if (tabId) {
+        await this.debugger.detach(tabId);
+        return { status: "detached", tabId };
+      }
+      return { status: "no_tab_id" };
+    } catch (error) {
+      throw new Error(`Failed to detach debugger: ${error.message}`);
     }
   }
 }

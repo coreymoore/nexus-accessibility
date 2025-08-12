@@ -10,7 +10,12 @@ export class DebuggerManager {
 
     try {
       await chrome.debugger.attach({ tabId }, "1.3");
+
+      // Enable required domains
+      await chrome.debugger.sendCommand({ tabId }, "DOM.enable");
       await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
+      await chrome.debugger.sendCommand({ tabId }, "Page.enable");
+      await chrome.debugger.sendCommand({ tabId }, "Runtime.enable");
 
       const connection = {
         tabId,

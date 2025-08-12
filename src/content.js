@@ -1,11 +1,19 @@
-console.log("Content script loading...");
+console.log(
+  "Content script loading... v2.1 - Fixed logger exports and performance conflicts"
+);
 
 // Initialize logger
 if (window.initializeLogger) {
   window.initializeLogger();
 }
 
-const logger = window.axLogger;
+const logger = window.logger ||
+  window.axLogger || {
+    content: {
+      log: console.log.bind(console),
+      error: console.error.bind(console),
+    },
+  };
 
 // Initialize error handler if available
 const errorHandler = window.errorHandler || {
@@ -21,7 +29,16 @@ const { debounce, throttle, DebouncedRequest } = window.debounceUtils || {
 };
 
 // Unique token for this frame to coordinate tooltips across frames
-const FRAME_TOKEN = `${location.origin}|${location.href}`;
+const frameToken = Math.random().toString(36).substr(2, 9);
+
+// Observer management with cleanup tracking
+const activeObservers = new WeakMap();
+const allObservers = new Set(); // Track all observers for cleanup
+const observerCleanupTimeouts = new Map(); // Changed to Map for cleanup
+
+// Timer and state management
+const refetchTimers = new Map(); // Map of element -> timer ID
+const elementTimerTracker = new WeakMap(); // WeakMap of element -> timer ID for cleanup
 
 // Track message listener for cleanup
 let messageListener = null;
@@ -66,10 +83,22 @@ function cleanup() {
   refetchTimers.clear();
 
   // Clean up observers
-  activeObservers.forEach((observer) => observer.disconnect());
+  if (allObservers && typeof allObservers.forEach === "function") {
+    allObservers.forEach((observer) => observer.disconnect());
+    allObservers.clear();
+  } else if (activeObservers && typeof activeObservers.clear === "function") {
+    // Fallback for legacy activeObservers if it exists
+    console.warn("Using legacy activeObservers cleanup");
+  }
 
   // Clean up cleanup timeouts
-  observerCleanupTimeouts.forEach((timeout) => clearTimeout(timeout));
+  if (
+    observerCleanupTimeouts &&
+    typeof observerCleanupTimeouts.forEach === "function"
+  ) {
+    observerCleanupTimeouts.forEach((timeout) => clearTimeout(timeout));
+    observerCleanupTimeouts.clear();
+  }
 
   // Cancel any pending accessibility requests
   if (pendingAccessibilityRequest) {
@@ -153,7 +182,6 @@ function hideTooltip(opts) {
 const accessibilityCache = new WeakMap();
 // New: track in-flight fetches and debounce timers per element
 const inflightRequests = new WeakMap();
-const refetchTimers = new WeakMap();
 let lastFocusedElement = null;
 let inspectedElement = null;
 let suppressNextFocusIn = false;
@@ -285,9 +313,6 @@ function computeGroupInfo(el) {
 }
 
 // Add at the top level
-const activeObservers = new WeakMap();
-const observerCleanupTimeouts = new WeakMap();
-
 // Create mutation observer to watch for ARIA changes
 const observer = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
@@ -394,6 +419,7 @@ function startObservingElement(element) {
 
   observer.observe(element, observerOptions);
   activeObservers.set(element, observer);
+  allObservers.add(observer); // Track for cleanup
 
   // Schedule periodic cleanup check
   scheduleObserverCleanup(element);
@@ -421,6 +447,7 @@ function stopObservingElement(element) {
   if (observer) {
     observer.disconnect();
     activeObservers.delete(element);
+    allObservers.delete(observer); // Remove from cleanup tracking
   }
 
   const timeout = observerCleanupTimeouts.get(element);
@@ -766,9 +793,9 @@ async function getAccessibleInfo(target, forceUpdate = false) {
 }
 
 function onFocusIn(e) {
-  logger.log("onFocusIn", "event fired", e.target);
+  logger.content.log("onFocusIn", "event fired", e.target);
   if (!extensionEnabled) {
-    logger.log("onFocusIn", "extension disabled");
+    logger.content.log("onFocusIn", "extension disabled");
     hideTooltip();
     return;
   }
@@ -961,6 +988,10 @@ chrome.runtime.onMessage.addListener((msg) => {
         extensionEnabled = false;
         unregisterEventListeners();
         hideTooltip();
+        break;
+      case "AX_TOOLTIP_SHOWN":
+        // Handle tooltip shown broadcasts from other frames
+        // No action needed in content script for this message
         break;
       default:
         console.warn("Unknown message type:", msg.type);

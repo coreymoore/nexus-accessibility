@@ -4,6 +4,7 @@ export class MessageValidator {
     "getBackendNodeIdAndAccessibleInfo",
     "AX_TOOLTIP_SHOWN",
     "keepAlive",
+    "detachDebugger",
   ];
 
   static validate(msg, sender) {
