@@ -12,10 +12,14 @@ This is an early release and not feature complete.
 - ✅ Fixed memory leaks from duplicate message listeners
 - ✅ Implemented Chrome API promise wrappers to prevent race conditions
 - ✅ Added smart caching with TTL and LRU eviction
-- ✅ Enhanced error handling and recovery
+- ✅ Enhanced error handling and recovery with automatic retry logic
 - ✅ Improved MV3 compatibility with service worker scheduler
 - ✅ Added proper cleanup on page unload
 - ✅ Enhanced logging and debugging capabilities
+- ✅ Improved tooltip accessibility with ARIA attributes and focus management
+- ✅ Added programmatic content script injection for better security
+- ✅ Enhanced frame context management for cross-origin support
+- ✅ Added comprehensive testing utilities for validation
 
 **Remaining Known Issues:**
 These will be resolved in upcoming releases.
@@ -124,6 +128,19 @@ To keep the inspector responsive on complex pages and sites that use frames/ifra
 - Automatic cleanup of event listeners on page unload
 - Bounded caches with TTL and size limits
 - Proper tooltip lifecycle management
+
+## Testing and Validation
+
+The extension includes built-in testing utilities for developers:
+
+1. Open Chrome DevTools while on the extension's service worker
+2. In the console, run: `window.NexusTestUtils.runAllTests()`
+
+Available test commands:
+- `testDebuggerStability()` - Tests debugger attach/detach cycles
+- `testCachePerformance()` - Validates cache read/write performance  
+- `testMemoryUsage()` - Monitors memory consumption patterns
+- `testErrorRecovery()` - Validates error handling and retry logic
 
 ## AI Disclosure
 

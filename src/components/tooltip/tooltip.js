@@ -1,6 +1,9 @@
 // Tooltip module: creates, positions, updates, and removes the tooltip and its connector line.
 // Exposes window.chromeAxTooltip API used by content.js
 
+// Import accessibility utilities for enhanced accessibility
+import { accessibility } from "../../utils/accessibility.js";
+
 class Tooltip {
   constructor() {
     this.logger =
@@ -14,9 +17,10 @@ class Tooltip {
     this._isHiding = false;
     // Spacing between tooltip and focused element
     this._margin = 32;
-    // Focus guard state
+    // Focus guard state - enhanced with accessibility utils
     this._acceptingFocus = false;
     this._onFocusInCapture = null;
+    this._keyboardNavigation = null;
     // Track message listener for cleanup
     this._messageListener = null;
     this._shortcutRegistered = false;
@@ -54,6 +58,12 @@ class Tooltip {
       this._messageListener = null;
     }
     
+    // Clean up keyboard navigation
+    if (this._keyboardNavigation) {
+      this._keyboardNavigation();
+      this._keyboardNavigation = null;
+    }
+    
     // Clean up tooltip elements
     if (this.tooltip) {
       this._removeFocusTrap();
@@ -71,6 +81,9 @@ class Tooltip {
       this._mutObserver.disconnect();
       this._mutObserver = null;
     }
+    
+    // Restore focus using accessibility utilities
+    accessibility.restoreFocus();
     
     // Clean up focus capture listener
     if (this._onFocusInCapture) {
@@ -384,6 +397,16 @@ class Tooltip {
     this.tooltip.className = "chrome-ax-tooltip";
     this.tooltip.setAttribute("role", "tooltip");
     this.tooltip.setAttribute("id", "chrome-ax-tooltip");
+    this.tooltip.setAttribute("aria-live", "polite");
+    this.tooltip.setAttribute("aria-atomic", "true");
+    
+    // Establish ARIA relationship with target element if it has an ID
+    if (target && target.id) {
+      this.tooltip.setAttribute("aria-controls", target.id);
+    }
+    
+    // Make tooltip keyboard focusable for screen reader users
+    this.tooltip.setAttribute("tabindex", "-1");
     // Store scroll handler for cleanup
     this._scrollHandler = () => {
       if (this.tooltip && this.tooltip.style.display === "block" && target) {
@@ -395,11 +418,14 @@ class Tooltip {
 
     // Split tooltip content into parts for flexible composition
     const closeButtonHtml = `
-      <div class="chrome-ax-tooltip-close" aria-label="Close Nexus Inspector" aria-hidden="true" role="presentation">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <button class="chrome-ax-tooltip-close" 
+              aria-label="Close Nexus Inspector" 
+              type="button"
+              tabindex="0">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
           <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
         </svg>
-      </div>
+      </button>
     `;
 
     const screenReaderSection = `
@@ -464,6 +490,25 @@ class Tooltip {
 
     const closeButton = this.tooltip.querySelector(".chrome-ax-tooltip-close");
     if (closeButton) {
+      // Enhanced close button functionality
+      const handleClose = (e) => {
+        e.preventDefault();
+        try {
+          if (enabled && enabled()) {
+            onClose && onClose();
+          }
+        } catch {}
+      };
+
+      // Handle keyboard activation
+      closeButton.addEventListener("click", handleClose);
+      closeButton.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClose(e);
+        }
+      });
+
       // Prevent mouse click from moving focus into the tooltip
       closeButton.addEventListener("mousedown", (e) => {
         e.preventDefault();

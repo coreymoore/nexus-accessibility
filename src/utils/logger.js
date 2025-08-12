@@ -61,6 +61,33 @@ class Logger {
     }
   }
 
+  // Helper method for performance timing
+  time(label) {
+    console.time(`[NEXUS:${this.namespace}] ${label}`);
+  }
+
+  timeEnd(label) {
+    console.timeEnd(`[NEXUS:${this.namespace}] ${label}`);
+  }
+
+  // Helper method for measuring async operations
+  async measure(label, operation) {
+    const start = performance.now();
+    try {
+      const result = await operation();
+      const duration = performance.now() - start;
+      this.debug(`${label} completed`, { duration: `${duration.toFixed(2)}ms` });
+      return result;
+    } catch (error) {
+      const duration = performance.now() - start;
+      this.error(`${label} failed`, { 
+        duration: `${duration.toFixed(2)}ms`, 
+        error: error.message 
+      });
+      throw error;
+    }
+  }
+
   // Backward compatibility
   log(context, ...args) {
     if (DEBUG) {
@@ -75,7 +102,17 @@ const loggers = {
   content: new Logger("content"),
   tooltip: new Logger("tooltip"),
   popup: new Logger("popup"),
+  debugger: new Logger("debugger"),
+  cache: new Logger("cache"),
+  frame: new Logger("frame"),
+  scheduler: new Logger("scheduler"),
+  recovery: new Logger("recovery"),
+  injector: new Logger("injector"),
 };
+
+// Export both Logger class and instances for modern imports
+export { Logger };
+export const logger = loggers;
 
 // Backward compatibility - maintain existing interface
 window.axLogger = {
