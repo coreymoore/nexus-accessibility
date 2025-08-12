@@ -5,19 +5,28 @@
 const accessibility = window.accessibility || {
   // Fallback minimal implementation
   announceToScreenReader: (text) => {
-    console.log('[Accessibility]', text);
-  }
+    console.log("[Accessibility]", text);
+  },
 };
 
 // Initialize DOMSanitizer with fallback
 const DOMSanitizer = window.DOMSanitizer || {
   sanitizeText: (text) => {
-    if (typeof text !== 'string') return '';
-    return text.replace(/[<>]/g, '');
+    if (typeof text !== "string") return "";
+    return text.replace(/[<>]/g, "");
   },
-  createSafeElement: (tag, attrs = {}, content = '') => {
+  createSafeElement: (tag, attrs = {}, content = "") => {
     const el = document.createElement(tag);
-    const safeAttributes = ['class', 'id', 'role', 'aria-label', 'aria-describedby', 'aria-live', 'aria-atomic', 'tabindex'];
+    const safeAttributes = [
+      "class",
+      "id",
+      "role",
+      "aria-label",
+      "aria-describedby",
+      "aria-live",
+      "aria-atomic",
+      "tabindex",
+    ];
     for (const [key, value] of Object.entries(attrs)) {
       if (safeAttributes.includes(key.toLowerCase())) {
         el.setAttribute(key, String(value));
@@ -27,10 +36,10 @@ const DOMSanitizer = window.DOMSanitizer || {
     return el;
   },
   escapeHtml: (text) => {
-    const div = document.createElement('div');
+    const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
-  }
+  },
 };
 
 class Tooltip {

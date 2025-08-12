@@ -10,14 +10,14 @@ const logger = window.axLogger;
 // Initialize error handler if available
 const errorHandler = window.errorHandler || {
   log: (error, context) => console.error(`[${context}]`, error),
-  wrap: (fn, context) => fn
+  wrap: (fn, context) => fn,
 };
 
 // Access debounce utilities if available
 const { debounce, throttle, DebouncedRequest } = window.debounceUtils || {
   debounce: (fn, delay) => fn,
   throttle: (fn, delay) => fn,
-  DebouncedRequest: null
+  DebouncedRequest: null,
 };
 
 // Unique token for this frame to coordinate tooltips across frames
@@ -162,36 +162,40 @@ let extensionEnabled = true;
 let listenersRegistered = false;
 
 // Shared handler for any value-changing events (input/change)
-const onValueChanged = debounce ? debounce((e) => {
-  const el = e.target;
-  accessibilityCache.delete(el);
-  errorHandler.wrap(async () => {
-    const info = await getAccessibleInfo(el, true);
-    if (lastFocusedElement === el) {
-      showTooltip(info, el);
-    }
-  }, 'onValueChanged')().catch((err) =>
-    console.error("Error updating tooltip on value change:", err)
-  );
-}, 100) : function onValueChanged(e) {
-  const el = e.target;
-  // Fallback: manual debounce with setTimeout if utility not available
-  const prev = refetchTimers.get(el);
-  if (prev) clearTimeout(prev);
-  const timer = setTimeout(() => {
-    accessibilityCache.delete(el);
-    getAccessibleInfo(el, true)
-      .then((info) => {
-        if (lastFocusedElement === el) {
-          showTooltip(info, el);
-        }
-      })
-      .catch((err) =>
-        console.error("Error updating tooltip on value change:", err)
-      );
-  }, 100);
-  refetchTimers.set(el, timer);
-};
+const onValueChanged = debounce
+  ? debounce((e) => {
+      const el = e.target;
+      accessibilityCache.delete(el);
+      errorHandler
+        .wrap(async () => {
+          const info = await getAccessibleInfo(el, true);
+          if (lastFocusedElement === el) {
+            showTooltip(info, el);
+          }
+        }, "onValueChanged")()
+        .catch((err) =>
+          console.error("Error updating tooltip on value change:", err)
+        );
+    }, 100)
+  : function onValueChanged(e) {
+      const el = e.target;
+      // Fallback: manual debounce with setTimeout if utility not available
+      const prev = refetchTimers.get(el);
+      if (prev) clearTimeout(prev);
+      const timer = setTimeout(() => {
+        accessibilityCache.delete(el);
+        getAccessibleInfo(el, true)
+          .then((info) => {
+            if (lastFocusedElement === el) {
+              showTooltip(info, el);
+            }
+          })
+          .catch((err) =>
+            console.error("Error updating tooltip on value change:", err)
+          );
+      }, 100);
+      refetchTimers.set(el, timer);
+    };
 
 function registerEventListeners() {
   if (listenersRegistered) return;

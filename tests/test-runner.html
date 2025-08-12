@@ -25,28 +25,31 @@
     <script>
       // Load utility scripts first
       const scriptUrls = [
-        '../src/utils/dom-sanitizer.js',
-        '../src/utils/error-handler.js',
-        '../src/utils/debounce.js'
+        "../src/utils/dom-sanitizer.js",
+        "../src/utils/error-handler.js",
+        "../src/utils/debounce.js",
       ];
 
       Promise.all(
-        scriptUrls.map(url => {
+        scriptUrls.map((url) => {
           return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
+            const script = document.createElement("script");
             script.src = url;
             script.onload = resolve;
             script.onerror = reject;
             document.head.appendChild(script);
           });
         })
-      ).then(() => {
-        // Run tests after utilities are loaded
-        runTests();
-      }).catch(error => {
-        console.error('Failed to load utilities:', error);
-        document.getElementById('results').innerHTML = '<div class="fail">Failed to load utilities for testing</div>';
-      });
+      )
+        .then(() => {
+          // Run tests after utilities are loaded
+          runTests();
+        })
+        .catch((error) => {
+          console.error("Failed to load utilities:", error);
+          document.getElementById("results").innerHTML =
+            '<div class="fail">Failed to load utilities for testing</div>';
+        });
 
       function runTests() {
         // Simple test framework
@@ -115,11 +118,14 @@
         const runner = new TestRunner();
 
         // Add tests - now using global utilities
-        runner.test('DOMSanitizer - should be available globally', () => {
-          assert.truthy(window.DOMSanitizer, 'DOMSanitizer should be available');
+        runner.test("DOMSanitizer - should be available globally", () => {
+          assert.truthy(
+            window.DOMSanitizer,
+            "DOMSanitizer should be available"
+          );
         });
 
-        runner.test('DOMSanitizer - should sanitize text', () => {
+        runner.test("DOMSanitizer - should sanitize text", () => {
           const testString = '&lt;script&gt;alert("test")&lt;/script&gt;';
           const result = window.DOMSanitizer.sanitizeText(testString);
           assert.truthy(result);
@@ -134,13 +140,22 @@
           assert.equal(el.onclick, null);
         });
 
-        runner.test('ErrorHandler - should be available globally', () => {
-          assert.truthy(window.errorHandler, 'ErrorHandler should be available');
+        runner.test("ErrorHandler - should be available globally", () => {
+          assert.truthy(
+            window.errorHandler,
+            "ErrorHandler should be available"
+          );
         });
 
-        runner.test('DebounceUtils - should be available globally', () => {
-          assert.truthy(window.debounceUtils, 'DebounceUtils should be available');
-          assert.truthy(window.debounceUtils.debounce, 'debounce function should be available');
+        runner.test("DebounceUtils - should be available globally", () => {
+          assert.truthy(
+            window.debounceUtils,
+            "DebounceUtils should be available"
+          );
+          assert.truthy(
+            window.debounceUtils.debounce,
+            "debounce function should be available"
+          );
         });
 
         // Run tests

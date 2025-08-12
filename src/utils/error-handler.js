@@ -1,8 +1,8 @@
 // Error Handler Utility - No Build Process Version
 // Exposes window.ErrorHandler for use in content scripts
 
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
   class ErrorHandler {
     constructor() {
@@ -11,13 +11,13 @@
       this.listeners = [];
     }
 
-    log(error, context = '') {
+    log(error, context = "") {
       const errorInfo = {
         message: error.message || String(error),
         stack: error.stack,
         context,
         timestamp: new Date().toISOString(),
-        url: window?.location?.href
+        url: window?.location?.href,
       };
 
       this.errors.push(errorInfo);
@@ -28,7 +28,7 @@
       }
 
       // Notify listeners
-      this.listeners.forEach(listener => listener(errorInfo));
+      this.listeners.forEach((listener) => listener(errorInfo));
 
       // Log to console in development
       console.error(`[ErrorHandler] ${context}:`, error);
@@ -39,7 +39,7 @@
 
     async persistError(errorInfo) {
       try {
-        const { errors = [] } = await chrome.storage.local.get('errors');
+        const { errors = [] } = await chrome.storage.local.get("errors");
         errors.push(errorInfo);
 
         // Keep only last 20 in storage
@@ -60,7 +60,7 @@
 
     clear() {
       this.errors = [];
-      chrome.storage.local.remove('errors');
+      chrome.storage.local.remove("errors");
     }
 
     // Wrap function with error handling
@@ -69,7 +69,7 @@
         try {
           const result = fn(...args);
           if (result instanceof Promise) {
-            return result.catch(error => {
+            return result.catch((error) => {
               this.log(error, context);
               throw error;
             });
@@ -87,13 +87,13 @@
   const errorHandler = new ErrorHandler();
 
   // Set up global error handlers
-  if (typeof window !== 'undefined') {
-    window.addEventListener('error', (event) => {
-      errorHandler.log(event.error, 'window.error');
+  if (typeof window !== "undefined") {
+    window.addEventListener("error", (event) => {
+      errorHandler.log(event.error, "window.error");
     });
 
-    window.addEventListener('unhandledrejection', (event) => {
-      errorHandler.log(event.reason, 'unhandledrejection');
+    window.addEventListener("unhandledrejection", (event) => {
+      errorHandler.log(event.reason, "unhandledrejection");
       event.preventDefault();
     });
   }
@@ -101,5 +101,4 @@
   // Expose to global scope
   window.ErrorHandler = ErrorHandler;
   window.errorHandler = errorHandler;
-
 })();

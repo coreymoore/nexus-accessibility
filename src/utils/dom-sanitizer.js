@@ -1,23 +1,30 @@
 // DOM Sanitizer Utility - No Build Process Version
 // Exposes window.DOMSanitizer for use in content scripts
 
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
   class DOMSanitizer {
     static escapeHtml(text) {
-      const div = document.createElement('div');
+      const div = document.createElement("div");
       div.textContent = text;
       return div.innerHTML;
     }
 
-    static createSafeElement(tag, attributes = {}, content = '') {
+    static createSafeElement(tag, attributes = {}, content = "") {
       const element = document.createElement(tag);
 
       // Whitelist safe attributes
       const safeAttributes = [
-        'class', 'id', 'role', 'aria-label', 'aria-describedby',
-        'aria-live', 'aria-atomic', 'tabindex', 'data-nexus-id'
+        "class",
+        "id",
+        "role",
+        "aria-label",
+        "aria-describedby",
+        "aria-live",
+        "aria-atomic",
+        "tabindex",
+        "data-nexus-id",
       ];
 
       for (const [key, value] of Object.entries(attributes)) {
@@ -34,12 +41,11 @@
     }
 
     static sanitizeText(text) {
-      if (typeof text !== 'string') return '';
-      return text.replace(/[<>]/g, '');
+      if (typeof text !== "string") return "";
+      return text.replace(/[<>]/g, "");
     }
   }
 
   // Expose to global scope for content script use
   window.DOMSanitizer = DOMSanitizer;
-
 })();

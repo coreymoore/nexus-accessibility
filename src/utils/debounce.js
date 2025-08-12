@@ -1,8 +1,8 @@
 // Debounce Utilities - No Build Process Version
 // Exposes window.debounceUtils for use in content scripts
 
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
   function debounce(func, wait, immediate = false) {
     let timeout;
@@ -68,7 +68,6 @@
   window.debounceUtils = {
     debounce,
     throttle,
-    DebouncedRequest
+    DebouncedRequest,
   };
-
 })();
