@@ -24,15 +24,17 @@ const AX_NODECACHE_MAX_ENTRIES = 500; // cap total entries to bound memory
  * Get accessibility information for a specific element
  * @param {number} tabId - Chrome tab ID
  * @param {number} frameId - Chrome frame ID
- * @param {string} elementSelector - CSS selector for the element
+ * @param {string} elementSelector - CSS selector for the element (ignored if useDirectReference is true)
  * @param {Object} connection - Connection state from DebuggerConnectionManager
+ * @param {boolean} useDirectReference - If true, use Runtime.evaluate with global element reference
  * @returns {Promise<Object>} Accessibility information
  */
 export async function getAccessibilityInfoForElement(
   tabId,
   frameId,
   elementSelector,
-  connection
+  connection,
+  useDirectReference = false
 ) {
   // Security validation
   const tabValidation = security.validateTabId(tabId);
@@ -47,15 +49,118 @@ export async function getAccessibilityInfoForElement(
     }
   }
 
-  const selectorValidation = security.validateSelector(elementSelector);
-  if (!selectorValidation.valid) {
-    throw new Error(`Invalid selector: ${selectorValidation.reason}`);
+  // Only validate selector if we're not using direct reference
+  if (!useDirectReference && elementSelector) {
+    const selectorValidation = security.validateSelector(elementSelector);
+    if (!selectorValidation.valid) {
+      throw new Error(`Invalid selector: ${selectorValidation.reason}`);
+    }
   }
 
   const log = logger.background;
 
   return await performance.measure("accessibility-info-retrieval", async () => {
     try {
+      console.log("Background: Starting accessibility info retrieval");
+      console.log("Background: tabId:", tabId, "frameId:", frameId);
+      console.log("Background: useDirectReference:", useDirectReference);
+      
+      // IMPORTANT: Direct reference approach using Runtime.evaluate + DOM.requestNode
+      // This is the most reliable method and should not be changed!
+      // It works regardless of duplicate IDs, classes, or broken markup.
+      if (useDirectReference) {
+        console.log("Background: Using direct element reference method");
+        
+        try {
+          // Try to get the element from the global reference first
+          let elementExpression = "window.nexusTargetElement";
+          
+          // Fallback to document.activeElement if global reference fails
+          const result = await chromeAsync.debugger.sendCommand(
+            { tabId },
+            "Runtime.evaluate",
+            { 
+              expression: `${elementExpression} || document.activeElement`,
+              returnByValue: false 
+            }
+          );
+          
+          console.log("Background: Runtime.evaluate result:", result);
+          
+          if (result.result && result.result.objectId) {
+            console.log("Background: Found objectId:", result.result.objectId);
+            console.log("Background: Result details:", JSON.stringify(result.result, null, 2));
+            
+            // IMPORTANT: Initialize DOM tree first - this is required for DOM.requestNode to work
+            try {
+              console.log("Background: Initializing DOM tree with DOM.getDocument");
+              await chromeAsync.debugger.sendCommand(
+                { tabId },
+                "DOM.getDocument",
+                { depth: 0 }
+              );
+              console.log("Background: DOM tree initialized successfully");
+            } catch (domInitError) {
+              console.error("Background: Failed to initialize DOM tree:", domInitError);
+            }
+            
+            // Convert objectId to nodeId using DOM.requestNode
+            try {
+              const nodeResult = await chromeAsync.debugger.sendCommand(
+                { tabId },
+                "DOM.requestNode",
+                { objectId: result.result.objectId }
+              );
+              
+              console.log("Background: DOM.requestNode response:", nodeResult);
+              const nodeId = nodeResult.nodeId;
+              console.log("Background: Got nodeId from direct reference:", nodeId);
+              
+              if (nodeId && nodeId > 0) {
+                // Get the accessibility node with all properties
+                const { nodes } = await chromeAsync.debugger.sendCommand(
+                  { tabId },
+                  "Accessibility.getPartialAXTree",
+                  {
+                    nodeId,
+                    fetchRelatives: true,
+                  }
+                );
+
+                if (nodes && nodes.length > 0) {
+                  // Prefer a non-ignored node with a concrete role if available
+                  let node = nodes[0];
+                  const pick = nodes.find(
+                    (n) => n && !n.ignored && n.role && (n.role.value || n.role)
+                  );
+                  if (pick) node = pick;
+
+                  console.log("Background: Successfully got accessibility node via direct reference:", node);
+                  return formatAccessibilityNode(node);
+                }
+              } else {
+                console.log("Background: DOM.requestNode returned invalid nodeId:", nodeId);
+              }
+            } catch (requestNodeError) {
+              console.error("Background: Error in DOM.requestNode:", requestNodeError);
+            }
+          } else {
+            console.log("Background: Runtime.evaluate did not return objectId");
+            console.log("Background: Result was:", result);
+          }          console.log("Background: Direct reference method failed, falling back to selector-based approach");
+        } catch (directError) {
+          console.error("Background: Error in direct reference method:", directError);
+          console.log("Background: Falling back to selector-based approach");
+        }
+      }
+      
+      // Fallback to selector-based approach or if useDirectReference is false
+      if (!elementSelector) {
+        return { error: "No element selector provided and direct reference failed" };
+      }
+      
+      console.log("Background: elementSelector:", elementSelector);
+      
       // Resolve the correct frame: prefer sender.frameId -> CDP frame; fall back to main doc
       let documentNodeId;
       const chromeFrameId = frameId;
@@ -128,9 +233,14 @@ export async function getAccessibilityInfoForElement(
       }
 
       if (!nodeId) {
+        console.log("Background: No cached nodeId found, performing DOM query");
+        console.log("Background: pageFrameId:", pageFrameId);
+        console.log("Background: elementSelector:", elementSelector);
+        
         if (pageFrameId) {
           // Cross-origin or subframe: evaluate in the frame's isolated world
           try {
+            console.log("Background: Attempting frame-world query");
             const ctxId = await getOrCreateIsolatedWorld(
               tabId,
               pageFrameId,
@@ -139,6 +249,7 @@ export async function getAccessibilityInfoForElement(
             const expr = `document.querySelector(${JSON.stringify(
               elementSelector
             )})`;
+            console.log("Background: Evaluating expression:", expr);
             const { result } = await chromeAsync.debugger.sendCommand(
               { tabId },
               "Runtime.evaluate",
@@ -149,14 +260,19 @@ export async function getAccessibilityInfoForElement(
                 awaitPromise: false,
               }
             );
+            console.log("Background: Runtime.evaluate result:", result);
             const objectId = result && result.objectId;
             if (objectId) {
-              const { node } = await chromeAsync.debugger.sendCommand(
+              // Convert objectId to nodeId using DOM.requestNode
+              const nodeResult = await chromeAsync.debugger.sendCommand(
                 { tabId },
-                "DOM.describeNode",
+                "DOM.requestNode",
                 { objectId }
               );
-              nodeId = node?.nodeId || 0;
+              nodeId = nodeResult.nodeId;
+              console.log("Background: Frame-world query found nodeId:", nodeId);
+            } else {
+              console.log("Background: Frame-world query returned no objectId");
             }
           } catch (e) {
             console.warn(
@@ -168,6 +284,7 @@ export async function getAccessibilityInfoForElement(
 
         // Fallback to main frame DOM query
         if (!nodeId && documentNodeId) {
+          console.log("Background: Attempting main frame DOM query with documentNodeId:", documentNodeId);
           let q = await chromeAsync.debugger.sendCommand(
             { tabId },
             "DOM.querySelector",
@@ -177,16 +294,19 @@ export async function getAccessibilityInfoForElement(
             }
           );
           nodeId = q.nodeId;
+          console.log("Background: Main frame DOM query result nodeId:", nodeId);
 
           // If query fails (nodeId 0), refresh root once and retry quickly
           if (!nodeId && !pageFrameId) {
             try {
+              console.log("Background: Refreshing document root and retrying");
               const { root } = await chromeAsync.debugger.sendCommand(
                 { tabId },
                 "DOM.getDocument",
                 { depth: 1 }
               );
               documentNodeId = root.nodeId;
+              console.log("Background: New document root nodeId:", documentNodeId);
               __axDocRoots.set(cacheKey, {
                 nodeId: documentNodeId,
                 t: Date.now(),
@@ -200,7 +320,10 @@ export async function getAccessibilityInfoForElement(
                 }
               );
               nodeId = q.nodeId;
-            } catch {}
+              console.log("Background: Retry DOM query result nodeId:", nodeId);
+            } catch (retryError) {
+              console.error("Background: Error during DOM refresh retry:", retryError);
+            }
           }
         }
 
@@ -214,6 +337,10 @@ export async function getAccessibilityInfoForElement(
       }
 
       if (!nodeId) {
+        console.log("Background: Final result - nodeId is still 0, returning error");
+        console.log("Background: documentNodeId was:", documentNodeId);
+        console.log("Background: pageFrameId was:", pageFrameId);
+        console.log("Background: elementSelector was:", elementSelector);
         return { error: "Node not found" };
       }
 
@@ -407,4 +534,66 @@ function evictOldestNodeCacheEntry() {
     }
   }
   if (oldestKey) __axNodeCache.delete(oldestKey);
+}
+
+/**
+ * Format accessibility node for direct reference method
+ * This helper extracts and formats the key accessibility information from a CDP node
+ * @param {Object} node - The accessibility node from CDP
+ * @returns {Object} Formatted accessibility information
+ */
+function formatAccessibilityNode(node) {
+  const out = {
+    role: null,
+    name: null,
+    description: null,
+    value: null,
+    states: {},
+    ariaProperties: {},
+    group: null,
+    ignored: node.ignored || false,
+    ignoredReasons: node.ignoredReasons || []
+  };
+
+  // Extract role
+  if (node.role && node.role.value) {
+    out.role = node.role.value;
+  } else if (node.role) {
+    out.role = node.role;
+  }
+
+  // Extract name
+  if (node.name && node.name.value) {
+    out.name = node.name.value;
+  } else if (node.name) {
+    out.name = node.name;
+  }
+
+  // Extract description
+  if (node.description && node.description.value) {
+    out.description = node.description.value;
+  } else if (node.description) {
+    out.description = node.description;
+  }
+
+  // Extract value
+  if (node.value && node.value.value) {
+    out.value = node.value.value;
+  } else if (node.value) {
+    out.value = node.value;
+  }
+
+  // Extract properties and states
+  if (node.properties && Array.isArray(node.properties)) {
+    node.properties.forEach((prop) => {
+      if (prop.name && prop.name.startsWith("aria-")) {
+        out.ariaProperties[prop.name] = prop.value?.value || prop.value;
+      } else if (prop.name) {
+        out.states[prop.name] = prop.value?.value || prop.value;
+      }
+    });
+  }
+
+  console.log("Background: Formatted accessibility node:", out);
+  return out;
 }

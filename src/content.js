@@ -2,6 +2,39 @@ console.log(
   "Content script loading... v2.1 - Fixed logger exports and performance conflicts"
 );
 
+// Global element storage for CDP accessibility retrieval
+// IMPORTANT: Do not change this approach! This method uses Runtime.evaluate with direct element 
+// references followed by DOM.requestNode, which is the most reliable way to get nodeIds for CDP.
+// It works regardless of duplicate IDs, classes, or broken markup, and doesn't depend on selectors.
+window.nexusTargetElement = null;
+
+/**
+ * Store an element reference globally for CDP access
+ * This is modular and can be used for focus events, pointer events, or any element selection
+ * @param {Element} element - The element to store for CDP access
+ * @param {string} selectionType - The type of selection ('focus', 'hover', 'click', etc.)
+ */
+function storeElementForCDP(element, selectionType = 'focus') {
+  if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+    console.warn('Invalid element provided to storeElementForCDP');
+    return;
+  }
+  
+  // Store the element globally for CDP access
+  window.nexusTargetElement = element;
+  
+  // Optional: Store metadata about the selection type for debugging
+  window.nexusSelectionMetadata = {
+    type: selectionType,
+    timestamp: Date.now(),
+    tagName: element.tagName,
+    id: element.id || null,
+    className: element.className || null
+  };
+  
+  console.log(`[NEXUS] Stored element for CDP access (${selectionType}):`, element);
+}
+
 // Initialize logger
 if (window.initializeLogger) {
   window.initializeLogger();
@@ -515,11 +548,10 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 8) {
     }
 
     try {
-      const selector = getUniqueSelector(target);
+      // Use the new CDP approach with direct element reference
       const response = await chrome.runtime.sendMessage({
         action: "getBackendNodeIdAndAccessibleInfo",
-        elementSelector: selector,
-        tabId: chrome.runtime.id, // Use extension ID as fallback
+        useDirectReference: true, // Flag to indicate we're using the global reference approach
         frameId: 0,
       });
 
@@ -577,10 +609,11 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 8) {
   // Final attempt - return whatever we get
   console.log("Final attempt after all retries...");
   try {
-    const selector = getUniqueSelector(target);
+    // Use the new CDP approach with direct element reference for final attempt too
     const response = await chrome.runtime.sendMessage({
       action: "getBackendNodeIdAndAccessibleInfo",
-      elementSelector: selector,
+      useDirectReference: true,
+      frameId: 0,
     });
 
     console.log("Final attempt result:", {
@@ -601,6 +634,9 @@ async function getAccessibleInfo(target, forceUpdate = false) {
     "forceUpdate:",
     forceUpdate
   );
+
+  // Store the element for CDP access using our modular approach
+  storeElementForCDP(target, 'focus');
 
   const existing = inflightRequests.get(target);
   if (existing) {

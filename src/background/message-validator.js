@@ -27,8 +27,18 @@ export class MessageValidator {
     // Validate specific fields based on action
     switch (action) {
       case "getBackendNodeIdAndAccessibleInfo":
-        if (typeof msg.elementSelector !== "string") {
-          throw new Error("Invalid elementSelector");
+        // Support both new direct reference approach and legacy selector approach
+        if (msg.useDirectReference === true) {
+          // Direct reference approach - no elementSelector required
+          // Validate that we have the right flags
+          if (typeof msg.useDirectReference !== "boolean") {
+            throw new Error("Invalid useDirectReference flag");
+          }
+        } else {
+          // Legacy selector approach - elementSelector required
+          if (typeof msg.elementSelector !== "string") {
+            throw new Error("Invalid elementSelector");
+          }
         }
         break;
       case "getAccessibilityTree":
