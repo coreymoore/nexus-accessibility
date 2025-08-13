@@ -91,7 +91,7 @@
       if (DOMSanitizer.sanitizeHTML) {
         return DOMSanitizer.sanitizeHTML(content);
       }
-      
+
       // Fallback to text sanitization
       return DOMSanitizer.sanitizeText(content);
     },

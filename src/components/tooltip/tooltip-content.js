@@ -26,20 +26,20 @@
         </circle>
       </svg>
     `,
-    
+
     CLOSE_BUTTON_ICON: `
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
         <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
       </svg>
     `,
-    
+
     ERROR_ICON: `
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
         <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
         <path d="M8 4v4M8 10h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
     `,
-    
+
     SCREEN_READER_ICON: `
       <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Screen Reader Output" focusable="false" style="vertical-align:middle;">
         <rect x="3" y="8" width="5" height="8" rx="1.5" fill="#7851a9"/>
@@ -47,7 +47,7 @@
         <path d="M17 9a4 4 0 0 1 0 6" stroke="#7851a9" stroke-width="2" fill="none" stroke-linecap="round"/>
         <path d="M19.5 7a7 7 0 0 1 0 10" stroke="#78551a9" stroke-width="1.5" fill="none" stroke-linecap="round"/>
       </svg>
-    `
+    `,
   };
 
   /**
@@ -78,7 +78,9 @@
      * @returns {string} Safe HTML span
      */
     createSafeSpan(className, content) {
-      return `<span class="${utils.escapeHtml(className)}">${utils.escapeHtml(String(content))}</span>`;
+      return `<span class="${utils.escapeHtml(className)}">${utils.escapeHtml(
+        String(content)
+      )}</span>`;
     },
 
     /**
@@ -118,8 +120,10 @@
      */
     getScreenReaderOutput(info) {
       // Input validation
-      if (!info || typeof info !== 'object') {
-        console.warn('[Tooltip] Invalid info object provided to getScreenReaderOutput');
+      if (!info || typeof info !== "object") {
+        console.warn(
+          "[Tooltip] Invalid info object provided to getScreenReaderOutput"
+        );
         return '<span class="sr-error">Unable to generate screen reader output</span>';
       }
 
@@ -280,7 +284,7 @@
         <div class="chrome-ax-tooltip-body" inert>
           <div role="alert" aria-live="assertive" style="display: flex; align-items: center; gap: 8px; color: #d73a49;">
             ${Templates.ERROR_ICON}
-            <span>${utils.escapeHtml(message || 'An error occurred')}</span>
+            <span>${utils.escapeHtml(message || "An error occurred")}</span>
           </div>
         </div>
       `;
@@ -373,9 +377,9 @@
      */
     generateTooltipContent(info, miniMode, options = {}) {
       // Input validation
-      if (!info || typeof info !== 'object') {
-        console.error('[Tooltip] Invalid accessibility info provided:', info);
-        return this.createErrorContent('Invalid accessibility information');
+      if (!info || typeof info !== "object") {
+        console.error("[Tooltip] Invalid accessibility info provided:", info);
+        return this.createErrorContent("Invalid accessibility information");
       }
 
       try {
@@ -409,8 +413,8 @@
 
         return tooltipContent;
       } catch (error) {
-        console.error('[Tooltip] Content generation failed:', error);
-        return this.createErrorContent('Unable to generate tooltip content');
+        console.error("[Tooltip] Content generation failed:", error);
+        return this.createErrorContent("Unable to generate tooltip content");
       }
     },
 

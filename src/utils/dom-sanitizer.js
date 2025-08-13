@@ -52,45 +52,74 @@
      */
     static sanitizeHTML(html) {
       if (typeof html !== "string") return "";
-      
+
       // Create a temporary DOM element to parse and sanitize
       const temp = document.createElement("div");
       temp.innerHTML = html;
-      
+
       // Allowed tags for accessibility tooltip content
-      const allowedTags = ["div", "span", "dl", "dt", "dd", "svg", "path", "circle", "button"];
-      const allowedAttributes = [
-        "class", "id", "role", "aria-label", "aria-describedby", 
-        "aria-live", "aria-atomic", "tabindex", "data-nexus-id",
-        "width", "height", "viewBox", "fill", "stroke", "stroke-width",
-        "stroke-linecap", "d", "cx", "cy", "r", "type"
+      const allowedTags = [
+        "div",
+        "span",
+        "dl",
+        "dt",
+        "dd",
+        "svg",
+        "path",
+        "circle",
+        "button",
       ];
-      
+      const allowedAttributes = [
+        "class",
+        "id",
+        "role",
+        "aria-label",
+        "aria-describedby",
+        "aria-live",
+        "aria-atomic",
+        "tabindex",
+        "data-nexus-id",
+        "width",
+        "height",
+        "viewBox",
+        "fill",
+        "stroke",
+        "stroke-width",
+        "stroke-linecap",
+        "d",
+        "cx",
+        "cy",
+        "r",
+        "type",
+      ];
+
       // Remove all script tags and event handlers
       const scripts = temp.querySelectorAll("script");
-      scripts.forEach(script => script.remove());
-      
+      scripts.forEach((script) => script.remove());
+
       // Clean all elements
       const allElements = temp.querySelectorAll("*");
-      allElements.forEach(el => {
+      allElements.forEach((el) => {
         // Remove disallowed tags
         if (!allowedTags.includes(el.tagName.toLowerCase())) {
           el.replaceWith(...el.childNodes);
           return;
         }
-        
+
         // Clean attributes
         const attrs = [...el.attributes];
-        attrs.forEach(attr => {
-          if (!allowedAttributes.includes(attr.name.toLowerCase()) || 
-              attr.value.includes("javascript:") || 
-              attr.value.includes("data:") ||
-              attr.name.startsWith("on")) {
+        attrs.forEach((attr) => {
+          if (
+            !allowedAttributes.includes(attr.name.toLowerCase()) ||
+            attr.value.includes("javascript:") ||
+            attr.value.includes("data:") ||
+            attr.name.startsWith("on")
+          ) {
             el.removeAttribute(attr.name);
           }
         });
       });
-      
+
       return temp.innerHTML;
     }
   }
