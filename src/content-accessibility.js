@@ -1,14 +1,14 @@
 /**
  * Content Script Accessibility Data Management
- * 
+ *
  * This module handles fetching accessibility information from Chrome DevTools Protocol
  * and provides fallback local computation when CDP is unavailable.
- * 
+ *
  * Dependencies: content-utils.js, content-cache.js
  */
 
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
   // Ensure our namespace exists
   window.ContentExtension = window.ContentExtension || {};
@@ -18,7 +18,9 @@
    * Initialize the accessibility module
    */
   function initialize() {
-    console.log('[ContentExtension.accessibility] Initializing accessibility data management');
+    console.log(
+      "[ContentExtension.accessibility] Initializing accessibility data management"
+    );
   }
 
   /**
@@ -29,7 +31,7 @@
    */
   async function waitForAccessibilityUpdate(target, maxAttempts = 8) {
     const cache = CE.cache;
-    
+
     // Cancel any pending request
     if (cache) {
       cache.clearPendingRequest();
@@ -44,7 +46,7 @@
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       // Check if this request was cancelled
       if (currentRequest.cancelled) {
-        console.log('[NEXUS] Request cancelled');
+        console.log("[NEXUS] Request cancelled");
         return null;
       }
 
@@ -52,7 +54,7 @@
         // Use CDP approach with direct element reference
         const selector = CE.utils.getUniqueSelector(target);
         const response = await chrome.runtime.sendMessage({
-          action: 'getBackendNodeIdAndAccessibleInfo',
+          action: "getBackendNodeIdAndAccessibleInfo",
           useDirectReference: true,
           elementSelector: selector,
           frameId: 0,
@@ -66,10 +68,11 @@
 
         // Check if we have meaningful data
         const hasData =
-          (response?.role && response.role !== '(no role)') ||
-          (response?.name && response.name !== '(no accessible name)') ||
+          (response?.role && response.role !== "(no role)") ||
+          (response?.name && response.name !== "(no accessible name)") ||
           (response?.states && Object.keys(response.states).length > 0) ||
-          (response?.ariaProperties && Object.keys(response.ariaProperties).length > 0);
+          (response?.ariaProperties &&
+            Object.keys(response.ariaProperties).length > 0);
 
         if (hasData) {
           console.log(`Got accessibility data on attempt ${attempt + 1}:`, {
@@ -84,19 +87,24 @@
         // Short backoff: 50ms, 100ms, 150ms, ...
         if (attempt < maxAttempts - 1) {
           const delay = 50 * (attempt + 1);
-          console.log(`No meaningful data on attempt ${attempt + 1}, waiting ${delay}ms...`, {
-            role: response?.role,
-            name: response?.name
-          });
-          await new Promise(resolve => setTimeout(resolve, delay));
+          console.log(
+            `No meaningful data on attempt ${
+              attempt + 1
+            }, waiting ${delay}ms...`,
+            {
+              role: response?.role,
+              name: response?.name,
+            }
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       } catch (error) {
         if (currentRequest.cancelled) return null;
-        console.error('[NEXUS] Attempt failed:', error);
+        console.error("[NEXUS] Attempt failed:", error);
 
         // Wait before retry with exponential backoff
         if (attempt < maxAttempts - 1) {
-          await new Promise(resolve => 
+          await new Promise((resolve) =>
             setTimeout(resolve, 100 * Math.pow(2, attempt))
           );
         }
@@ -109,23 +117,23 @@
     }
 
     // Final attempt
-    console.log('Final attempt after all retries...');
+    console.log("Final attempt after all retries...");
     try {
       const selector = CE.utils.getUniqueSelector(target);
       const response = await chrome.runtime.sendMessage({
-        action: 'getBackendNodeIdAndAccessibleInfo',
+        action: "getBackendNodeIdAndAccessibleInfo",
         useDirectReference: true,
         elementSelector: selector,
         frameId: 0,
       });
 
-      console.log('Final attempt result:', {
+      console.log("Final attempt result:", {
         role: response?.role,
         name: response?.name,
       });
       return response;
     } catch (error) {
-      throw new Error('Failed to get accessibility info after all attempts');
+      throw new Error("Failed to get accessibility info after all attempts");
     }
   }
 
@@ -136,10 +144,15 @@
    * @returns {Promise<Object>} Accessibility information
    */
   async function getAccessibleInfo(target, forceUpdate = false) {
-    console.log('getAccessibleInfo called with:', target, 'forceUpdate:', forceUpdate);
+    console.log(
+      "getAccessibleInfo called with:",
+      target,
+      "forceUpdate:",
+      forceUpdate
+    );
 
     const cache = CE.cache;
-    
+
     // Check for existing in-flight request
     if (cache) {
       const existing = cache.getInflightRequest(target);
@@ -156,7 +169,7 @@
       }
 
       if (CE.utils.isInShadowRoot(target)) {
-        console.log('Element is in shadow root, using local info');
+        console.log("Element is in shadow root, using local info");
         const localInfo = getLocalAccessibleInfo(target);
         if (CE.tooltip) {
           CE.tooltip.showTooltip(localInfo, target);
@@ -165,8 +178,8 @@
       }
 
       // Log current DOM state
-      const domExpanded = CE.utils.safeGetAttribute(target, 'aria-expanded');
-      console.log('DOM aria-expanded value before fetch:', domExpanded);
+      const domExpanded = CE.utils.safeGetAttribute(target, "aria-expanded");
+      console.log("DOM aria-expanded value before fetch:", domExpanded);
 
       try {
         const info = await waitForAccessibilityUpdate(target);
@@ -178,8 +191,8 @@
           throw err;
         }
 
-        console.log('getAccessibleInfo: building return object from', info);
-        
+        console.log("getAccessibleInfo: building return object from", info);
+
         // Process accessibility information
         const result = processAccessibilityInfo(info, target);
 
@@ -188,32 +201,33 @@
           cache.setCached(target, result);
         } else if (cached && cache) {
           // Use cached data if current result is empty
-          console.log('Using cached data instead of empty result');
+          console.log("Using cached data instead of empty result");
           return cached;
         }
 
-        console.log('getAccessibleInfo: final result', result);
+        console.log("getAccessibleInfo: final result", result);
         return result;
-        
       } catch (error) {
-        console.error('Failed to get accessibility info:', error);
-        
+        console.error("Failed to get accessibility info:", error);
+
         // Fallback to cached or local info
         if (cached && cache) {
-          console.log('Using cached data after error');
+          console.log("Using cached data after error");
           return cached;
         }
-        
+
         const localInfo = getLocalAccessibleInfo(target);
-        
+
         // Cache local info if meaningful
-        if (cache && localInfo && (
-          localInfo.role !== '(no role)' ||
-          localInfo.name !== '(no accessible name)'
-        )) {
+        if (
+          cache &&
+          localInfo &&
+          (localInfo.role !== "(no role)" ||
+            localInfo.name !== "(no accessible name)")
+        ) {
           cache.setCached(target, localInfo);
         }
-        
+
         return localInfo;
       } finally {
         if (cache) {
@@ -225,7 +239,7 @@
     if (cache) {
       cache.getInflightRequest(target, promise);
     }
-    
+
     return promise;
   }
 
@@ -242,25 +256,31 @@
     // Clean up recursive properties
     delete states.describedby;
     delete states.url;
-    delete ariaProperties['aria-describedby'];
+    delete ariaProperties["aria-describedby"];
 
     // Normalize expanded state
     let normalizedExpanded = null;
-    if ('expanded' in states) {
-      if (typeof states.expanded === 'object' && states.expanded !== null && 'value' in states.expanded) {
+    if ("expanded" in states) {
+      if (
+        typeof states.expanded === "object" &&
+        states.expanded !== null &&
+        "value" in states.expanded
+      ) {
         normalizedExpanded = states.expanded.value === true;
       } else {
         normalizedExpanded = states.expanded === true;
       }
-    } else if ('aria-expanded' in ariaProperties) {
-      normalizedExpanded = ariaProperties['aria-expanded'] === 'true' || ariaProperties['aria-expanded'] === true;
+    } else if ("aria-expanded" in ariaProperties) {
+      normalizedExpanded =
+        ariaProperties["aria-expanded"] === "true" ||
+        ariaProperties["aria-expanded"] === true;
     }
 
     const result = {
-      role: info?.role || '(no role)',
-      name: info?.name || '(no accessible name)',
-      description: info?.description || '(no description)',
-      value: info?.value || '(no value)',
+      role: info?.role || "(no role)",
+      name: info?.name || "(no accessible name)",
+      description: info?.description || "(no description)",
+      value: info?.value || "(no value)",
       states,
       ariaProperties,
       normalizedExpanded,
@@ -284,36 +304,39 @@
    */
   function normalizeCheckboxStates(result, target) {
     try {
-      if (target instanceof Element && 
-          target.tagName === 'INPUT' && 
-          target.type === 'checkbox') {
-        
+      if (
+        target instanceof Element &&
+        target.tagName === "INPUT" &&
+        target.type === "checkbox"
+      ) {
         const domChecked = !!target.checked;
         const domIndeterminate = !!target.indeterminate;
-        
+
         if (domIndeterminate) {
-          result.states.checked = 'mixed';
-          result.ariaProperties['aria-checked'] = 'mixed';
+          result.states.checked = "mixed";
+          result.ariaProperties["aria-checked"] = "mixed";
         } else {
           result.states.checked = domChecked;
           // Remove conflicting aria-checked
-          if ('aria-checked' in result.ariaProperties) {
-            delete result.ariaProperties['aria-checked'];
+          if ("aria-checked" in result.ariaProperties) {
+            delete result.ariaProperties["aria-checked"];
           }
         }
-      } else if ('aria-checked' in result.ariaProperties) {
+      } else if ("aria-checked" in result.ariaProperties) {
         // Non-native checkbox: trust aria-checked
-        const ariaChecked = String(result.ariaProperties['aria-checked']).toLowerCase();
-        if (ariaChecked === 'mixed') {
-          result.states.checked = 'mixed';
-        } else if (ariaChecked === 'true') {
+        const ariaChecked = String(
+          result.ariaProperties["aria-checked"]
+        ).toLowerCase();
+        if (ariaChecked === "mixed") {
+          result.states.checked = "mixed";
+        } else if (ariaChecked === "true") {
           result.states.checked = true;
-        } else if (ariaChecked === 'false') {
+        } else if (ariaChecked === "false") {
           result.states.checked = false;
         }
       }
     } catch (e) {
-      console.warn('Checkbox normalization failed:', e);
+      console.warn("Checkbox normalization failed:", e);
     }
   }
 
@@ -327,22 +350,23 @@
       let node = el && el.parentElement;
       while (node && node !== document.body) {
         // HTML fieldset acts as a group
-        if (node.tagName === 'FIELDSET') {
-          const label = CE.utils.getFieldsetLegend(node) || CE.utils.getAriaLabel(node);
-          return { role: 'group', label: label || undefined };
+        if (node.tagName === "FIELDSET") {
+          const label =
+            CE.utils.getFieldsetLegend(node) || CE.utils.getAriaLabel(node);
+          return { role: "group", label: label || undefined };
         }
-        
+
         // ARIA group containers
-        const role = CE.utils.safeGetAttribute(node, 'role');
-        if (role === 'group' || role === 'radiogroup') {
+        const role = CE.utils.safeGetAttribute(node, "role");
+        if (role === "group" || role === "radiogroup") {
           const label = CE.utils.getAriaLabel(node);
           return { role, label: label || undefined };
         }
-        
+
         node = node.parentElement;
       }
     } catch (e) {
-      console.warn('computeGroupInfo failed:', e);
+      console.warn("computeGroupInfo failed:", e);
     }
     return undefined;
   }
@@ -354,11 +378,11 @@
    */
   function getLocalAccessibleInfo(el) {
     const verbose = window.NEXUS_TESTING_MODE?.verbose;
-    if (verbose) console.log('getLocalAccessibleInfo called with:', el);
+    if (verbose) console.log("getLocalAccessibleInfo called with:", el);
 
-    let name = '';
-    let description = '';
-    let role = '';
+    let name = "";
+    let description = "";
+    let role = "";
 
     const useLibraries = window.NEXUS_TESTING_MODE?.useLibraries !== false;
 
@@ -367,24 +391,32 @@
         // Use dom-accessibility-api for name and description
         if (window.DOMAccessibilityAPI) {
           name = window.DOMAccessibilityAPI.computeAccessibleName(el);
-          description = window.DOMAccessibilityAPI.computeAccessibleDescription(el);
-          if (verbose) console.log('DOM API computed:', { name, description });
+          description =
+            window.DOMAccessibilityAPI.computeAccessibleDescription(el);
+          if (verbose) console.log("DOM API computed:", { name, description });
         }
 
         // Use aria-query for role
-        role = CE.utils.safeGetAttribute(el, 'role');
+        role = CE.utils.safeGetAttribute(el, "role");
         if (!role && window.AriaQuery && window.AriaQuery.getImplicitRole) {
-          role = window.AriaQuery.getImplicitRole(el) || '';
-          if (verbose) console.log('ARIA Query role:', role);
+          role = window.AriaQuery.getImplicitRole(el) || "";
+          if (verbose) console.log("ARIA Query role:", role);
         }
 
         // Fallback to dom-accessibility-api getRole
-        if (!role && window.DOMAccessibilityAPI && window.DOMAccessibilityAPI.getRole) {
-          role = window.DOMAccessibilityAPI.getRole(el) || '';
-          if (verbose) console.log('DOM API role:', role);
+        if (
+          !role &&
+          window.DOMAccessibilityAPI &&
+          window.DOMAccessibilityAPI.getRole
+        ) {
+          role = window.DOMAccessibilityAPI.getRole(el) || "";
+          if (verbose) console.log("DOM API role:", role);
         }
       } catch (error) {
-        console.warn('Error using accessibility libraries, falling back:', error);
+        console.warn(
+          "Error using accessibility libraries, falling back:",
+          error
+        );
       }
     }
 
@@ -394,35 +426,35 @@
     if (!role) role = computeFallbackRole(el);
 
     // Normalize empty values
-    if (!name) name = '(no accessible name)';
-    if (!description) description = '(no description)';
-    if (!role) role = '(no role)';
+    if (!name) name = "(no accessible name)";
+    if (!description) description = "(no description)";
+    if (!role) role = "(no role)";
 
     // Collect ARIA properties and states
     const ariaProperties = {};
     const states = {};
-    
-    Array.from(el.attributes).forEach(attr => {
-      if (attr.name.startsWith('aria-') && attr.name !== 'aria-describedby') {
+
+    Array.from(el.attributes).forEach((attr) => {
+      if (attr.name.startsWith("aria-") && attr.name !== "aria-describedby") {
         ariaProperties[attr.name] = attr.value;
       }
     });
 
     // Add common states
-    ['disabled', 'selected', 'pressed'].forEach(state => {
+    ["disabled", "selected", "pressed"].forEach((state) => {
       if (el.hasAttribute(state)) {
         states[state] = true;
       }
     });
 
     // Handle checkbox states
-    if (el.tagName === 'INPUT' && el.type === 'checkbox') {
+    if (el.tagName === "INPUT" && el.type === "checkbox") {
       if (el.indeterminate) {
-        states.checked = 'mixed';
+        states.checked = "mixed";
       } else {
         states.checked = !!el.checked;
       }
-    } else if (el.hasAttribute('checked')) {
+    } else if (el.hasAttribute("checked")) {
       states.checked = true;
     }
 
@@ -430,7 +462,7 @@
       role,
       name,
       description,
-      value: el.value || '(no value)',
+      value: el.value || "(no value)",
       states,
       ariaProperties,
       group: computeGroupInfo(el),
@@ -446,50 +478,53 @@
    */
   function computeFallbackAccessibleName(el) {
     // Try ARIA label first
-    let name = CE.utils.safeGetAttribute(el, 'aria-label');
+    let name = CE.utils.safeGetAttribute(el, "aria-label");
     if (name) return name.trim();
 
     // Try aria-labelledby
-    const labelledby = CE.utils.safeGetAttribute(el, 'aria-labelledby');
+    const labelledby = CE.utils.safeGetAttribute(el, "aria-labelledby");
     if (labelledby) {
-      name = labelledby.split(/\s+/)
-        .map(id => CE.utils.getTextFromId(id))
+      name = labelledby
+        .split(/\s+/)
+        .map((id) => CE.utils.getTextFromId(id))
         .filter(Boolean)
-        .join(' ');
+        .join(" ");
       if (name) return name;
     }
 
-    const tag = (el.tagName || '').toUpperCase();
+    const tag = (el.tagName || "").toUpperCase();
 
     // For form controls, check for labels
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
-      const id = CE.utils.safeGetAttribute(el, 'id');
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+      const id = CE.utils.safeGetAttribute(el, "id");
       if (id) {
-        const lbl = el.ownerDocument.querySelector(`label[for="${CSS.escape(id)}"]`);
-        if (lbl) name = (lbl.textContent || '').trim();
+        const lbl = el.ownerDocument.querySelector(
+          `label[for="${CSS.escape(id)}"]`
+        );
+        if (lbl) name = (lbl.textContent || "").trim();
       }
-      
+
       // Nested label
       if (!name) {
-        const parentLabel = el.closest('label');
-        if (parentLabel) name = (parentLabel.textContent || '').trim();
+        const parentLabel = el.closest("label");
+        if (parentLabel) name = (parentLabel.textContent || "").trim();
       }
     }
 
     // For images, use alt text
-    if (tag === 'IMG') {
-      name = CE.utils.safeGetAttribute(el, 'alt');
+    if (tag === "IMG") {
+      name = CE.utils.safeGetAttribute(el, "alt");
       if (name) return name;
     }
 
     // Use text content
     if (!name) {
-      name = (el.innerText || el.textContent || '').trim();
+      name = (el.innerText || el.textContent || "").trim();
     }
 
     // Use title as last resort
     if (!name) {
-      name = CE.utils.safeGetAttribute(el, 'title');
+      name = CE.utils.safeGetAttribute(el, "title");
     }
 
     return name;
@@ -501,16 +536,16 @@
    * @returns {string} Description
    */
   function computeFallbackDescription(el) {
-    const description = CE.utils.safeGetAttribute(el, 'aria-description');
+    const description = CE.utils.safeGetAttribute(el, "aria-description");
     if (description) return description;
-    
-    const describedby = CE.utils.safeGetAttribute(el, 'aria-describedby');
+
+    const describedby = CE.utils.safeGetAttribute(el, "aria-describedby");
     if (describedby) {
       const describingEl = document.getElementById(describedby);
-      return describingEl?.textContent || '';
+      return describingEl?.textContent || "";
     }
-    
-    return '';
+
+    return "";
   }
 
   /**
@@ -520,46 +555,56 @@
    */
   function computeFallbackRole(el) {
     // Try explicit role first
-    let role = CE.utils.safeGetAttribute(el, 'role');
+    let role = CE.utils.safeGetAttribute(el, "role");
     if (role) return role;
 
-    const tag = (el.tagName || '').toUpperCase();
-    const type = CE.utils.safeGetAttribute(el, 'type').toLowerCase();
+    const tag = (el.tagName || "").toUpperCase();
+    const type = CE.utils.safeGetAttribute(el, "type").toLowerCase();
 
     // Infer role from native semantics
-    if (tag === 'A' && el.hasAttribute('href')) role = 'link';
-    else if (tag === 'BUTTON') role = 'button';
-    else if (tag === 'INPUT') {
-      if (['button', 'submit', 'reset'].includes(type)) role = 'button';
-      else if (type === 'checkbox') role = 'checkbox';
-      else if (type === 'radio') role = 'radio';
-      else if (type === 'range') role = 'slider';
-      else if (['search', 'email', 'url', 'tel', 'password', 'text'].includes(type)) role = 'textbox';
-      else if (type === 'number') role = 'spinbutton';
-      else role = 'textbox';
-    } else if (tag === 'TEXTAREA') role = 'textbox';
-    else if (tag === 'SELECT') {
-      const multiple = el.hasAttribute('multiple');
-      const size = parseInt(CE.utils.safeGetAttribute(el, 'size', '0'), 10);
-      role = multiple || size > 1 ? 'listbox' : 'combobox';
-    } else if (tag === 'OPTION') role = 'option';
-    else if (tag === 'IMG') role = 'img';
-    else if (tag === 'SUMMARY') role = 'button';
-    else if (tag === 'NAV') role = 'navigation';
-    else if (tag === 'MAIN') role = 'main';
-    else if (tag === 'ASIDE') role = 'complementary';
-    else if (tag === 'HEADER') role = 'banner';
-    else if (tag === 'FOOTER') role = 'contentinfo';
-    else if (tag === 'UL' || tag === 'OL') role = 'list';
-    else if (tag === 'LI') role = 'listitem';
-    else if (tag === 'TABLE') role = 'table';
-    else if (tag === 'TR') role = 'row';
-    else if (tag === 'TH') {
-      role = CE.utils.safeGetAttribute(el, 'scope') === 'row' ? 'rowheader' : 'columnheader';
-    } else if (tag === 'TD') role = 'cell';
-    else if (el.isContentEditable) role = 'textbox';
-    else if (typeof el.tabIndex === 'number' && el.tabIndex >= 0 && typeof el.onclick === 'function') {
-      role = 'button';
+    if (tag === "A" && el.hasAttribute("href")) role = "link";
+    else if (tag === "BUTTON") role = "button";
+    else if (tag === "INPUT") {
+      if (["button", "submit", "reset"].includes(type)) role = "button";
+      else if (type === "checkbox") role = "checkbox";
+      else if (type === "radio") role = "radio";
+      else if (type === "range") role = "slider";
+      else if (
+        ["search", "email", "url", "tel", "password", "text"].includes(type)
+      )
+        role = "textbox";
+      else if (type === "number") role = "spinbutton";
+      else role = "textbox";
+    } else if (tag === "TEXTAREA") role = "textbox";
+    else if (tag === "SELECT") {
+      const multiple = el.hasAttribute("multiple");
+      const size = parseInt(CE.utils.safeGetAttribute(el, "size", "0"), 10);
+      role = multiple || size > 1 ? "listbox" : "combobox";
+    } else if (tag === "OPTION") role = "option";
+    else if (tag === "IMG") role = "img";
+    else if (tag === "SUMMARY") role = "button";
+    else if (tag === "NAV") role = "navigation";
+    else if (tag === "MAIN") role = "main";
+    else if (tag === "ASIDE") role = "complementary";
+    else if (tag === "HEADER") role = "banner";
+    else if (tag === "FOOTER") role = "contentinfo";
+    else if (tag === "UL" || tag === "OL") role = "list";
+    else if (tag === "LI") role = "listitem";
+    else if (tag === "TABLE") role = "table";
+    else if (tag === "TR") role = "row";
+    else if (tag === "TH") {
+      role =
+        CE.utils.safeGetAttribute(el, "scope") === "row"
+          ? "rowheader"
+          : "columnheader";
+    } else if (tag === "TD") role = "cell";
+    else if (el.isContentEditable) role = "textbox";
+    else if (
+      typeof el.tabIndex === "number" &&
+      el.tabIndex >= 0 &&
+      typeof el.onclick === "function"
+    ) {
+      role = "button";
     }
 
     return role;
@@ -569,8 +614,10 @@
    * Clean up accessibility module
    */
   function cleanup() {
-    console.log('[ContentExtension.accessibility] Cleaning up accessibility module');
-    
+    console.log(
+      "[ContentExtension.accessibility] Cleaning up accessibility module"
+    );
+
     if (CE.cache) {
       CE.cache.clearPendingRequest();
     }
@@ -605,9 +652,8 @@
     // Internal functions (exposed for testing)
     waitForAccessibilityUpdate,
     processAccessibilityInfo,
-    normalizeCheckboxStates
+    normalizeCheckboxStates,
   };
 
-  console.log('[ContentExtension.accessibility] Module loaded');
-
+  console.log("[ContentExtension.accessibility] Module loaded");
 })();

@@ -1,14 +1,14 @@
 /**
  * Content Script DOM Observers Management
- * 
+ *
  * This module manages DOM mutation observers to watch for accessibility-related
  * attribute changes and coordinate updates with other modules.
- * 
+ *
  * Dependencies: content-utils.js, content-cache.js
  */
 
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
   // Ensure our namespace exists
   window.ContentExtension = window.ContentExtension || {};
@@ -18,7 +18,7 @@
   const activeObservers = new WeakMap();
   const allObservers = new Set();
   const observerCleanupTimeouts = new Map();
-  
+
   // Main mutation observer
   let mainObserver = null;
 
@@ -26,7 +26,7 @@
    * Initialize the observers module
    */
   function initialize() {
-    console.log('[ContentExtension.observers] Initializing DOM observers');
+    console.log("[ContentExtension.observers] Initializing DOM observers");
     setupMainObserver();
   }
 
@@ -42,8 +42,8 @@
    * @param {MutationRecord[]} mutations - Array of mutation records
    */
   function handleMutations(mutations) {
-    mutations.forEach(mutation => {
-      if (mutation.type === 'attributes') {
+    mutations.forEach((mutation) => {
+      if (mutation.type === "attributes") {
         handleAttributeMutation(mutation);
       }
 
@@ -61,27 +61,31 @@
   function handleAttributeMutation(mutation) {
     const focusState = CE.events ? CE.events.getFocusState() : {};
     const { lastFocusedElement, inspectedElement } = focusState;
-    
+
     const isTargetElement = mutation.target === lastFocusedElement;
-    const isSelectOption = lastFocusedElement && 
-      lastFocusedElement.tagName === 'SELECT' &&
+    const isSelectOption =
+      lastFocusedElement &&
+      lastFocusedElement.tagName === "SELECT" &&
       mutation.target &&
-      mutation.target.tagName === 'OPTION';
+      mutation.target.tagName === "OPTION";
 
     if (!(isTargetElement || isSelectOption)) {
       return;
     }
 
-    console.log('Attribute changed:', mutation.attributeName);
+    console.log("Attribute changed:", mutation.attributeName);
 
     // Determine which element to update
-    const targetForUpdate = isTargetElement ? lastFocusedElement : lastFocusedElement;
+    const targetForUpdate = isTargetElement
+      ? lastFocusedElement
+      : lastFocusedElement;
 
     // Handle aria-activedescendant changes
-    if (mutation.attributeName === 'aria-activedescendant' && 
-        lastFocusedElement && 
-        mutation.target === lastFocusedElement) {
-      
+    if (
+      mutation.attributeName === "aria-activedescendant" &&
+      lastFocusedElement &&
+      mutation.target === lastFocusedElement
+    ) {
       handleAriaActiveDescendantChange(lastFocusedElement);
       return;
     }
@@ -97,7 +101,10 @@
    * @param {Element} container - The container element with aria-activedescendant
    */
   function handleAriaActiveDescendantChange(container) {
-    const activeId = CE.utils.safeGetAttribute(container, 'aria-activedescendant');
+    const activeId = CE.utils.safeGetAttribute(
+      container,
+      "aria-activedescendant"
+    );
     if (!activeId) return;
 
     const activeEl = container.ownerDocument.getElementById(activeId);
@@ -118,7 +125,7 @@
    */
   function scheduleAttributeUpdate(target) {
     if (!CE.cache) {
-      console.warn('[ContentExtension.observers] Cache module not available');
+      console.warn("[ContentExtension.observers] Cache module not available");
       return;
     }
 
@@ -128,18 +135,23 @@
     // Create debounced update function
     const updateFunction = (element) => {
       if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-        CE.accessibility.getAccessibleInfo(element, true)
-          .then(info => {
+        CE.accessibility
+          .getAccessibleInfo(element, true)
+          .then((info) => {
             const focusState = CE.events ? CE.events.getFocusState() : {};
             const { lastFocusedElement, inspectedElement } = focusState;
-            
-            const isCurrentlyFocused = lastFocusedElement === element || inspectedElement === element;
+
+            const isCurrentlyFocused =
+              lastFocusedElement === element || inspectedElement === element;
             if (isCurrentlyFocused && CE.tooltip) {
               CE.tooltip.showTooltip(info, element);
             }
           })
-          .catch(error => {
-            console.error('[ContentExtension.observers] Error updating tooltip:', error);
+          .catch((error) => {
+            console.error(
+              "[ContentExtension.observers] Error updating tooltip:",
+              error
+            );
           });
       }
     };
@@ -155,7 +167,9 @@
    */
   function startObservingElement(element) {
     if (!mainObserver) {
-      console.warn('[ContentExtension.observers] Main observer not initialized');
+      console.warn(
+        "[ContentExtension.observers] Main observer not initialized"
+      );
       return;
     }
 
@@ -167,11 +181,11 @@
     const observerOptions = {
       attributes: true,
       attributeFilter: [
-        'aria-label',
-        'aria-describedby',
-        'aria-labelledby',
-        'title',
-        'value',
+        "aria-label",
+        "aria-describedby",
+        "aria-labelledby",
+        "title",
+        "value",
       ],
       subtree: false,
       childList: false,
@@ -191,36 +205,38 @@
    */
   function startObserving(element) {
     if (!mainObserver) {
-      console.warn('[ContentExtension.observers] Main observer not initialized');
+      console.warn(
+        "[ContentExtension.observers] Main observer not initialized"
+      );
       return;
     }
 
-    const isSelect = element && element.tagName === 'SELECT';
-    
+    const isSelect = element && element.tagName === "SELECT";
+
     const observerOptions = {
       attributes: true,
       // For <select>, also observe subtree to catch <option selected> attribute toggles
       subtree: !!isSelect,
       attributeFilter: [
         // ARIA states and properties
-        'aria-expanded',
-        'aria-pressed',
-        'aria-checked',
-        'aria-selected',
-        'aria-disabled',
-        'aria-invalid',
-        'aria-required',
-        'aria-readonly',
+        "aria-expanded",
+        "aria-pressed",
+        "aria-checked",
+        "aria-selected",
+        "aria-disabled",
+        "aria-invalid",
+        "aria-required",
+        "aria-readonly",
         // Patterns where focus remains on container but active item changes
-        'aria-activedescendant',
+        "aria-activedescendant",
         // HTML states
-        'disabled',
-        'checked',
-        'selected',
-        'required',
-        'readonly',
+        "disabled",
+        "checked",
+        "selected",
+        "required",
+        "readonly",
         // Value
-        'value',
+        "value",
       ],
     };
 
@@ -289,7 +305,7 @@
       activeObserversCount: activeObservers.size,
       allObserversCount: allObservers.size,
       cleanupTimeoutsCount: observerCleanupTimeouts.size,
-      hasMainObserver: !!mainObserver
+      hasMainObserver: !!mainObserver,
     };
   }
 
@@ -297,7 +313,7 @@
    * Clean up all observers and timeouts
    */
   function cleanup() {
-    console.log('[ContentExtension.observers] Cleaning up observers');
+    console.log("[ContentExtension.observers] Cleaning up observers");
 
     // Disconnect main observer
     if (mainObserver) {
@@ -306,14 +322,17 @@
     }
 
     // Clean up all observers
-    if (allObservers && typeof allObservers.forEach === 'function') {
-      allObservers.forEach(observer => observer.disconnect());
+    if (allObservers && typeof allObservers.forEach === "function") {
+      allObservers.forEach((observer) => observer.disconnect());
       allObservers.clear();
     }
 
     // Clear cleanup timeouts
-    if (observerCleanupTimeouts && typeof observerCleanupTimeouts.forEach === 'function') {
-      observerCleanupTimeouts.forEach(timeout => clearTimeout(timeout));
+    if (
+      observerCleanupTimeouts &&
+      typeof observerCleanupTimeouts.forEach === "function"
+    ) {
+      observerCleanupTimeouts.forEach((timeout) => clearTimeout(timeout));
       observerCleanupTimeouts.clear();
     }
 
@@ -361,9 +380,8 @@
     handleMutations,
     handleAttributeMutation,
     handleAriaActiveDescendantChange,
-    scheduleAttributeUpdate
+    scheduleAttributeUpdate,
   };
 
-  console.log('[ContentExtension.observers] Module loaded');
-
+  console.log("[ContentExtension.observers] Module loaded");
 })();

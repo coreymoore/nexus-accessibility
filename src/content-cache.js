@@ -1,14 +1,14 @@
 /**
  * Content Script Cache Management
- * 
+ *
  * This module manages caching for accessibility information and performance optimization.
  * It handles WeakMaps for element data, timer management, and cache cleanup.
- * 
+ *
  * Dependencies: content-utils.js
  */
 
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
   // Ensure our namespace exists
   window.ContentExtension = window.ContentExtension || {};
@@ -16,14 +16,14 @@
 
   // Cache for successful accessibility info lookups
   const accessibilityCache = new WeakMap();
-  
+
   // Track in-flight fetches to prevent duplicate requests
   const inflightRequests = new WeakMap();
-  
+
   // Timer management
   const refetchTimers = new Map(); // Map of element -> timer ID
   const elementTimerTracker = new WeakMap(); // WeakMap of element -> timer ID for cleanup
-  
+
   // Pending request tracking
   let pendingAccessibilityRequest = null;
 
@@ -31,7 +31,7 @@
    * Initialize the cache module
    */
   function initialize() {
-    console.log('[ContentExtension.cache] Initializing cache management');
+    console.log("[ContentExtension.cache] Initializing cache management");
   }
 
   /**
@@ -50,12 +50,13 @@
    */
   function setCached(element, info) {
     // Only cache meaningful data
-    if (info && (
-      info.role !== '(no role)' ||
-      info.name !== '(no accessible name)' ||
-      Object.keys(info.states || {}).length > 0 ||
-      Object.keys(info.ariaProperties || {}).length > 0
-    )) {
+    if (
+      info &&
+      (info.role !== "(no role)" ||
+        info.name !== "(no accessible name)" ||
+        Object.keys(info.states || {}).length > 0 ||
+        Object.keys(info.ariaProperties || {}).length > 0)
+    ) {
       accessibilityCache.set(element, info);
     }
   }
@@ -110,7 +111,7 @@
     if (existingTimer) {
       clearTimeout(existingTimer);
     }
-    
+
     refetchTimers.set(element, timerId);
     elementTimerTracker.set(element, timerId);
   }
@@ -185,23 +186,26 @@
    */
   function createDebouncedUpdate(updateFunction, delay = 150) {
     const utils = CE.utils;
-    
+
     if (utils && utils.debounce) {
       return utils.debounce(updateFunction, delay);
     }
-    
+
     // Fallback to manual debouncing with timers
-    return function(element, ...args) {
+    return function (element, ...args) {
       clearRefetchTimer(element);
-      
+
       const timerId = setTimeout(() => {
         try {
           updateFunction(element, ...args);
         } catch (error) {
-          console.error('[ContentExtension.cache] Error in debounced update:', error);
+          console.error(
+            "[ContentExtension.cache] Error in debounced update:",
+            error
+          );
         }
       }, delay);
-      
+
       setRefetchTimer(element, timerId);
     };
   }
@@ -213,7 +217,9 @@
   function invalidateWhere(predicate) {
     // WeakMap doesn't have iteration, so we can't implement this efficiently
     // This is a placeholder for potential future enhancement
-    console.warn('[ContentExtension.cache] invalidateWhere not implemented for WeakMap');
+    console.warn(
+      "[ContentExtension.cache] invalidateWhere not implemented for WeakMap"
+    );
   }
 
   /**
@@ -232,14 +238,14 @@
    * Clean up all cache data and timers
    */
   function cleanup() {
-    console.log('[ContentExtension.cache] Cleaning up cache');
-    
+    console.log("[ContentExtension.cache] Cleaning up cache");
+
     // Clear all timers
     clearAllRefetchTimers();
-    
+
     // Clear pending request
     clearPendingRequest();
-    
+
     // Note: WeakMaps will be garbage collected when elements are removed from DOM
   }
 
@@ -285,9 +291,8 @@
     // Utilities
     createDebouncedUpdate,
     invalidateWhere,
-    getStats
+    getStats,
   };
 
-  console.log('[ContentExtension.cache] Module loaded');
-
+  console.log("[ContentExtension.cache] Module loaded");
 })();

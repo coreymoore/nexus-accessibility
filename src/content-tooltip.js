@@ -1,14 +1,14 @@
 /**
  * Content Script Tooltip Management
- * 
+ *
  * This module manages tooltip display and coordinates with the tooltip component.
  * It handles showing/hiding tooltips and cross-frame coordination.
- * 
+ *
  * Dependencies: content-utils.js
  */
 
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
   // Ensure our namespace exists
   window.ContentExtension = window.ContentExtension || {};
@@ -18,7 +18,7 @@
    * Initialize the tooltip module
    */
   function initialize() {
-    console.log('[ContentExtension.tooltip] Initializing tooltip management');
+    console.log("[ContentExtension.tooltip] Initializing tooltip management");
   }
 
   /**
@@ -26,7 +26,7 @@
    * @returns {Element|null} The tooltip element or null
    */
   function getTooltipElement() {
-    return document.querySelector('.chrome-ax-tooltip');
+    return document.querySelector(".chrome-ax-tooltip");
   }
 
   /**
@@ -34,11 +34,15 @@
    * @param {Element} target - The target element
    */
   function showLoadingTooltip(target) {
-    if (window.chromeAxTooltip && 
-        typeof window.chromeAxTooltip.showLoadingTooltip === 'function') {
+    if (
+      window.chromeAxTooltip &&
+      typeof window.chromeAxTooltip.showLoadingTooltip === "function"
+    ) {
       window.chromeAxTooltip.showLoadingTooltip(target);
     } else {
-      console.warn('[ContentExtension.tooltip] chromeAxTooltip.showLoadingTooltip not available');
+      console.warn(
+        "[ContentExtension.tooltip] chromeAxTooltip.showLoadingTooltip not available"
+      );
     }
   }
 
@@ -48,15 +52,19 @@
    * @param {Element} target - The target element
    */
   function showTooltip(info, target) {
-    if (!window.chromeAxTooltip || 
-        typeof window.chromeAxTooltip.showTooltip !== 'function') {
-      console.warn('[ContentExtension.tooltip] chromeAxTooltip.showTooltip not available');
+    if (
+      !window.chromeAxTooltip ||
+      typeof window.chromeAxTooltip.showTooltip !== "function"
+    ) {
+      console.warn(
+        "[ContentExtension.tooltip] chromeAxTooltip.showTooltip not available"
+      );
       return;
     }
 
     const options = {
       onClose: createCloseHandler(target),
-      enabled: () => CE.main ? CE.main.isEnabled() : true
+      enabled: () => (CE.main ? CE.main.isEnabled() : true),
     };
 
     window.chromeAxTooltip.showTooltip(info, target, options);
@@ -74,17 +82,18 @@
     return () => {
       const focusState = CE.events ? CE.events.getFocusState() : {};
       const { inspectedElement, lastFocusedElement } = focusState;
-      const elementToFocus = inspectedElement || lastFocusedElement || originalTarget;
-      
+      const elementToFocus =
+        inspectedElement || lastFocusedElement || originalTarget;
+
       hideTooltip({
         onRefocus: () => {
-          if (elementToFocus && typeof elementToFocus.focus === 'function') {
+          if (elementToFocus && typeof elementToFocus.focus === "function") {
             if (CE.events && CE.events.setSuppressNextFocusIn) {
               CE.events.setSuppressNextFocusIn(true);
             }
             CE.utils.safeFocus(elementToFocus, { preventScroll: true });
           }
-        }
+        },
       });
     };
   }
@@ -94,8 +103,10 @@
    * @param {Object} [opts] - Options including onRefocus callback
    */
   function hideTooltip(opts = {}) {
-    if (window.chromeAxTooltip && 
-        typeof window.chromeAxTooltip.hideTooltip === 'function') {
+    if (
+      window.chromeAxTooltip &&
+      typeof window.chromeAxTooltip.hideTooltip === "function"
+    ) {
       window.chromeAxTooltip.hideTooltip(opts);
     } else {
       // Fallback: manually remove tooltip
@@ -103,13 +114,16 @@
       if (tooltip) {
         tooltip.remove();
       }
-      
+
       // Call onRefocus if provided
-      if (opts.onRefocus && typeof opts.onRefocus === 'function') {
+      if (opts.onRefocus && typeof opts.onRefocus === "function") {
         try {
           opts.onRefocus();
         } catch (error) {
-          console.error('[ContentExtension.tooltip] Error in onRefocus callback:', error);
+          console.error(
+            "[ContentExtension.tooltip] Error in onRefocus callback:",
+            error
+          );
         }
       }
     }
@@ -121,11 +135,14 @@
   function broadcastTooltipShown() {
     try {
       chrome.runtime.sendMessage({
-        type: 'AX_TOOLTIP_SHOWN',
-        frameToken: CE.utils.getFrameToken()
+        type: "AX_TOOLTIP_SHOWN",
+        frameToken: CE.utils.getFrameToken(),
       });
     } catch (error) {
-      console.warn('[ContentExtension.tooltip] Failed to broadcast tooltip shown:', error);
+      console.warn(
+        "[ContentExtension.tooltip] Failed to broadcast tooltip shown:",
+        error
+      );
     }
   }
 
@@ -134,8 +151,11 @@
    * @param {Object} msg - Message from another frame
    */
   function handleCrossFrameTooltip(msg) {
-    if (msg && msg.type === 'AX_TOOLTIP_SHOWN' && 
-        msg.frameToken !== CE.utils.getFrameToken()) {
+    if (
+      msg &&
+      msg.type === "AX_TOOLTIP_SHOWN" &&
+      msg.frameToken !== CE.utils.getFrameToken()
+    ) {
       // Hide our tooltip if another frame is showing one
       const tooltip = getTooltipElement();
       if (tooltip) {
@@ -164,7 +184,7 @@
     return {
       element: tooltip,
       visible: isTooltipVisible(),
-      target: tooltip.dataset.target || null
+      target: tooltip.dataset.target || null,
     };
   }
 
@@ -182,7 +202,7 @@
    * Clean up tooltip module
    */
   function cleanup() {
-    console.log('[ContentExtension.tooltip] Cleaning up tooltip');
+    console.log("[ContentExtension.tooltip] Cleaning up tooltip");
     forceHideTooltip();
   }
 
@@ -201,9 +221,11 @@
    * @returns {boolean} True if tooltip component is loaded
    */
   function isTooltipComponentAvailable() {
-    return !!(window.chromeAxTooltip && 
-              window.chromeAxTooltip.showTooltip && 
-              window.chromeAxTooltip.hideTooltip);
+    return !!(
+      window.chromeAxTooltip &&
+      window.chromeAxTooltip.showTooltip &&
+      window.chromeAxTooltip.hideTooltip
+    );
   }
 
   /**
@@ -255,9 +277,8 @@
     waitForTooltipComponent,
 
     // Internal functions (exposed for testing)
-    createCloseHandler
+    createCloseHandler,
   };
 
-  console.log('[ContentExtension.tooltip] Module loaded');
-
+  console.log("[ContentExtension.tooltip] Module loaded");
 })();

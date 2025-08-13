@@ -1,26 +1,27 @@
 /**
  * Content Script Utilities
- * 
+ *
  * This module provides common utility functions used throughout the content script.
  * It includes DOM helpers, debouncing, error handling, and other shared functionality.
- * 
+ *
  * Dependencies: None (should be loaded first)
  */
 
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
   // Ensure our namespace exists
   window.ContentExtension = window.ContentExtension || {};
   const CE = window.ContentExtension;
 
   // Initialize logger reference
-  const logger = window.logger || window.axLogger || {
-    content: {
-      log: console.log.bind(console),
-      error: console.error.bind(console),
-    },
-  };
+  const logger = window.logger ||
+    window.axLogger || {
+      content: {
+        log: console.log.bind(console),
+        error: console.error.bind(console),
+      },
+    };
 
   // Initialize error handler reference
   const errorHandler = window.errorHandler || {
@@ -50,15 +51,20 @@
    * @param {Element} element - The element to store for CDP access
    * @param {string} selectionType - The type of selection ('focus', 'hover', 'click', etc.)
    */
-  function storeElementForCDP(element, selectionType = 'focus') {
+  function storeElementForCDP(element, selectionType = "focus") {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) {
-      console.warn('Invalid element provided to storeElementForCDP');
+      console.warn("Invalid element provided to storeElementForCDP");
       return;
     }
 
     window.nexusTargetElement = element;
-    console.log(`[NEXUS] Element stored for CDP access (${selectionType}):`, element);
-    console.log('[NEXUS] This element should be accessible via document.activeElement in CDP context');
+    console.log(
+      `[NEXUS] Element stored for CDP access (${selectionType}):`,
+      element
+    );
+    console.log(
+      "[NEXUS] This element should be accessible via document.activeElement in CDP context"
+    );
   }
 
   /**
@@ -68,17 +74,19 @@
    */
   function getUniqueSelector(el) {
     if (el.id) return `#${CSS.escape(el.id)}`;
-    
+
     let path = [];
     while (el && el.nodeType === 1 && el !== document.body) {
       let selector = el.nodeName.toLowerCase();
-      
+
       if (el.classList && el.classList.length) {
-        selector += '.' + Array.from(el.classList)
-          .map(cls => CSS.escape(cls))
-          .join('.');
+        selector +=
+          "." +
+          Array.from(el.classList)
+            .map((cls) => CSS.escape(cls))
+            .join(".");
       }
-      
+
       let sibling = el;
       let nth = 1;
       while ((sibling = sibling.previousElementSibling)) {
@@ -88,8 +96,8 @@
       path.unshift(selector);
       el = el.parentElement;
     }
-    
-    return path.length ? path.join(' > ') : ':focus';
+
+    return path.length ? path.join(" > ") : ":focus";
   }
 
   /**
@@ -98,9 +106,9 @@
    * @returns {string} Text content or empty string
    */
   function getTextFromId(id) {
-    if (!id) return '';
+    if (!id) return "";
     const el = document.getElementById(id);
-    return (el && el.textContent ? el.textContent : '').trim();
+    return (el && el.textContent ? el.textContent : "").trim();
   }
 
   /**
@@ -109,17 +117,21 @@
    * @returns {string} ARIA label or empty string
    */
   function getAriaLabel(el) {
-    if (!el) return '';
-    
-    const ariaLabel = el.getAttribute('aria-label');
+    if (!el) return "";
+
+    const ariaLabel = el.getAttribute("aria-label");
     if (ariaLabel) return ariaLabel.trim();
-    
-    const labelledby = el.getAttribute('aria-labelledby');
+
+    const labelledby = el.getAttribute("aria-labelledby");
     if (labelledby) {
-      return labelledby.split(/\s+/).map(getTextFromId).filter(Boolean).join(' ');
+      return labelledby
+        .split(/\s+/)
+        .map(getTextFromId)
+        .filter(Boolean)
+        .join(" ");
     }
-    
-    return '';
+
+    return "";
   }
 
   /**
@@ -128,8 +140,8 @@
    * @returns {string} Legend text or empty string
    */
   function getFieldsetLegend(el) {
-    const legend = el.querySelector(':scope > legend');
-    return (legend && legend.textContent ? legend.textContent : '').trim();
+    const legend = el.querySelector(":scope > legend");
+    return (legend && legend.textContent ? legend.textContent : "").trim();
   }
 
   /**
@@ -146,7 +158,7 @@
    * @returns {Element|null} The tooltip element or null
    */
   function getTooltipElement() {
-    return document.querySelector('.chrome-ax-tooltip');
+    return document.querySelector(".chrome-ax-tooltip");
   }
 
   /**
@@ -175,11 +187,11 @@
    */
   function manualThrottle(func, limit) {
     let inThrottle;
-    return function(...args) {
+    return function (...args) {
       if (!inThrottle) {
         func.apply(this, args);
         inThrottle = true;
-        setTimeout(() => inThrottle = false, limit);
+        setTimeout(() => (inThrottle = false), limit);
       }
     };
   }
@@ -190,7 +202,7 @@
    * @param {Object} options - Focus options
    */
   function safeFocus(element, options = {}) {
-    if (!element || typeof element.focus !== 'function') {
+    if (!element || typeof element.focus !== "function") {
       return;
     }
 
@@ -200,7 +212,7 @@
       try {
         element.focus();
       } catch (e2) {
-        console.warn('Failed to focus element:', e2);
+        console.warn("Failed to focus element:", e2);
       }
     }
   }
@@ -212,7 +224,7 @@
    * @param {string} defaultValue - Default value if attribute doesn't exist
    * @returns {string} Attribute value or default
    */
-  function safeGetAttribute(element, attributeName, defaultValue = '') {
+  function safeGetAttribute(element, attributeName, defaultValue = "") {
     try {
       return element.getAttribute(attributeName) || defaultValue;
     } catch (e) {
@@ -269,9 +281,8 @@
 
     // Manual implementations for fallback
     manualDebounce,
-    manualThrottle
+    manualThrottle,
   };
 
-  console.log('[ContentExtension.utils] Module loaded');
-
+  console.log("[ContentExtension.utils] Module loaded");
 })();
