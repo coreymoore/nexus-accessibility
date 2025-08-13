@@ -103,13 +103,70 @@ export async function getAccessibilityInfoForElement(
             );
             console.log("Background: Got execution context ID:", ctxId);
 
-            result = await chromeAsync.debugger.sendCommand(
-              { tabId },
+            result = await chrome.debugger.sendCommand(
+              tabId,
               "Runtime.evaluate",
               {
-                expression: "document.activeElement",
+                expression: `
+                (() => {
+                  // Add a small delay to ensure focus state is settled
+                  // This is crucial for shadow DOM with delegated focus
+                  const waitForFocus = () => {
+                    return new Promise(resolve => {
+                      requestAnimationFrame(() => {
+                        setTimeout(() => resolve(), 10);
+                      });
+                    });
+                  };
+                  
+                  return waitForFocus().then(() => {
+                    // Use the element stored by content script if available
+                    let targetEl = window.nexusTargetElement || document.activeElement;
+                    
+                    console.log('[CDP] Target element:', targetEl);
+                    
+                    // If target element is in shadow DOM, use it directly
+                    if (targetEl && targetEl.getRootNode() instanceof ShadowRoot) {
+                      console.log('[CDP] Target is already in shadow DOM:', targetEl);
+                      return targetEl;
+                    }
+                    
+                    // If target element has shadow root, try to find the real focused element
+                    if (targetEl && targetEl.shadowRoot) {
+                      // First check shadowRoot.activeElement
+                      const shadowFocused = targetEl.shadowRoot.activeElement;
+                      if (shadowFocused) {
+                        console.log('[CDP] Found focused element in shadow DOM:', shadowFocused);
+                        return shadowFocused;
+                      }
+                      
+                      // Fallback: check for elements with focus-related attributes or states
+                      const possiblyFocused = targetEl.shadowRoot.querySelectorAll(
+                        'input:focus, select:focus, textarea:focus, button:focus, [tabindex]:focus'
+                      );
+                      if (possiblyFocused.length > 0) {
+                        console.log('[CDP] Found focused element via :focus selector:', possiblyFocused[0]);
+                        return possiblyFocused[0];
+                      }
+                      
+                      // Final fallback: find first focusable element in shadow DOM
+                      const focusable = targetEl.shadowRoot.querySelector(
+                        'button, input, select, textarea, [tabindex]:not([tabindex="-1"]), [role="button"]'
+                      );
+                      if (focusable) {
+                        console.log('[CDP] Found focusable element in shadow DOM:', focusable);
+                        return focusable;
+                      }
+                    }
+                    
+                    console.log('[CDP] Using target element as-is:', targetEl);
+                    return targetEl;
+                  });
+                })()
+              `,
                 returnByValue: false,
                 contextId: ctxId,
+                awaitPromise: true,
               }
             );
           } else {
@@ -119,8 +176,73 @@ export async function getAccessibilityInfoForElement(
               { tabId },
               "Runtime.evaluate",
               {
-                expression: "document.activeElement",
+                expression: `
+                  (() => {
+                    // Add a small delay to ensure focus state is settled
+                    // This is crucial for shadow DOM with delegated focus
+                    const waitForFocus = () => {
+                      return new Promise(resolve => {
+                        requestAnimationFrame(() => {
+                          setTimeout(() => resolve(), 10);
+                        });
+                      });
+                    };
+                    
+                    return waitForFocus().then(() => {
+                      // Use the element stored by content script if available
+                      let targetEl = window.nexusTargetElement || document.activeElement;
+                      
+                      console.log('[CDP] === SHADOW DOM DEBUG START ===');
+                      console.log('[CDP] Target element tagName:', targetEl?.tagName);
+                      console.log('[CDP] Target element id:', targetEl?.id);
+                      console.log('[CDP] Target has shadowRoot:', !!targetEl?.shadowRoot);
+                      console.log('[CDP] Target shadowRoot delegatesFocus:', targetEl?.shadowRoot?.delegatesFocus);
+                      
+                      // If target element is in shadow DOM, use it directly
+                      if (targetEl && targetEl.getRootNode() instanceof ShadowRoot) {
+                        console.log('[CDP] Target is already in shadow DOM');
+                        console.log('[CDP] Using shadow element tagName:', targetEl.tagName);
+                        console.log('[CDP] Using shadow element id:', targetEl.id);
+                        return targetEl;
+                      }
+                      
+                      // If target element has shadow root, check for delegated focus
+                      if (targetEl && targetEl.shadowRoot) {
+                        // For delegatesFocus: true, the shadowRoot.activeElement shows the real focused element
+                        const shadowActiveElement = targetEl.shadowRoot.activeElement;
+                        console.log('[CDP] Shadow root activeElement tagName:', shadowActiveElement?.tagName);
+                        console.log('[CDP] Shadow root activeElement id:', shadowActiveElement?.id);
+                        
+                        if (shadowActiveElement) {
+                          console.log('[CDP] Found delegated focus element');
+                          console.log('[CDP] Delegated element tagName:', shadowActiveElement.tagName);
+                          console.log('[CDP] Delegated element id:', shadowActiveElement.id);
+                          return shadowActiveElement;
+                        }
+                        
+                        // Fallback: check for elements that have browser focus
+                        const focusedElements = targetEl.shadowRoot.querySelectorAll(':focus');
+                        console.log('[CDP] Elements with :focus count:', focusedElements.length);
+                        if (focusedElements.length > 0) {
+                          console.log('[CDP] Found focused element via :focus selector');
+                          console.log('[CDP] Focus selector element tagName:', focusedElements[0].tagName);
+                          console.log('[CDP] Focus selector element id:', focusedElements[0].id);
+                          return focusedElements[0];
+                        }
+                        
+                        console.log('[CDP] No focused element found in shadow DOM, using host');
+                      }
+                      
+                      console.log('[CDP] Using target element as-is');
+                      console.log('[CDP] Final element tagName:', targetEl?.tagName);
+                      console.log('[CDP] Final element id:', targetEl?.id);
+                      console.log('[CDP] === SHADOW DOM DEBUG END ===');
+                      return targetEl;
+                    });
+                  })()
+                `,
                 returnByValue: false,
+                awaitPromise: true,
               }
             );
           }

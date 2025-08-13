@@ -157,6 +157,14 @@
       "forceUpdate:",
       forceUpdate
     );
+    console.log("Element details:", {
+      tagName: target.tagName,
+      id: target.id,
+      className: target.className,
+      textContent: target.textContent?.substring(0, 50),
+      isInShadowRoot: CE.utils.isInShadowRoot(target),
+      parentHost: target.getRootNode()?.host?.id || "none",
+    });
 
     const cache = CE.cache;
 
@@ -231,6 +239,32 @@
         }
 
         console.log("getAccessibleInfo: final result", result);
+
+        // If CDP returned generic role for shadow DOM element, try local fallback
+        if (result?.role === "generic" && CE.utils.isInShadowRoot(target)) {
+          console.log(
+            "CDP returned generic role for shadow DOM element, trying local fallback"
+          );
+          const localInfo = getLocalAccessibleInfo(target);
+
+          // Use local info if it's more specific than generic
+          if (
+            localInfo &&
+            localInfo.role &&
+            localInfo.role !== "generic" &&
+            localInfo.role !== "(no role)"
+          ) {
+            console.log(
+              "Using local fallback for shadow DOM element:",
+              localInfo
+            );
+            if (CE.tooltip) {
+              CE.tooltip.showTooltip(localInfo, target);
+            }
+            return localInfo;
+          }
+        }
+
         return result;
       } catch (error) {
         console.error("Failed to get accessibility info:", error);

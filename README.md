@@ -85,12 +85,32 @@ This extension does not collect or transmit any user data. All accessibility ins
 - No user information storage
 - All processing happens locally on your device
 
-## Shadow DOM Support and Limitations
+## Retrieval of Accessibility Information
 
-- For elements inside Shadow DOM, Nexus uses ARIA attributes and native properties to estimate accessible name, role, and description.
-- This may not match the computed accessibility tree shown in Chrome DevTools, and may miss browser-internal accessibility calculations.
-- For elements in the main document, full accessibility info is retrieved using the Chrome Debugger Protocol.
-- Due to Chrome’s architecture, extensions cannot access the full computed accessibility tree for shadow DOM elements.
+Nexus uses the Chrome DevTools Protocol (CDP) to retrieve full accessibility information for all elements, including those within Shadow DOM. When CDP is unavailable or fails for specific elements, the extension falls back to local computation using specialized libraries:
+
+**Primary Method - Chrome DevTools Protocol (CDP):**
+
+- Works with both regular DOM and Shadow DOM elements
+- Provides the most accurate accessibility information matching Chrome's internal calculations
+- Handles delegated focus patterns and complex Shadow DOM structures
+- Used for all elements when possible
+
+**Fallback Libraries (when CDP is unavailable):**
+
+- **dom-accessibility-api**: Computes accessible names and descriptions following W3C specifications
+- **aria-query**: Provides ARIA role definitions, properties, and validation
+- These libraries estimate accessibility properties using ARIA attributes and DOM structure
+- May not match browser-internal calculations exactly, but provide reliable fallback data
+
+**When Fallbacks Are Used:**
+
+- Network connectivity issues preventing CDP access
+- Cross-origin restrictions in certain iframe scenarios
+- Temporary CDP failures or timeouts
+- Elements in documents where debugger attachment is blocked
+
+The extension automatically detects when CDP is unavailable and seamlessly switches to the fallback computation, ensuring accessibility information is always available to developers.
 
 ## Performance and Caching Notes
 

@@ -206,10 +206,8 @@
    * @returns {boolean} True if should use local fallback
    */
   function shouldUseLocalFallback(element) {
-    // Always use local fallback for shadow DOM
-    if (isInShadowRoot(element)) {
-      return true;
-    }
+    // Don't automatically use local fallback for shadow DOM - try CDP first
+    // Shadow DOM elements should be accessible via CDP in most cases
 
     // Use local fallback if we're in a deeply nested iframe
     const frameContext = getFrameContext();

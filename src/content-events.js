@@ -14,11 +14,103 @@
   window.ContentExtension = window.ContentExtension || {};
   const CE = window.ContentExtension;
 
-  // State tracking
+  // State variables
   let lastFocusedElement = null;
   let inspectedElement = null;
-  let suppressNextFocusIn = false;
   let listenersRegistered = false;
+  let suppressNextFocusIn = false;
+
+  // Shadow DOM monitoring
+  let currentShadowHost = null;
+  let shadowActiveElementObserver = null;
+  let lastProcessedElement = null; // Track the last element we processed
+  /**
+   * Monitor shadow DOM active element changes
+   */
+  function monitorShadowActiveElement(shadowHost) {
+    // Clean up previous observer
+    if (shadowActiveElementObserver) {
+      shadowActiveElementObserver.disconnect();
+      shadowActiveElementObserver = null;
+    }
+
+    if (!shadowHost || !shadowHost.shadowRoot) {
+      currentShadowHost = null;
+      return;
+    }
+
+    currentShadowHost = shadowHost;
+    let lastActiveElement = shadowHost.shadowRoot.activeElement;
+
+    console.log(
+      "[ContentExtension.events] Starting shadow DOM monitoring for:",
+      shadowHost.id
+    );
+    console.log(
+      "Initial shadowRoot.activeElement:",
+      lastActiveElement?.tagName,
+      lastActiveElement?.id
+    );
+
+    // Poll for activeElement changes since MutationObserver can't detect focus changes
+    const checkInterval = setInterval(() => {
+      if (!currentShadowHost || currentShadowHost !== shadowHost) {
+        console.log(
+          "[ContentExtension.events] Stopping monitor - shadow host changed"
+        );
+        clearInterval(checkInterval);
+        return;
+      }
+
+      const currentActiveElement = shadowHost.shadowRoot.activeElement;
+      // Log the current state for debugging
+      if (currentActiveElement !== lastActiveElement) {
+        console.log(
+          "[ContentExtension.events] Shadow DOM activeElement changed"
+        );
+        console.log(
+          "Previous:",
+          lastActiveElement?.tagName,
+          lastActiveElement?.id
+        );
+        console.log(
+          "Current:",
+          currentActiveElement?.tagName,
+          currentActiveElement?.id
+        );
+        if (currentActiveElement) {
+          lastActiveElement = currentActiveElement;
+          lastProcessedElement = currentActiveElement;
+          // Store the shadow host for CDP (since focus events target the host)
+          CE.utils.storeElementForCDP(shadowHost, "shadow-active-change");
+          // Trigger accessibility info retrieval
+          handleElementInspection(shadowHost, currentActiveElement);
+        }
+      }
+    }, 50); // Check every 50ms
+
+    // Store the interval ID so we can clean it up
+    shadowActiveElementObserver = {
+      disconnect: () => clearInterval(checkInterval),
+    };
+  }
+
+  /**
+   * Clean up shadow monitoring
+   */
+  function cleanupShadowMonitoring() {
+    if (shadowActiveElementObserver) {
+      console.log(
+        "[ContentExtension.events] Cleaning up shadow DOM monitoring"
+      );
+      shadowActiveElementObserver.disconnect();
+      shadowActiveElementObserver = null;
+    }
+    currentShadowHost = null;
+  }
+
+  // Shadow DOM monitoring
+  // (removed duplicate declarations)
   let messageListener = null;
 
   /**
@@ -59,12 +151,100 @@
   }
 
   /**
+   * Monitor shadow DOM active element changes
+   */
+  function monitorShadowActiveElement(shadowHost) {
+    // Clean up previous observer
+    if (shadowActiveElementObserver) {
+      shadowActiveElementObserver.disconnect();
+      shadowActiveElementObserver = null;
+    }
+
+    if (!shadowHost || !shadowHost.shadowRoot) {
+      currentShadowHost = null;
+      return;
+    }
+
+    currentShadowHost = shadowHost;
+    let lastActiveElement = shadowHost.shadowRoot.activeElement;
+
+    // Poll for activeElement changes since MutationObserver can't detect focus changes
+    const checkInterval = setInterval(() => {
+      if (!currentShadowHost || currentShadowHost !== shadowHost) {
+        clearInterval(checkInterval);
+        return;
+      }
+
+      const currentActiveElement = shadowHost.shadowRoot.activeElement;
+      if (currentActiveElement !== lastActiveElement && currentActiveElement) {
+        console.log(
+          "[ContentExtension.events] Shadow DOM activeElement changed"
+        );
+        console.log(
+          "Previous:",
+          lastActiveElement?.tagName,
+          lastActiveElement?.id
+        );
+        console.log(
+          "Current:",
+          currentActiveElement.tagName,
+          currentActiveElement.id
+        );
+
+        lastActiveElement = currentActiveElement;
+
+        // Store the shadow host for CDP (since focus events target the host)
+        CE.utils.storeElementForCDP(shadowHost, "shadow-active-change");
+
+        // Trigger accessibility info retrieval
+        handleElementInspection(shadowHost, currentActiveElement);
+      }
+    }, 50); // Check every 50ms
+
+    // Store the interval ID so we can clean it up
+    shadowActiveElementObserver = {
+      disconnect: () => clearInterval(checkInterval),
+    };
+  }
+
+  /**
+   * Clean up shadow monitoring
+   */
+  function cleanupShadowMonitoring() {
+    if (shadowActiveElementObserver) {
+      shadowActiveElementObserver.disconnect();
+      shadowActiveElementObserver = null;
+    }
+    currentShadowHost = null;
+  }
+
+  /**
    * Handle focus in events
    * @param {FocusEvent} e - The focus event
    */
   function onFocusIn(e) {
     const utils = CE.utils;
     utils.logger.content.log("onFocusIn", "event fired", e.target);
+
+    console.log("[DEBUG] Focus event details:", {
+      target: e.target,
+      tagName: e.target?.tagName,
+      id: e.target?.id,
+      className: e.target?.className,
+      isInShadowRoot: e.target?.getRootNode() instanceof ShadowRoot,
+      parentHost: e.target?.getRootNode()?.host?.tagName || "none",
+    });
+
+    // Check if we're focusing the same element we just processed
+    if (e.target === lastProcessedElement) {
+      console.log(
+        "[ContentExtension.events] Skipping - same element as last processed"
+      );
+      return;
+    }
+
+    // Clean up previous shadow monitoring
+    cleanupShadowMonitoring();
 
     if (!CE.main || !CE.main.isEnabled()) {
       utils.logger.content.log("onFocusIn", "extension disabled");
@@ -83,34 +263,66 @@
       return;
     }
 
-    const targetElement = e.target;
+    const element = e.target;
+    lastProcessedElement = element;
 
     // Ignore focus on iframes/frames
     if (
-      targetElement &&
-      (targetElement.tagName === "IFRAME" || targetElement.tagName === "FRAME")
+      element &&
+      (element.tagName === "IFRAME" || element.tagName === "FRAME")
     ) {
       if (CE.tooltip) CE.tooltip.hideTooltip();
       return;
     }
 
     // Clean up previous focused element
-    cleanupPreviousFocus(targetElement);
+    cleanupPreviousFocus(element);
 
     // Update focus tracking
-    lastFocusedElement = targetElement;
+    lastFocusedElement = element;
 
     // Store element for CDP access
-    utils.storeElementForCDP(targetElement, "focus");
+    utils.storeElementForCDP(element, "focus");
+
+    // Check if this element is inside a shadow DOM
+    const rootNode = element.getRootNode();
+    if (rootNode instanceof ShadowRoot) {
+      console.log(
+        "[ContentExtension.events] Focused element is inside shadow DOM"
+      );
+      const shadowHost = rootNode.host;
+      console.log(
+        "Shadow host:",
+        shadowHost?.id,
+        "delegatesFocus:",
+        rootNode.delegatesFocus
+      );
+      // Store the actual focused element for CDP, not the host
+      utils.storeElementForCDP(element, "shadow-element-focus");
+      // If the host has delegatesFocus, monitor for changes
+      if (shadowHost && rootNode.delegatesFocus) {
+        monitorShadowActiveElement(shadowHost);
+      }
+    } else if (element.shadowRoot) {
+      // This is a shadow host
+      console.log("[ContentExtension.events] Focused element is a shadow host");
+      // If it has delegatesFocus, monitor activeElement changes
+      if (element.shadowRoot.delegatesFocus) {
+        console.log(
+          "[ContentExtension.events] Shadow host has delegatesFocus, setting up monitoring"
+        );
+        monitorShadowActiveElement(element);
+      }
+    }
 
     // Determine target for inspection (handle aria-activedescendant)
-    let targetForInspect = targetElement;
+    let targetForInspect = element;
     const activeDescId = utils.safeGetAttribute(
-      targetElement,
+      element,
       "aria-activedescendant"
     );
     if (activeDescId) {
-      const activeEl = targetElement.ownerDocument.getElementById(activeDescId);
+      const activeEl = element.ownerDocument.getElementById(activeDescId);
       if (activeEl) {
         targetForInspect = activeEl;
       }
@@ -119,14 +331,14 @@
 
     // Start observing the focused element
     if (CE.observers && CE.observers.startObserving) {
-      CE.observers.startObserving(targetElement);
+      CE.observers.startObserving(element);
     }
 
     // Set up loading timeout and fetch accessibility info
-    handleElementInspection(targetElement, targetForInspect);
+    handleElementInspection(element, targetForInspect);
 
     // Set up event listeners for this element
-    setupElementEventListeners(targetElement);
+    setupElementEventListeners(element);
   }
 
   /**
@@ -162,6 +374,14 @@
    * @param {Element} targetForInspect - The element to inspect (may be different for aria-activedescendant)
    */
   function handleElementInspection(targetElement, targetForInspect) {
+    console.log("[ContentExtension.events] handleElementInspection called");
+    console.log("targetElement:", targetElement?.tagName, targetElement?.id);
+    console.log(
+      "targetForInspect:",
+      targetForInspect?.tagName,
+      targetForInspect?.id
+    );
+
     let loadingTimeout;
 
     // Show loading after 300ms
@@ -176,26 +396,32 @@
       CE.cache.deleteCached(targetForInspect);
     }
 
-    if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-      CE.accessibility
-        .getAccessibleInfo(targetForInspect, true)
-        .then((info) => {
-          clearTimeout(loadingTimeout);
-          if (lastFocusedElement === targetElement && CE.tooltip) {
-            CE.tooltip.showTooltip(info, targetForInspect);
-          }
-        })
-        .catch((error) => {
-          clearTimeout(loadingTimeout);
-          console.error(
-            "[ContentExtension.events] Error showing tooltip:",
-            error
-          );
-          if (CE.tooltip) {
-            CE.tooltip.hideTooltip();
-          }
-        });
-    }
+    // Function to actually fetch the accessibility info
+    const fetchAccessibilityInfo = () => {
+      if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
+        CE.accessibility
+          .getAccessibleInfo(targetForInspect, true)
+          .then((info) => {
+            clearTimeout(loadingTimeout);
+            if (lastFocusedElement === targetElement && CE.tooltip) {
+              CE.tooltip.showTooltip(info, targetForInspect);
+            }
+          })
+          .catch((error) => {
+            clearTimeout(loadingTimeout);
+            console.error(
+              "[ContentExtension.events] Error showing tooltip:",
+              error
+            );
+            if (CE.tooltip) {
+              CE.tooltip.hideTooltip();
+            }
+          });
+      }
+    };
+
+    // Fetch accessibility info immediately - timing is now handled in background script
+    fetchAccessibilityInfo();
   }
 
   /**
@@ -229,6 +455,11 @@
    * @param {FocusEvent} e - The focus event
    */
   function onFocusOut(e) {
+    // Clean up shadow monitoring when focus leaves the shadow host
+    if (currentShadowHost === e.target) {
+      cleanupShadowMonitoring();
+    }
+
     // Only stop observing when focus leaves document completely
     if (!e.relatedTarget) {
       if (CE.observers && CE.observers.stopObserving) {
@@ -415,6 +646,9 @@
    */
   function disableEventListeners() {
     if (!listenersRegistered) return;
+
+    // Clean up shadow monitoring
+    cleanupShadowMonitoring();
 
     document.removeEventListener("focusin", onFocusIn, true);
     document.removeEventListener("focusout", onFocusOut, true);
