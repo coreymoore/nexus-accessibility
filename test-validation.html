@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accessibility Library Validation Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .test-section {
+        border: 1px solid #ddd;
+        margin: 20px 0;
+        padding: 15px;
+        border-radius: 5px;
+      }
+      .test-section h3 {
+        margin-top: 0;
+        color: #333;
+      }
+      button {
+        background: #007cba;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #005a87;
+      }
+      .console-note {
+        background: #f0f0f0;
+        padding: 10px;
+        border-radius: 3px;
+        margin: 10px 0;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Accessibility Library Validation Test Page</h1>
+
+    <div class="console-note">
+      <strong>Instructions:</strong> Open DevTools Console and use these
+      functions: <br />• <code>validateAccessibilityLibraries(element)</code> -
+      Test a specific element <br />•
+      <code>batchValidateAccessibility('button')</code> - Test all buttons
+      <br />• <code>window.NEXUS_TESTING_MODE.verbose = true</code> - Enable
+      detailed logging <br />•
+      <code>window.NEXUS_TESTING_MODE.useLibraries = false</code> - Test without
+      libraries
+    </div>
+
+    <div class="test-section">
+      <h3>Basic Elements</h3>
+      <button id="test-button">Test Button</button>
+      <button aria-label="Custom labeled button">Aria Label Button</button>
+      <button disabled>Disabled Button</button>
+    </div>
+
+    <div class="test-section">
+      <h3>Form Elements</h3>
+      <label for="test-input">Test Input:</label>
+      <input type="text" id="test-input" placeholder="Enter text here" />
+
+      <label for="test-select">Choose option:</label>
+      <select id="test-select">
+        <option>Option 1</option>
+        <option>Option 2</option>
+      </select>
+
+      <label>
+        <input type="checkbox" id="test-checkbox" /> Nested Label Checkbox
+      </label>
+    </div>
+
+    <div class="test-section">
+      <h3>ARIA Elements</h3>
+      <div role="button" tabindex="0" aria-label="Custom ARIA Button">
+        Click me (ARIA button)
+      </div>
+
+      <div aria-describedby="desc1">Element with description</div>
+      <div id="desc1">This is the description text</div>
+
+      <div aria-labelledby="label1 label2">Element with multiple labels</div>
+      <span id="label1">First label</span>
+      <span id="label2">Second label</span>
+    </div>
+
+    <div class="test-section">
+      <h3>Images</h3>
+      <img
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='50' height='50' fill='%23ddd'/%3E%3C/svg%3E"
+        alt="Test image with alt text"
+      />
+      <img
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='50' height='50' fill='%23ddd'/%3E%3C/svg%3E"
+        alt=""
+      />
+      <img
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='50' height='50' fill='%23ddd'/%3E%3C/svg%3E"
+      />
+    </div>
+
+    <div class="test-section">
+      <h3>Quick Tests</h3>
+      <button onclick="testCurrentElement(this)">Test This Button</button>
+      <button onclick="testAllButtons()">Test All Buttons</button>
+      <button onclick="toggleLibraries()">Toggle Libraries On/Off</button>
+      <button onclick="toggleVerbose()">Toggle Verbose Logging</button>
+    </div>
+
+    <script>
+      function testCurrentElement(element) {
+        if (window.validateAccessibilityLibraries) {
+          window.validateAccessibilityLibraries(element);
+        } else {
+          console.error(
+            "Validation function not available. Is the extension loaded?"
+          );
+        }
+      }
+
+      function testAllButtons() {
+        if (window.batchValidateAccessibility) {
+          window.batchValidateAccessibility("button");
+        } else {
+          console.error(
+            "Batch validation function not available. Is the extension loaded?"
+          );
+        }
+      }
+
+      function toggleLibraries() {
+        if (window.NEXUS_TESTING_MODE) {
+          window.NEXUS_TESTING_MODE.useLibraries =
+            !window.NEXUS_TESTING_MODE.useLibraries;
+          console.log(
+            `Libraries ${
+              window.NEXUS_TESTING_MODE.useLibraries ? "enabled" : "disabled"
+            }`
+          );
+        }
+      }
+
+      function toggleVerbose() {
+        if (window.NEXUS_TESTING_MODE) {
+          window.NEXUS_TESTING_MODE.verbose =
+            !window.NEXUS_TESTING_MODE.verbose;
+          console.log(
+            `Verbose logging ${
+              window.NEXUS_TESTING_MODE.verbose ? "enabled" : "disabled"
+            }`
+          );
+        }
+      }
+
+      // Check if extension is loaded
+      setTimeout(() => {
+        console.log("=== NEXUS EXTENSION DEBUG ===");
+        console.log(
+          "DOMAccessibilityAPI:",
+          typeof window.DOMAccessibilityAPI,
+          window.DOMAccessibilityAPI
+        );
+        console.log("AriaQuery:", typeof window.AriaQuery, window.AriaQuery);
+        console.log(
+          "validateAccessibilityLibraries:",
+          typeof window.validateAccessibilityLibraries
+        );
+        console.log("NEXUS_TESTING_MODE:", window.NEXUS_TESTING_MODE);
+
+        if (window.validateAccessibilityLibraries) {
+          console.log("✅ Nexus extension validation functions are available!");
+          console.log(
+            "Try: validateAccessibilityLibraries(document.querySelector('button'))"
+          );
+        } else {
+          console.log(
+            "❌ Extension validation functions not found. Make sure the extension is loaded and refresh the page."
+          );
+        }
+      }, 2000); // Increased timeout to 2 seconds
+    </script>
+  </body>
+</html>

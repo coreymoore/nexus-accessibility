@@ -1,0 +1,33 @@
+{
+  "name": "chrome-accessibility-extension",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "![Nexus Logo](nexus-logo.svg)",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "build:watch": "rollup -c -w",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coreymoore/access-nexus.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/coreymoore/access-nexus/issues"
+  },
+  "homepage": "https://github.com/coreymoore/access-nexus#readme",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.6",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "aria-query": "^5.3.2",
+    "dom-accessibility-api": "^0.7.0",
+    "rollup": "^4.46.2"
+  }
+}

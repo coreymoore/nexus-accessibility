@@ -30,6 +30,8 @@
         "src/utils/debounce.js",
         "src/utils/logger-content.js",
         "src/utils/formatter.js",
+        "src/libs/dom-accessibility-api.js",
+        "src/libs/aria-query.js",
         "src/components/tooltip/tooltip.js",
         "src/content.js"
       ]
@@ -44,7 +46,10 @@
         "src/assets/fonts/inter-latin-ext-400.woff2",
         "src/assets/fonts/jetbrains-mono-local.css",
         "src/assets/fonts/jetbrains-mono-latin-400.woff2",
-        "src/assets/fonts/jetbrains-mono-latin-ext-400.woff2"
+        "src/assets/fonts/jetbrains-mono-latin-ext-400.woff2",
+        "src/libs/dom-accessibility-api.js",
+        "src/libs/aria-query.js",
+        "src/libs/validation-functions.js"
       ],
       "matches": ["<all_urls>"]
     }

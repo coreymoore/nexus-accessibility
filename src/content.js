@@ -1056,108 +1056,70 @@ function isInShadowRoot(el) {
 }
 
 function getLocalAccessibleInfo(el) {
-  console.log("getLocalAccessibleInfo called with:", el);
-  // Try ARIA attributes and native properties
-  let role = el.getAttribute("role") || "";
-  const tag = (el.tagName || "").toUpperCase();
-  const type =
-    (el.getAttribute && (el.getAttribute("type") || "").toLowerCase()) || "";
-  // Infer role from native semantics if no explicit role
-  if (!role) {
-    if (tag === "A" && el.hasAttribute("href")) role = "link";
-    else if (tag === "BUTTON") role = "button";
-    else if (tag === "INPUT") {
-      if (type === "button" || type === "submit" || type === "reset")
-        role = "button";
-      else if (type === "checkbox") role = "checkbox";
-      else if (type === "radio") role = "radio";
-      else if (type === "range") role = "slider";
-      else if (
-        type === "search" ||
-        type === "email" ||
-        type === "url" ||
-        type === "tel" ||
-        type === "password" ||
-        type === "text"
-      )
-        role = "textbox";
-      else if (type === "number") role = "spinbutton";
-      else role = "textbox"; // default text-like
-    } else if (tag === "TEXTAREA") role = "textbox";
-    else if (tag === "SELECT") {
-      const multiple = el.hasAttribute("multiple");
-      const sizeAttr = parseInt(el.getAttribute("size") || "0", 10);
-      role = multiple || sizeAttr > 1 ? "listbox" : "combobox";
-    } else if (tag === "OPTION") role = "option";
-    else if (tag === "IMG") role = "img";
-    else if (tag === "SUMMARY") role = "button";
-    else if (tag === "NAV") role = "navigation";
-    else if (tag === "MAIN") role = "main";
-    else if (tag === "ASIDE") role = "complementary";
-    else if (tag === "HEADER") role = "banner";
-    else if (tag === "FOOTER") role = "contentinfo";
-    else if (tag === "UL" || tag === "OL") role = "list";
-    else if (tag === "LI") role = "listitem";
-    else if (tag === "TABLE") role = "table";
-    else if (tag === "TR") role = "row";
-    else if (tag === "TH")
-      role = el.getAttribute("scope") === "row" ? "rowheader" : "columnheader";
-    else if (tag === "TD") role = "cell";
-    else if (el.isContentEditable) role = "textbox";
-    else if (
-      typeof el.tabIndex === "number" &&
-      el.tabIndex >= 0 &&
-      typeof el.onclick === "function"
-    )
-      role = "button";
+  const verbose = window.NEXUS_TESTING_MODE?.verbose;
+  if (verbose) console.log("getLocalAccessibleInfo called with:", el);
+
+  // Use libraries if available and testing mode allows, fallback to manual computation
+  let name = "";
+  let description = "";
+  let role = "";
+
+  const useLibraries = window.NEXUS_TESTING_MODE?.useLibraries !== false;
+
+  if (useLibraries) {
+    try {
+      // Try to use dom-accessibility-api for name and description
+      if (window.DOMAccessibilityAPI) {
+        name = window.DOMAccessibilityAPI.computeAccessibleName(el);
+        description =
+          window.DOMAccessibilityAPI.computeAccessibleDescription(el);
+        if (verbose) console.log("DOM API computed:", { name, description });
+      }
+
+      // Try to use aria-query for role (first check explicit, then implicit)
+      role = el.getAttribute("role") || "";
+      if (!role && window.AriaQuery && window.AriaQuery.getImplicitRole) {
+        role = window.AriaQuery.getImplicitRole(el) || "";
+        if (verbose) console.log("ARIA Query role:", role);
+      }
+
+      // Also try the dom-accessibility-api getRole if aria-query didn't work
+      if (
+        !role &&
+        window.DOMAccessibilityAPI &&
+        window.DOMAccessibilityAPI.getRole
+      ) {
+        role = window.DOMAccessibilityAPI.getRole(el) || "";
+        if (verbose) console.log("DOM API role:", role);
+      }
+    } catch (error) {
+      console.warn(
+        "Error using accessibility libraries, falling back to manual computation:",
+        error
+      );
+    }
+  } else {
+    if (verbose)
+      console.log("Libraries disabled by testing mode, using fallbacks only");
   }
 
-  // Compute accessible name: aria first, then labels, then text/alt/title
-  let name = el.getAttribute("aria-label") || "";
+  // Fallback computation if libraries failed or returned empty values
   if (!name) {
-    const labelledby = el.getAttribute("aria-labelledby");
-    if (labelledby) {
-      name = labelledby
-        .split(/\s+/)
-        .map((id) =>
-          (el.ownerDocument.getElementById(id)?.textContent || "").trim()
-        )
-        .filter(Boolean)
-        .join(" ");
-    }
+    name = computeFallbackAccessibleName(el);
   }
-  if (!name && (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT")) {
-    // Associated <label for>
-    const id = el.getAttribute("id");
-    if (id) {
-      const lbl = el.ownerDocument.querySelector(
-        `label[for="${CSS.escape(id)}"]`
-      );
-      if (lbl) name = (lbl.textContent || "").trim();
-    }
-    // Nested label
-    if (!name) {
-      const parentLabel = el.closest("label");
-      if (parentLabel) name = (parentLabel.textContent || "").trim();
-    }
+
+  if (!description) {
+    description = computeFallbackDescription(el);
   }
-  if (!name && tag === "IMG") {
-    name = el.getAttribute("alt") || "";
+
+  if (!role) {
+    role = computeFallbackRole(el);
   }
-  if (!name) {
-    name = (el.innerText || el.textContent || "").trim();
-  }
-  if (!name) {
-    name = el.getAttribute("title") || "";
-  }
+
+  // Normalize empty values
   if (!name) name = "(no accessible name)";
-  let description =
-    el.getAttribute("aria-description") ||
-    (el.getAttribute("aria-describedby") &&
-      document.getElementById(el.getAttribute("aria-describedby"))
-        ?.textContent) ||
-    "";
   if (!description) description = "(no description)";
+  if (!role) role = "(no role)";
 
   // Collect ARIA properties, excluding describedby to prevent recursion
   const ariaProperties = {};
@@ -1188,7 +1150,7 @@ function getLocalAccessibleInfo(el) {
   }
 
   return {
-    role: role || "(no role)",
+    role,
     name,
     description,
     value: el.value || "(no value)",
@@ -1199,6 +1161,358 @@ function getLocalAccessibleInfo(el) {
     ignoredReasons: [],
   };
 }
+
+// Fallback accessible name computation
+function computeFallbackAccessibleName(el) {
+  // Try ARIA label first
+  let name = el.getAttribute("aria-label") || "";
+  if (name) return name.trim();
+
+  // Try aria-labelledby
+  const labelledby = el.getAttribute("aria-labelledby");
+  if (labelledby) {
+    name = labelledby
+      .split(/\s+/)
+      .map((id) =>
+        (el.ownerDocument.getElementById(id)?.textContent || "").trim()
+      )
+      .filter(Boolean)
+      .join(" ");
+    if (name) return name;
+  }
+
+  const tag = (el.tagName || "").toUpperCase();
+
+  // For form controls, check for labels
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+    // Associated <label for>
+    const id = el.getAttribute("id");
+    if (id) {
+      const lbl = el.ownerDocument.querySelector(
+        `label[for="${CSS.escape(id)}"]`
+      );
+      if (lbl) name = (lbl.textContent || "").trim();
+    }
+    // Nested label
+    if (!name) {
+      const parentLabel = el.closest("label");
+      if (parentLabel) name = (parentLabel.textContent || "").trim();
+    }
+  }
+
+  // For images, use alt text
+  if (tag === "IMG") {
+    name = el.getAttribute("alt") || "";
+    if (name) return name;
+  }
+
+  // Use text content
+  if (!name) {
+    name = (el.innerText || el.textContent || "").trim();
+  }
+
+  // Use title as last resort
+  if (!name) {
+    name = el.getAttribute("title") || "";
+  }
+
+  return name;
+}
+
+// Fallback description computation
+function computeFallbackDescription(el) {
+  let description =
+    el.getAttribute("aria-description") ||
+    (el.getAttribute("aria-describedby") &&
+      document.getElementById(el.getAttribute("aria-describedby"))
+        ?.textContent) ||
+    "";
+  return description;
+}
+
+// Fallback role computation
+function computeFallbackRole(el) {
+  // Try explicit role first
+  let role = el.getAttribute("role") || "";
+  if (role) return role;
+
+  const tag = (el.tagName || "").toUpperCase();
+  const type =
+    (el.getAttribute && (el.getAttribute("type") || "").toLowerCase()) || "";
+
+  // Infer role from native semantics if no explicit role
+  if (tag === "A" && el.hasAttribute("href")) role = "link";
+  else if (tag === "BUTTON") role = "button";
+  else if (tag === "INPUT") {
+    if (type === "button" || type === "submit" || type === "reset")
+      role = "button";
+    else if (type === "checkbox") role = "checkbox";
+    else if (type === "radio") role = "radio";
+    else if (type === "range") role = "slider";
+    else if (
+      type === "search" ||
+      type === "email" ||
+      type === "url" ||
+      type === "tel" ||
+      type === "password" ||
+      type === "text"
+    )
+      role = "textbox";
+    else if (type === "number") role = "spinbutton";
+    else role = "textbox"; // default text-like
+  } else if (tag === "TEXTAREA") role = "textbox";
+  else if (tag === "SELECT") {
+    const multiple = el.hasAttribute("multiple");
+    const sizeAttr = parseInt(el.getAttribute("size") || "0", 10);
+    role = multiple || sizeAttr > 1 ? "listbox" : "combobox";
+  } else if (tag === "OPTION") role = "option";
+  else if (tag === "IMG") role = "img";
+  else if (tag === "SUMMARY") role = "button";
+  else if (tag === "NAV") role = "navigation";
+  else if (tag === "MAIN") role = "main";
+  else if (tag === "ASIDE") role = "complementary";
+  else if (tag === "HEADER") role = "banner";
+  else if (tag === "FOOTER") role = "contentinfo";
+  else if (tag === "UL" || tag === "OL") role = "list";
+  else if (tag === "LI") role = "listitem";
+  else if (tag === "TABLE") role = "table";
+  else if (tag === "TR") role = "row";
+  else if (tag === "TH")
+    role = el.getAttribute("scope") === "row" ? "rowheader" : "columnheader";
+  else if (tag === "TD") role = "cell";
+  else if (el.isContentEditable) role = "textbox";
+  else if (
+    typeof el.tabIndex === "number" &&
+    el.tabIndex >= 0 &&
+    typeof el.onclick === "function"
+  )
+    role = "button";
+
+  return role;
+}
+
+/**
+ * VALIDATION FUNCTION - Safe testing of accessibility libraries
+ * This function allows testing the new libraries without affecting production code
+ * Usage: validateAccessibilityLibraries(element) in console
+ */
+function validateAccessibilityLibraries(el) {
+  if (!el) {
+    console.log("[VALIDATION] No element provided");
+    return;
+  }
+
+  console.group(
+    `[VALIDATION] Testing accessibility libraries on: ${el.tagName}${
+      el.id ? "#" + el.id : ""
+    }${el.className ? "." + el.className.replace(/\s+/g, ".") : ""}`
+  );
+
+  const results = {
+    element: el,
+    libraryResults: {},
+    fallbackResults: {},
+    comparison: {},
+  };
+
+  // Test libraries
+  try {
+    if (window.DOMAccessibilityAPI) {
+      console.log("[VALIDATION] ✅ DOMAccessibilityAPI is available");
+      results.libraryResults.name =
+        window.DOMAccessibilityAPI.computeAccessibleName(el);
+      results.libraryResults.description =
+        window.DOMAccessibilityAPI.computeAccessibleDescription(el);
+      results.libraryResults.role_dom = window.DOMAccessibilityAPI.getRole(el);
+      console.log("[VALIDATION] DOM API results:", {
+        name: results.libraryResults.name,
+        description: results.libraryResults.description,
+        role: results.libraryResults.role_dom,
+      });
+    } else {
+      console.log("[VALIDATION] ❌ DOMAccessibilityAPI is NOT available");
+    }
+
+    if (window.AriaQuery) {
+      console.log("[VALIDATION] ✅ AriaQuery is available");
+      results.libraryResults.role_aria = window.AriaQuery.getImplicitRole(el);
+      console.log(
+        "[VALIDATION] ARIA Query role:",
+        results.libraryResults.role_aria
+      );
+    } else {
+      console.log("[VALIDATION] ❌ AriaQuery is NOT available");
+    }
+  } catch (error) {
+    console.error("[VALIDATION] Error with libraries:", error);
+    results.libraryError = error.message;
+  }
+
+  // Test fallback functions
+  try {
+    results.fallbackResults.name = computeFallbackAccessibleName(el);
+    results.fallbackResults.description = computeFallbackDescription(el);
+    results.fallbackResults.role = computeFallbackRole(el);
+    console.log("[VALIDATION] Fallback results:", results.fallbackResults);
+  } catch (error) {
+    console.error("[VALIDATION] Error with fallbacks:", error);
+    results.fallbackError = error.message;
+  }
+
+  // Compare results
+  if (
+    results.libraryResults.name !== undefined &&
+    results.fallbackResults.name !== undefined
+  ) {
+    results.comparison.nameMatch =
+      results.libraryResults.name === results.fallbackResults.name;
+    if (!results.comparison.nameMatch) {
+      console.warn("[VALIDATION] ⚠️ Name mismatch:", {
+        library: results.libraryResults.name,
+        fallback: results.fallbackResults.name,
+      });
+    } else {
+      console.log("[VALIDATION] ✅ Name matches");
+    }
+  }
+
+  if (
+    results.libraryResults.description !== undefined &&
+    results.fallbackResults.description !== undefined
+  ) {
+    results.comparison.descriptionMatch =
+      results.libraryResults.description ===
+      results.fallbackResults.description;
+    if (!results.comparison.descriptionMatch) {
+      console.warn("[VALIDATION] ⚠️ Description mismatch:", {
+        library: results.libraryResults.description,
+        fallback: results.fallbackResults.description,
+      });
+    } else {
+      console.log("[VALIDATION] ✅ Description matches");
+    }
+  }
+
+  // Test the actual production function
+  console.log("[VALIDATION] Testing production getLocalAccessibleInfo:");
+  const prodResult = getLocalAccessibleInfo(el);
+  console.log("[VALIDATION] Production result:", prodResult);
+
+  console.groupEnd();
+  return results;
+}
+
+// Make validation function globally available
+window.validateAccessibilityLibraries = validateAccessibilityLibraries;
+
+// Add testing mode toggle
+window.NEXUS_TESTING_MODE = {
+  useLibraries: true, // Set to false to test without libraries
+  verbose: false, // Set to true for detailed logging
+};
+
+// Debug: Check if libraries are loaded
+setTimeout(() => {
+  console.log("[NEXUS DEBUG] Checking library availability:");
+  console.log("  DOMAccessibilityAPI:", typeof window.DOMAccessibilityAPI);
+  console.log("  AriaQuery:", typeof window.AriaQuery);
+  console.log(
+    "  validateAccessibilityLibraries:",
+    typeof window.validateAccessibilityLibraries
+  );
+  console.log("  NEXUS_TESTING_MODE:", window.NEXUS_TESTING_MODE);
+
+  if (window.DOMAccessibilityAPI) {
+    console.log(
+      "  DOMAccessibilityAPI functions:",
+      Object.keys(window.DOMAccessibilityAPI)
+    );
+  }
+  if (window.AriaQuery) {
+    console.log("  AriaQuery functions:", Object.keys(window.AriaQuery));
+  }
+
+  // Inject libraries and validation functions into page context
+  injectIntoPageContext();
+}, 100);
+
+/**
+ * Inject libraries and validation functions into the page context
+ * This allows them to be used from the browser console and page scripts
+ */
+function injectIntoPageContext() {
+  try {
+    // Inject the library files directly into the page
+    const domApiScript = document.createElement("script");
+    domApiScript.src = chrome.runtime.getURL(
+      "src/libs/dom-accessibility-api.js"
+    );
+    domApiScript.onload = () => {
+      console.log("[NEXUS] DOMAccessibilityAPI injected into page context");
+
+      // After DOM API loads, inject ARIA Query
+      const ariaScript = document.createElement("script");
+      ariaScript.src = chrome.runtime.getURL("src/libs/aria-query.js");
+      ariaScript.onload = () => {
+        console.log("[NEXUS] AriaQuery injected into page context");
+
+        // After both libraries load, inject validation functions
+        injectValidationFunctions();
+      };
+      (document.head || document.documentElement).appendChild(ariaScript);
+    };
+    (document.head || document.documentElement).appendChild(domApiScript);
+  } catch (error) {
+    console.error(
+      "[NEXUS] Failed to inject libraries into page context:",
+      error
+    );
+  }
+}
+
+/**
+ * Inject validation functions into page context after libraries are loaded
+ */
+function injectValidationFunctions() {
+  try {
+    // Load validation functions from external file to avoid CSP issues
+    const validationScript = document.createElement("script");
+    validationScript.src = chrome.runtime.getURL(
+      "src/libs/validation-functions.js"
+    );
+    validationScript.onload = () => {
+      console.log("[NEXUS] ✅ Validation functions loaded into page context");
+    };
+    validationScript.onerror = (error) => {
+      console.error("[NEXUS] Failed to load validation functions:", error);
+    };
+    (document.head || document.documentElement).appendChild(validationScript);
+  } catch (error) {
+    console.error("[NEXUS] Failed to inject validation functions:", error);
+  }
+}
+
+/**
+ * BATCH VALIDATION - Test multiple elements at once
+ */
+function batchValidateAccessibility(selector = "*") {
+  const elements = document.querySelectorAll(selector);
+  console.log(
+    `[BATCH VALIDATION] Testing ${elements.length} elements matching: ${selector}`
+  );
+
+  const results = [];
+  elements.forEach((el, index) => {
+    if (index < 10) {
+      // Limit to first 10 to avoid spam
+      results.push(validateAccessibilityLibraries(el));
+    }
+  });
+
+  return results;
+}
+
+window.batchValidateAccessibility = batchValidateAccessibility;
 
 function getBackendNodeId(element, callback) {
   // Get the element's objectId via the Chrome DevTools Protocol
