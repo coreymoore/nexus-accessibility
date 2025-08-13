@@ -16,10 +16,71 @@
   // Access utilities
   const utils = window.NexusTooltip.Utils;
 
+  // HTML Templates for consistency and maintainability
+  const Templates = {
+    LOADING_SPINNER: `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="animation: spin 1s linear infinite;" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
+          <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
+        </circle>
+      </svg>
+    `,
+    
+    CLOSE_BUTTON_ICON: `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
+        <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+      </svg>
+    `,
+    
+    ERROR_ICON: `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
+        <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8 4v4M8 10h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    `,
+    
+    SCREEN_READER_ICON: `
+      <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Screen Reader Output" focusable="false" style="vertical-align:middle;">
+        <rect x="3" y="8" width="5" height="8" rx="1.5" fill="#7851a9"/>
+        <polygon points="8,8 14,4 14,20 8,16" fill="#78551a9"/>
+        <path d="M17 9a4 4 0 0 1 0 6" stroke="#7851a9" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M19.5 7a7 7 0 0 1 0 10" stroke="#78551a9" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      </svg>
+    `
+  };
+
+  /**
+   * Content generation functions for tooltips
+   */
+
   /**
    * Content generation functions for tooltips
    */
   const TooltipContent = {
+    /**
+     * Normalize boolean values from different sources
+     * @param {*} value - Value to normalize
+     * @returns {boolean|null} Normalized boolean or null if indeterminate
+     */
+    normalizeBooleanValue(value) {
+      if (value === null || value === undefined) return null;
+      if (value === true || value === "true") return true;
+      if (value === false || value === "false") return false;
+      if (value === "mixed") return "mixed";
+      return null;
+    },
+
+    /**
+     * Create a safe HTML span for screen reader output
+     * @param {string} className - CSS class for the span
+     * @param {string} content - Content to display
+     * @returns {string} Safe HTML span
+     */
+    createSafeSpan(className, content) {
+      return `<span class="${utils.escapeHtml(className)}">${utils.escapeHtml(String(content))}</span>`;
+    },
+
     /**
      * Create loading content HTML
      * @returns {string} Loading content HTML
@@ -28,12 +89,7 @@
       return `
         <div class="chrome-ax-tooltip-body" inert>
           <div role="status" aria-live="polite" aria-atomic="true" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="animation: spin 1s linear infinite;" aria-hidden="true" focusable="false">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
-                <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
-                <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
-              </circle>
-            </svg>
+            ${Templates.LOADING_SPINNER}
             <span>Loading Nexus Accessibility Info</span>
           </div>
         </div>
@@ -50,9 +106,7 @@
                 aria-label="Close Nexus Inspector" 
                 type="button"
                 tabindex="0">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
-            <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
-          </svg>
+          ${Templates.CLOSE_BUTTON_ICON}
         </button>
       `;
     },
@@ -63,6 +117,12 @@
      * @returns {string} Screen reader output HTML
      */
     getScreenReaderOutput(info) {
+      // Input validation
+      if (!info || typeof info !== 'object') {
+        console.warn('[Tooltip] Invalid info object provided to getScreenReaderOutput');
+        return '<span class="sr-error">Unable to generate screen reader output</span>';
+      }
+
       // Debug logging to understand the data structure
       console.debug("[Tooltip] Accessibility info received:", {
         role: info.role,
@@ -75,19 +135,13 @@
       // Base: role, name, description
       const base = [];
       if (info.role) {
-        base.push(
-          `<span class="sr-role">${utils.escapeHtml(info.role)}</span>`
-        );
+        base.push(this.createSafeSpan("sr-role", info.role));
       }
       if (info.name && info.name !== "(no accessible name)") {
-        base.push(
-          `<span class="sr-name">${utils.escapeHtml(info.name)}</span>`
-        );
+        base.push(this.createSafeSpan("sr-name", info.name));
       }
       if (info.description && info.description !== "(no description)") {
-        base.push(
-          `<span class="sr-desc">${utils.escapeHtml(info.description)}</span>`
-        );
+        base.push(this.createSafeSpan("sr-desc", info.description));
       }
 
       // Extras: states, aria-derived states, group, value, required
@@ -122,21 +176,12 @@
           expandedValue = utils.deepUnwrap(info.states.expanded);
         }
 
-        // Add expanded/collapsed state if we have a meaningful value
-        if (expandedValue !== null && expandedValue !== undefined) {
-          // Debug logging to understand the data
-          console.debug(
-            "[Tooltip] Expanded value found:",
-            expandedValue,
-            "type:",
-            typeof expandedValue
-          );
-
-          if (expandedValue === true || expandedValue === "true") {
-            extras.push(`<span class="sr-state">expanded</span>`);
-          } else if (expandedValue === false || expandedValue === "false") {
-            extras.push(`<span class="sr-state">collapsed</span>`);
-          }
+        // Normalize and add expanded/collapsed state
+        const normalizedExpanded = this.normalizeBooleanValue(expandedValue);
+        if (normalizedExpanded === true) {
+          extras.push(`<span class="sr-state">expanded</span>`);
+        } else if (normalizedExpanded === false) {
+          extras.push(`<span class="sr-state">collapsed</span>`);
         }
 
         // Handle aria-pressed
@@ -152,13 +197,16 @@
         // Handle checked state
         if (info.states && "checked" in info.states) {
           const checked = utils.deepUnwrap(info.states.checked);
-          if (utils.isTrue(checked)) {
+          const normalizedChecked = this.normalizeBooleanValue(checked);
+          if (normalizedChecked === true) {
             extras.push(`<span class="sr-state">checked</span>`);
-          } else if (checked === false || checked === "false") {
+          } else if (normalizedChecked === false) {
             extras.push(`<span class="sr-state">unchecked</span>`);
-          } else if (checked === "mixed") {
+          } else if (normalizedChecked === "mixed") {
             extras.push(`<span class="sr-state">mixed</span>`);
           } else {
+            // Fallback to unchecked for unrecognized values to match screen reader behavior
+            // Per ARIA spec, checkboxes without explicit aria-checked default to false/unchecked
             extras.push(`<span class="sr-state">unchecked</span>`);
           }
         }
@@ -216,13 +264,24 @@
     createScreenReaderSection(info) {
       return `
         <div class="chrome-ax-tooltip-sr" tabindex="-1">
-          <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Screen Reader Output" focusable="false" style="vertical-align:middle;">
-            <rect x="3" y="8" width="5" height="8" rx="1.5" fill="#7851a9"/>
-            <polygon points="8,8 14,4 14,20 8,16" fill="#78551a9"/>
-            <path d="M17 9a4 4 0 0 1 0 6" stroke="#7851a9" stroke-width="2" fill="none" stroke-linecap="round"/>
-            <path d="M19.5 7a7 7 0 0 1 0 10" stroke="#78551a9" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-          </svg>
+          ${Templates.SCREEN_READER_ICON}
           ${this.getScreenReaderOutput(info)}
+        </div>
+      `;
+    },
+
+    /**
+     * Create error content HTML
+     * @param {string} message - Error message to display
+     * @returns {string} Error content HTML
+     */
+    createErrorContent(message) {
+      return `
+        <div class="chrome-ax-tooltip-body" inert>
+          <div role="alert" aria-live="assertive" style="display: flex; align-items: center; gap: 8px; color: #d73a49;">
+            ${Templates.ERROR_ICON}
+            <span>${utils.escapeHtml(message || 'An error occurred')}</span>
+          </div>
         </div>
       `;
     },
@@ -300,7 +359,8 @@
           `</dl>`
         );
       } else {
-        return propertiesList;
+        // SECURITY FIX: Sanitize custom formatter output to prevent XSS
+        return utils.createSafeTooltipContent(propertiesList);
       }
     },
 
@@ -312,35 +372,46 @@
      * @returns {string} Complete tooltip HTML content
      */
     generateTooltipContent(info, miniMode, options = {}) {
-      const closeButtonHtml = this.createCloseButton();
-      const screenReaderSection = this.createScreenReaderSection(info);
-
-      // Create tooltip body wrapper
-      const bodyOpen = `<div class="chrome-ax-tooltip-body" inert style="pointer-events: none;">`;
-      const bodyClose = `</div>`;
-
-      let tooltipContent;
-      if (miniMode) {
-        // Mini mode: only screen reader output
-        tooltipContent = `
-          ${closeButtonHtml}
-          ${bodyOpen}
-            ${screenReaderSection}
-          ${bodyClose}
-        `;
-      } else {
-        // Full mode: screen reader output + properties
-        const propertiesSection = this.createPropertiesSection(info);
-        tooltipContent = `
-          ${closeButtonHtml}
-          ${bodyOpen}
-            ${screenReaderSection}
-            ${propertiesSection}
-          ${bodyClose}
-        `;
+      // Input validation
+      if (!info || typeof info !== 'object') {
+        console.error('[Tooltip] Invalid accessibility info provided:', info);
+        return this.createErrorContent('Invalid accessibility information');
       }
 
-      return tooltipContent;
+      try {
+        const closeButtonHtml = this.createCloseButton();
+        const screenReaderSection = this.createScreenReaderSection(info);
+
+        // Create tooltip body wrapper
+        const bodyOpen = `<div class="chrome-ax-tooltip-body" inert style="pointer-events: none;">`;
+        const bodyClose = `</div>`;
+
+        let tooltipContent;
+        if (miniMode) {
+          // Mini mode: only screen reader output
+          tooltipContent = `
+            ${closeButtonHtml}
+            ${bodyOpen}
+              ${screenReaderSection}
+            ${bodyClose}
+          `;
+        } else {
+          // Full mode: screen reader output + properties
+          const propertiesSection = this.createPropertiesSection(info);
+          tooltipContent = `
+            ${closeButtonHtml}
+            ${bodyOpen}
+              ${screenReaderSection}
+              ${propertiesSection}
+            ${bodyClose}
+          `;
+        }
+
+        return tooltipContent;
+      } catch (error) {
+        console.error('[Tooltip] Content generation failed:', error);
+        return this.createErrorContent('Unable to generate tooltip content');
+      }
     },
 
     /**
