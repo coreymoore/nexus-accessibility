@@ -53,11 +53,16 @@
       try {
         // Use CDP approach with direct element reference
         const selector = CE.utils.getUniqueSelector(target);
+
         const response = await chrome.runtime.sendMessage({
           action: "getBackendNodeIdAndAccessibleInfo",
           useDirectReference: true,
           elementSelector: selector,
-          frameId: 0,
+          frameId: 0, // Background script will determine the correct frame
+        });
+
+        console.log("[NEXUS] CDP Response:", {
+          role: response?.role,
         });
 
         if (currentRequest.cancelled) return null;
@@ -120,17 +125,19 @@
     console.log("Final attempt after all retries...");
     try {
       const selector = CE.utils.getUniqueSelector(target);
+
       const response = await chrome.runtime.sendMessage({
         action: "getBackendNodeIdAndAccessibleInfo",
         useDirectReference: true,
         elementSelector: selector,
-        frameId: 0,
+        frameId: 0, // Background script will determine the correct frame
       });
 
       console.log("Final attempt result:", {
         role: response?.role,
         name: response?.name,
       });
+
       return response;
     } catch (error) {
       throw new Error("Failed to get accessibility info after all attempts");
@@ -168,8 +175,13 @@
         cached = cache.getCached(target);
       }
 
-      if (CE.utils.isInShadowRoot(target)) {
-        console.log("Element is in shadow root, using local info");
+      // Check if we should use local fallback (shadow DOM, deep iframes, etc.)
+      if (CE.utils.shouldUseLocalFallback(target)) {
+        console.log("Using local fallback for accessibility info:", {
+          inShadowRoot: CE.utils.isInShadowRoot(target),
+          inIframe: CE.utils.isInIframe(),
+          frameDepth: CE.utils.getFrameDepth(),
+        });
         const localInfo = getLocalAccessibleInfo(target);
         if (CE.tooltip) {
           CE.tooltip.showTooltip(localInfo, target);
@@ -192,6 +204,19 @@
         }
 
         console.log("getAccessibleInfo: building return object from", info);
+
+        // If we got an IframePresentational role when we expected element content,
+        // it means CDP is seeing the iframe container instead of the focused element
+        if (info?.role === "IframePresentational" && CE.utils.isInIframe()) {
+          console.log(
+            "Detected iframe presentational issue, falling back to local computation"
+          );
+          const localInfo = getLocalAccessibleInfo(target);
+          if (CE.tooltip) {
+            CE.tooltip.showTooltip(localInfo, target);
+          }
+          return localInfo;
+        }
 
         // Process accessibility information
         const result = processAccessibilityInfo(info, target);

@@ -74,15 +74,56 @@ export async function getAccessibilityInfoForElement(
         );
 
         try {
-          // Use document.activeElement directly - it's the most reliable approach
-          const result = await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "Runtime.evaluate",
-            {
-              expression: "document.activeElement",
-              returnByValue: false,
-            }
-          );
+          // Resolve the correct frame for iframe support
+          const chromeFrameId = frameId;
+          let pageFrameId;
+
+          if (typeof chromeFrameId === "number" && chromeFrameId !== 0) {
+            pageFrameId = await getCdpFrameId(tabId, chromeFrameId);
+            console.log(
+              "Background: Mapped Chrome frameId",
+              chromeFrameId,
+              "to CDP frameId",
+              pageFrameId
+            );
+          }
+
+          let result;
+
+          if (pageFrameId) {
+            // For iframe: use the iframe's execution context
+            console.log(
+              "Background: Using iframe execution context for frameId:",
+              pageFrameId
+            );
+            const ctxId = await getOrCreateIsolatedWorld(
+              tabId,
+              pageFrameId,
+              "AX_Helper"
+            );
+            console.log("Background: Got execution context ID:", ctxId);
+
+            result = await chromeAsync.debugger.sendCommand(
+              { tabId },
+              "Runtime.evaluate",
+              {
+                expression: "document.activeElement",
+                returnByValue: false,
+                contextId: ctxId,
+              }
+            );
+          } else {
+            // For main frame: use default context
+            console.log("Background: Using main frame context");
+            result = await chromeAsync.debugger.sendCommand(
+              { tabId },
+              "Runtime.evaluate",
+              {
+                expression: "document.activeElement",
+                returnByValue: false,
+              }
+            );
+          }
 
           console.log("Background: Runtime.evaluate result:", result);
 

@@ -145,6 +145,91 @@
   }
 
   /**
+   * Check if the current context is inside an iframe
+   * @returns {boolean} True if running in an iframe
+   */
+  function isInIframe() {
+    try {
+      return window.self !== window.top;
+    } catch (e) {
+      // If we can't access window.top due to cross-origin restrictions,
+      // we're likely in an iframe
+      return true;
+    }
+  }
+
+  /**
+   * Get the current frame context information
+   * @returns {Object} Frame context information
+   */
+  function getFrameContext() {
+    const inIframe = isInIframe();
+
+    return {
+      isIframe: inIframe,
+      isTopFrame: !inIframe,
+      frameDepth: getFrameDepth(),
+      frameToken: frameToken,
+    };
+  }
+
+  /**
+   * Calculate the depth of nested frames
+   * @returns {number} Frame depth (0 for top frame)
+   */
+  function getFrameDepth() {
+    let depth = 0;
+    let currentWindow = window;
+
+    try {
+      while (currentWindow !== currentWindow.parent) {
+        depth++;
+        currentWindow = currentWindow.parent;
+
+        // Prevent infinite loops
+        if (depth > 10) break;
+      }
+    } catch (e) {
+      // Cross-origin restrictions - estimate based on referrer
+      if (document.referrer) {
+        depth = 1; // At least one level deep
+      }
+    }
+
+    return depth;
+  }
+
+  /**
+   * Detect if we should use local fallback for accessibility info
+   * This is needed when CDP can't properly access iframe content
+   * @param {Element} element - The element to check
+   * @returns {boolean} True if should use local fallback
+   */
+  function shouldUseLocalFallback(element) {
+    // Always use local fallback for shadow DOM
+    if (isInShadowRoot(element)) {
+      return true;
+    }
+
+    // Use local fallback if we're in a deeply nested iframe
+    const frameContext = getFrameContext();
+    if (frameContext.isIframe && frameContext.frameDepth > 2) {
+      return true;
+    }
+
+    // Use local fallback if element is in a different origin iframe
+    try {
+      if (element.ownerDocument !== document) {
+        return true;
+      }
+    } catch (e) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Check if an element is in a shadow root
    * @param {Element} el - The element to check
    * @returns {boolean} True if element is in shadow root
@@ -266,6 +351,7 @@
     // Frame coordination
     frameToken,
     getFrameToken,
+    getFrameContext,
 
     // Element utilities
     storeElementForCDP,
@@ -274,6 +360,9 @@
     getAriaLabel,
     getFieldsetLegend,
     isInShadowRoot,
+    isInIframe,
+    getFrameDepth,
+    shouldUseLocalFallback,
     getTooltipElement,
     safeFocus,
     safeGetAttribute,
