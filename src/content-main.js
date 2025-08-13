@@ -1,9 +1,9 @@
 /**
  * Content Script Main Entry Point
- * 
+ *
  * This is the main entry point for the content script. It initializes the extension,
  * coordinates between modules, and manages the overall extension state.
- * 
+ *
  * Dependencies (load order):
  * 1. content-utils.js - Utility functions and helpers
  * 2. content-cache.js - Caching and performance management
@@ -15,10 +15,12 @@
  * 8. content-main.js - This file (initialization and coordination)
  */
 
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
-  console.log("Content script loading... v2.1 - Refactored modular architecture");
+  console.log(
+    "Content script loading... v2.1 - Refactored modular architecture"
+  );
 
   // Ensure our namespace exists
   window.ContentExtension = window.ContentExtension || {};
@@ -33,7 +35,7 @@
    */
   function initialize() {
     if (initialized) {
-      console.warn('[ContentExtension] Already initialized');
+      console.warn("[ContentExtension] Already initialized");
       return;
     }
 
@@ -45,13 +47,19 @@
 
       // Verify all required modules are loaded
       const requiredModules = [
-        'utils', 'cache', 'events', 'accessibility', 
-        'observers', 'tooltip'
+        "utils",
+        "cache",
+        "events",
+        "accessibility",
+        "observers",
+        "tooltip",
       ];
-      
-      const missingModules = requiredModules.filter(module => !CE[module]);
+
+      const missingModules = requiredModules.filter((module) => !CE[module]);
       if (missingModules.length > 0) {
-        throw new Error(`Missing required modules: ${missingModules.join(', ')}`);
+        throw new Error(
+          `Missing required modules: ${missingModules.join(", ")}`
+        );
       }
 
       // Initialize modules in order
@@ -63,15 +71,14 @@
 
       // Set up extension state management
       setupExtensionState();
-      
+
       // Set up cleanup handlers
       setupCleanup();
 
       initialized = true;
-      console.log('[ContentExtension] Initialized successfully');
-
+      console.log("[ContentExtension] Initialized successfully");
     } catch (error) {
-      console.error('[ContentExtension] Initialization failed:', error);
+      console.error("[ContentExtension] Initialization failed:", error);
       // Attempt graceful degradation
       fallbackInitialization();
     }
@@ -91,25 +98,25 @@
     chrome.runtime.onMessage.addListener((msg) => {
       try {
         switch (msg.type) {
-          case 'ENABLE_EXTENSION':
+          case "ENABLE_EXTENSION":
             extensionEnabled = true;
             updateExtensionState(true);
             break;
-          case 'DISABLE_EXTENSION':
+          case "DISABLE_EXTENSION":
             extensionEnabled = false;
             updateExtensionState(false);
             break;
-          case 'AX_TOOLTIP_SHOWN':
+          case "AX_TOOLTIP_SHOWN":
             // Handle tooltip coordination between frames
             if (CE.tooltip && CE.tooltip.handleCrossFrameTooltip) {
               CE.tooltip.handleCrossFrameTooltip(msg);
             }
             break;
           default:
-            console.warn('[ContentExtension] Unknown message type:', msg.type);
+            console.warn("[ContentExtension] Unknown message type:", msg.type);
         }
       } catch (error) {
-        console.error('[ContentExtension] Error handling message:', error);
+        console.error("[ContentExtension] Error handling message:", error);
       }
     });
   }
@@ -119,7 +126,7 @@
    */
   function updateExtensionState(enabled) {
     extensionEnabled = enabled;
-    
+
     if (enabled) {
       CE.events.enableEventListeners();
     } else {
@@ -128,13 +135,16 @@
     }
 
     // Notify all modules of state change
-    Object.keys(CE).forEach(moduleName => {
+    Object.keys(CE).forEach((moduleName) => {
       const module = CE[moduleName];
-      if (module && typeof module.onStateChange === 'function') {
+      if (module && typeof module.onStateChange === "function") {
         try {
           module.onStateChange(enabled);
         } catch (error) {
-          console.error(`[ContentExtension] Error updating ${moduleName} state:`, error);
+          console.error(
+            `[ContentExtension] Error updating ${moduleName} state:`,
+            error
+          );
         }
       }
     });
@@ -145,16 +155,19 @@
    */
   function setupCleanup() {
     const cleanup = () => {
-      console.log('[ContentExtension] Cleaning up...');
-      
+      console.log("[ContentExtension] Cleaning up...");
+
       // Clean up all modules
-      Object.keys(CE).forEach(moduleName => {
+      Object.keys(CE).forEach((moduleName) => {
         const module = CE[moduleName];
-        if (module && typeof module.cleanup === 'function') {
+        if (module && typeof module.cleanup === "function") {
           try {
             module.cleanup();
           } catch (error) {
-            console.error(`[ContentExtension] Error cleaning up ${moduleName}:`, error);
+            console.error(
+              `[ContentExtension] Error cleaning up ${moduleName}:`,
+              error
+            );
           }
         }
       });
@@ -163,33 +176,33 @@
     };
 
     // Set up cleanup listeners
-    window.addEventListener('pagehide', cleanup, { once: true });
-    window.addEventListener('beforeunload', cleanup, { once: true });
+    window.addEventListener("pagehide", cleanup, { once: true });
+    window.addEventListener("beforeunload", cleanup, { once: true });
   }
 
   /**
    * Fallback initialization for when modules are missing
    */
   function fallbackInitialization() {
-    console.warn('[ContentExtension] Using fallback initialization');
-    
+    console.warn("[ContentExtension] Using fallback initialization");
+
     // Basic tooltip functionality
     if (!CE.tooltip) {
       CE.tooltip = {
         hideTooltip: () => {
-          const tooltip = document.querySelector('.chrome-ax-tooltip');
+          const tooltip = document.querySelector(".chrome-ax-tooltip");
           if (tooltip) {
             tooltip.remove();
           }
-        }
+        },
       };
     }
 
     // Basic event handling
     if (!CE.events) {
       CE.events = {
-        enableEventListeners: () => console.log('Events would be enabled'),
-        disableEventListeners: () => console.log('Events would be disabled')
+        enableEventListeners: () => console.log("Events would be enabled"),
+        disableEventListeners: () => console.log("Events would be disabled"),
       };
     }
   }
@@ -213,15 +226,14 @@
     initialize,
     isEnabled,
     isInitialized,
-    updateExtensionState
+    updateExtensionState,
   };
 
   // Auto-initialize when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initialize);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initialize);
   } else {
     // DOM is already ready
     setTimeout(initialize, 0);
   }
-
 })();

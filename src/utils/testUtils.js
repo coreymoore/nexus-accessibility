@@ -37,7 +37,13 @@ if (typeof chrome !== "undefined" && chrome.runtime) {
         }
 
         // Small delay between iterations
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) =>
+          setTimeout(
+            resolve,
+            window.NexusConstants?.TIMEOUTS?.DEBUGGER_STABILITY_TEST_DELAY ||
+              100
+          )
+        );
       }
 
       console.log(`Results: ${successCount} successful, ${errorCount} failed`);

@@ -4,6 +4,13 @@
 (function () {
   "use strict";
 
+  /**
+   * Debounce function execution
+   * @param {Function} func - Function to debounce
+   * @param {number} wait - Wait time in milliseconds
+   * @param {boolean} immediate - Execute immediately on first call
+   * @returns {Function} Debounced function
+   */
   function debounce(func, wait, immediate = false) {
     let timeout;
 
@@ -21,6 +28,12 @@
     };
   }
 
+  /**
+   * Throttle function execution
+   * @param {Function} func - Function to throttle
+   * @param {number} limit - Throttle limit in milliseconds
+   * @returns {Function} Throttled function
+   */
   function throttle(func, limit) {
     let inThrottle;
 
@@ -35,7 +48,12 @@
 
   // Debounce with request cancellation
   class DebouncedRequest {
-    constructor(func, delay = 150) {
+    constructor(
+      func,
+      delay = (typeof window !== "undefined" &&
+        window.NexusConstants?.TIMEOUTS?.DEBOUNCE_DEFAULT) ||
+        150
+    ) {
       this.func = func;
       this.delay = delay;
       this.timeout = null;

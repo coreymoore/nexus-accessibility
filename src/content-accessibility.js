@@ -29,7 +29,11 @@
    * @param {number} maxAttempts - Maximum number of retry attempts
    * @returns {Promise<Object>} Accessibility information
    */
-  async function waitForAccessibilityUpdate(target, maxAttempts = 8) {
+  async function waitForAccessibilityUpdate(
+    target,
+    maxAttempts = window.NexusConstants?.RETRY_ATTEMPTS?.ACCESSIBILITY_UPDATE ||
+      8
+  ) {
     const cache = CE.cache;
 
     // Cancel any pending request
@@ -91,7 +95,9 @@
 
         // Short backoff: 50ms, 100ms, 150ms, ...
         if (attempt < maxAttempts - 1) {
-          const delay = 50 * (attempt + 1);
+          const delay =
+            (window.NexusConstants?.TIMEOUTS?.ACCESSIBILITY_RETRY_BASE || 50) *
+            (attempt + 1);
           console.log(
             `No meaningful data on attempt ${
               attempt + 1
@@ -109,8 +115,10 @@
 
         // Wait before retry with exponential backoff
         if (attempt < maxAttempts - 1) {
+          const backoffBase =
+            window.NexusConstants?.TIMEOUTS?.EXPONENTIAL_BACKOFF_BASE || 100;
           await new Promise((resolve) =>
-            setTimeout(resolve, 100 * Math.pow(2, attempt))
+            setTimeout(resolve, backoffBase * Math.pow(2, attempt))
           );
         }
       }
@@ -445,41 +453,15 @@
 
     const useLibraries = window.NEXUS_TESTING_MODE?.useLibraries !== false;
 
+    // Try to use libraries first
     if (useLibraries) {
-      try {
-        // Use dom-accessibility-api for name and description
-        if (window.DOMAccessibilityAPI) {
-          name = window.DOMAccessibilityAPI.computeAccessibleName(el);
-          description =
-            window.DOMAccessibilityAPI.computeAccessibleDescription(el);
-          if (verbose) console.log("DOM API computed:", { name, description });
-        }
-
-        // Use aria-query for role
-        role = CE.utils.safeGetAttribute(el, "role");
-        if (!role && window.AriaQuery && window.AriaQuery.getImplicitRole) {
-          role = window.AriaQuery.getImplicitRole(el) || "";
-          if (verbose) console.log("ARIA Query role:", role);
-        }
-
-        // Fallback to dom-accessibility-api getRole
-        if (
-          !role &&
-          window.DOMAccessibilityAPI &&
-          window.DOMAccessibilityAPI.getRole
-        ) {
-          role = window.DOMAccessibilityAPI.getRole(el) || "";
-          if (verbose) console.log("DOM API role:", role);
-        }
-      } catch (error) {
-        console.warn(
-          "Error using accessibility libraries, falling back:",
-          error
-        );
-      }
+      const libraryResults = getAccessibilityFromLibraries(el, verbose);
+      name = libraryResults.name;
+      description = libraryResults.description;
+      role = libraryResults.role;
     }
 
-    // Fallback computation
+    // Fallback computation if libraries didn't provide results
     if (!name) name = computeFallbackAccessibleName(el);
     if (!description) description = computeFallbackDescription(el);
     if (!role) role = computeFallbackRole(el);
@@ -489,10 +471,75 @@
     if (!description) description = "(no description)";
     if (!role) role = "(no role)";
 
-    // Collect ARIA properties and states
+    // Collect states and ARIA properties
+    const statesAndProps = collectStatesAndProperties(el);
+
+    return {
+      role,
+      name,
+      description,
+      value: el.value || "(no value)",
+      states: statesAndProps.states,
+      ariaProperties: statesAndProps.ariaProperties,
+      group: computeGroupInfo(el),
+      ignored: false,
+      ignoredReasons: [],
+    };
+  }
+
+  /**
+   * Get accessibility information from libraries
+   * @param {Element} el - The element
+   * @param {boolean} verbose - Whether to log verbose output
+   * @returns {Object} Library results
+   */
+  function getAccessibilityFromLibraries(el, verbose = false) {
+    let name = "";
+    let description = "";
+    let role = "";
+
+    try {
+      // Use dom-accessibility-api for name and description
+      if (window.DOMAccessibilityAPI) {
+        name = window.DOMAccessibilityAPI.computeAccessibleName(el);
+        description =
+          window.DOMAccessibilityAPI.computeAccessibleDescription(el);
+        if (verbose) console.log("DOM API computed:", { name, description });
+      }
+
+      // Use aria-query for role
+      role = CE.utils.safeGetAttribute(el, "role");
+      if (!role && window.AriaQuery && window.AriaQuery.getImplicitRole) {
+        role = window.AriaQuery.getImplicitRole(el) || "";
+        if (verbose) console.log("ARIA Query role:", role);
+      }
+
+      // Fallback to dom-accessibility-api getRole
+      if (
+        !role &&
+        window.DOMAccessibilityAPI &&
+        window.DOMAccessibilityAPI.getRole
+      ) {
+        role = window.DOMAccessibilityAPI.getRole(el) || "";
+        if (verbose) console.log("DOM API role:", role);
+      }
+    } catch (error) {
+      console.warn("Error using accessibility libraries, falling back:", error);
+    }
+
+    return { name, description, role };
+  }
+
+  /**
+   * Collect ARIA properties and states from element
+   * @param {Element} el - The element
+   * @returns {Object} Object with states and ariaProperties
+   */
+  function collectStatesAndProperties(el) {
     const ariaProperties = {};
     const states = {};
 
+    // Collect ARIA properties
     Array.from(el.attributes).forEach((attr) => {
       if (attr.name.startsWith("aria-") && attr.name !== "aria-describedby") {
         ariaProperties[attr.name] = attr.value;
@@ -517,17 +564,7 @@
       states.checked = true;
     }
 
-    return {
-      role,
-      name,
-      description,
-      value: el.value || "(no value)",
-      states,
-      ariaProperties,
-      group: computeGroupInfo(el),
-      ignored: false,
-      ignoredReasons: [],
-    };
+    return { states, ariaProperties };
   }
 
   /**
@@ -707,6 +744,10 @@
     computeFallbackAccessibleName,
     computeFallbackDescription,
     computeFallbackRole,
+
+    // Helper functions
+    getAccessibilityFromLibraries,
+    collectStatesAndProperties,
 
     // Internal functions (exposed for testing)
     waitForAccessibilityUpdate,

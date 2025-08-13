@@ -119,6 +119,10 @@ const loggers = {
 
 // Remove the window assignment for content scripts
 // Instead, create a separate initialization function
+/**
+ * Initialize the content script logger
+ * Creates a global logger instance for content scripts
+ */
 function initializeLogger() {
   if (typeof window !== "undefined" && !window.axLogger) {
     window.axLogger = {

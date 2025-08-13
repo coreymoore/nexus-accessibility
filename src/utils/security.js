@@ -278,7 +278,14 @@ class SecurityUtils {
   /**
    * Rate limiter for operations
    */
-  createRateLimiter(maxRequests = 100, windowMs = 60000) {
+  createRateLimiter(
+    maxRequests = (typeof window !== "undefined" &&
+      window.NexusConstants?.RATE_LIMITS?.MAX_REQUESTS_DEFAULT) ||
+      100,
+    windowMs = (typeof window !== "undefined" &&
+      window.NexusConstants?.RATE_LIMITS?.WINDOW_MS_DEFAULT) ||
+      60000
+  ) {
     const requests = new Map();
 
     return (identifier) => {

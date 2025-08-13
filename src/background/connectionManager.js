@@ -11,6 +11,7 @@ import { scheduler } from "../utils/scheduler.js";
 import { logger } from "../utils/logger.js";
 import { security, debuggerRateLimit } from "../utils/security.js";
 import { performance } from "../utils/performance.js";
+import { DEBUGGER_CONNECTION_RETRIES } from "./constants.js";
 
 export class DebuggerConnectionManager {
   constructor() {
@@ -273,7 +274,7 @@ export class DebuggerConnectionManager {
     if (
       error.message.includes("not attached") ||
       error.message.includes("Target closed") ||
-      connection.retryCount > 3
+      connection.retryCount > DEBUGGER_CONNECTION_RETRIES
     ) {
       connection.state = "DETACHED";
       connection.frameContexts.clear();

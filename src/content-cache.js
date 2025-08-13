@@ -184,7 +184,12 @@
    * @param {number} delay - Debounce delay in milliseconds
    * @returns {Function} Debounced function
    */
-  function createDebouncedUpdate(updateFunction, delay = 150) {
+  function createDebouncedUpdate(
+    updateFunction,
+    delay = (typeof window !== "undefined" &&
+      window.NexusConstants?.TIMEOUTS?.CACHE_UPDATE_DEBOUNCE) ||
+      150
+  ) {
     const utils = CE.utils;
 
     if (utils && utils.debounce) {

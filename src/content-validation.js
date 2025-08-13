@@ -33,7 +33,7 @@
     setTimeout(() => {
       checkLibraryAvailability();
       injectLibrariesIntoPageContext();
-    }, 100);
+    }, window.NexusConstants?.TIMEOUTS?.LIBRARY_CHECK_DELAY || 100);
   }
 
   /**
@@ -68,7 +68,7 @@
   function validateAccessibilityLibraries(el) {
     if (!el) {
       console.log("[VALIDATION] No element provided");
-      return;
+      return null;
     }
 
     console.group(
@@ -77,45 +77,21 @@
       }${el.className ? "." + el.className.replace(/\s+/g, ".") : ""}`
     );
 
-    const results = {
-      element: el,
-      libraryResults: {},
-      fallbackResults: {},
-      comparison: {},
-    };
-
-    // Test libraries
-    try {
-      if (window.DOMAccessibilityAPI) {
-        console.log("[VALIDATION] ✅ DOMAccessibilityAPI is available");
-        results.libraryResults.name =
-          window.DOMAccessibilityAPI.computeAccessibleName(el);
-        results.libraryResults.description =
-          window.DOMAccessibilityAPI.computeAccessibleDescription(el);
-        results.libraryResults.role_dom =
-          window.DOMAccessibilityAPI.getRole(el);
-        console.log("[VALIDATION] DOM API results:", {
-          name: results.libraryResults.name,
-          description: results.libraryResults.description,
-          role: results.libraryResults.role_dom,
-        });
-      } else {
-        console.log("[VALIDATION] ❌ DOMAccessibilityAPI is NOT available");
-      }
-
-      if (window.AriaQuery) {
-        console.log("[VALIDATION] ✅ AriaQuery is available");
-        results.libraryResults.role_aria = window.AriaQuery.getImplicitRole(el);
-        console.log(
-          "[VALIDATION] ARIA Query role:",
-          results.libraryResults.role_aria
-        );
-      } else {
-        console.log("[VALIDATION] ❌ AriaQuery is NOT available");
-      }
-    } catch (error) {
-      console.error("[VALIDATION] Error with libraries:", error);
-      results.libraryError = error.message;
+    // Use centralized validation if available
+    let results;
+    if (window.ValidationUtils) {
+      results = window.ValidationUtils.validateAccessibilityLibrariesCore(el, {
+        verbose: true,
+        useLibraries: window.NEXUS_TESTING_MODE?.useLibraries !== false,
+      });
+    } else {
+      // Fallback for when validation utils aren't loaded
+      results = {
+        element: el,
+        libraryResults: {},
+        fallbackResults: {},
+        comparison: {},
+      };
     }
 
     // Test fallback functions
@@ -135,8 +111,12 @@
       results.fallbackError = error.message;
     }
 
-    // Compare results
-    compareValidationResults(results);
+    // Compare results using centralized logic
+    if (window.ValidationUtils) {
+      window.ValidationUtils.compareValidationResults(results);
+    } else {
+      compareValidationResults(results);
+    }
 
     // Test the production function
     if (CE.accessibility && CE.accessibility.getLocalAccessibleInfo) {
@@ -215,7 +195,23 @@
    * @param {number} limit - Maximum number of elements to test
    * @returns {Array} Array of validation results
    */
-  function batchValidateAccessibility(selector = "*", limit = 10) {
+  function batchValidateAccessibility(
+    selector = "*",
+    limit = window.NexusConstants?.BATCH_LIMITS?.VALIDATION_DEFAULT || 10
+  ) {
+    // Use centralized validation if available
+    if (window.ValidationUtils) {
+      return window.ValidationUtils.batchValidateAccessibilityCore(
+        selector,
+        limit,
+        {
+          verbose: window.NEXUS_TESTING_MODE?.verbose || false,
+          useLibraries: window.NEXUS_TESTING_MODE?.useLibraries !== false,
+        }
+      );
+    }
+
+    // Fallback implementation
     const elements = document.querySelectorAll(selector);
     console.log(
       `[BATCH VALIDATION] Testing ${Math.min(
@@ -292,18 +288,39 @@
    */
   function injectValidationFunctions() {
     try {
-      const validationScript = document.createElement("script");
-      validationScript.src = chrome.runtime.getURL(
-        "src/libs/validation-functions.js"
+      // First inject the centralized validation utilities
+      const validationUtilsScript = document.createElement("script");
+      validationUtilsScript.src = chrome.runtime.getURL(
+        "src/utils/validation-utils.js"
       );
-      validationScript.onload = () => {
-        console.log("[NEXUS] ✅ Validation functions loaded into page context");
+      validationUtilsScript.onload = () => {
+        console.log("[NEXUS] ✅ Validation utilities loaded into page context");
+
+        // Then inject the page-specific validation functions
+        const validationScript = document.createElement("script");
+        validationScript.src = chrome.runtime.getURL(
+          "src/libs/validation-functions.js"
+        );
+        validationScript.onload = () => {
+          console.log(
+            "[NEXUS] ✅ Validation functions loaded into page context"
+          );
+        };
+        validationScript.onerror = (error) => {
+          console.error("[NEXUS] Failed to load validation functions:", error);
+        };
+
+        (document.head || document.documentElement).appendChild(
+          validationScript
+        );
       };
-      validationScript.onerror = (error) => {
-        console.error("[NEXUS] Failed to load validation functions:", error);
+      validationUtilsScript.onerror = (error) => {
+        console.error("[NEXUS] Failed to load validation utilities:", error);
       };
 
-      (document.head || document.documentElement).appendChild(validationScript);
+      (document.head || document.documentElement).appendChild(
+        validationUtilsScript
+      );
     } catch (error) {
       console.error("[NEXUS] Failed to inject validation functions:", error);
     }
@@ -361,7 +378,7 @@
     const {
       testCurrentElement: shouldTestCurrent = true,
       batchSelector = "button, input, a, [role]",
-      batchLimit = 5,
+      batchLimit = window.NexusConstants?.BATCH_LIMITS?.ELEMENTS_MAX || 5,
     } = options;
 
     console.group("[VALIDATION SUITE] Running comprehensive validation");

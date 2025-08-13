@@ -8,8 +8,15 @@
 export class ErrorRecoveryManager {
   constructor() {
     this.retryCounters = new Map();
-    this.maxRetries = 3;
-    this.backoffBase = 1000; // 1 second base delay
+    // Use constants if available, fallback to defaults
+    this.maxRetries =
+      (typeof window !== "undefined" &&
+        window.NexusConstants?.RETRY_ATTEMPTS?.ERROR_RECOVERY_MAX) ||
+      3;
+    this.backoffBase =
+      (typeof window !== "undefined" &&
+        window.NexusConstants?.ERROR_RECOVERY?.BACKOFF_BASE) ||
+      1000; // 1 second base delay
   }
 
   /**
@@ -24,7 +31,9 @@ export class ErrorRecoveryManager {
       maxRetries = this.maxRetries,
       onError = null,
       shouldRetry = this.defaultShouldRetry,
-      backoffMultiplier = 2,
+      backoffMultiplier = (typeof window !== "undefined" &&
+        window.NexusConstants?.ERROR_RECOVERY?.BACKOFF_MULTIPLIER) ||
+        2,
     } = options;
 
     let lastError = null;

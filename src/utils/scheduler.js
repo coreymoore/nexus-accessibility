@@ -105,10 +105,22 @@ export class ServiceWorkerScheduler {
 export const scheduler = new ServiceWorkerScheduler();
 
 // Utility functions for common patterns
+/**
+ * Schedule a debounced operation
+ * @param {string} name - Operation name
+ * @param {number} delayMs - Delay in milliseconds
+ * @param {Function} handler - Handler function
+ */
 export function scheduleDebounced(name, delayMs, handler) {
   scheduler.schedule(name, delayMs, handler);
 }
 
+/**
+ * Schedule a throttled operation
+ * @param {string} name - Operation name
+ * @param {number} intervalMs - Interval in milliseconds
+ * @param {Function} handler - Handler function
+ */
 export function scheduleThrottled(name, intervalMs, handler) {
   if (!scheduler.alarmHandlers.has(name)) {
     scheduler.schedule(name, intervalMs, handler);

@@ -25,6 +25,7 @@
       "all_frames": true,
       "match_about_blank": true,
       "js": [
+        "src/utils/constants.js",
         "src/utils/dom-sanitizer.js",
         "src/utils/error-handler.js",
         "src/utils/debounce.js",
@@ -53,6 +54,8 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "src/utils/constants.js",
+        "src/utils/validation-utils.js",
         "src/components/tooltip/tooltip.css",
         "src/assets/fonts/inter.css",
         "src/assets/fonts/inter-latin-400.woff2",

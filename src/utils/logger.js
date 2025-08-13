@@ -114,6 +114,10 @@ const loggers = {
 
 // Remove the window assignment for content scripts
 // Instead, create a separate initialization function
+/**
+ * Initialize the background script logger
+ * Creates a global logger instance for background scripts
+ */
 function initializeLogger() {
   if (typeof window !== "undefined" && !window.axLogger) {
     window.axLogger = {

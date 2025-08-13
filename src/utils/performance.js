@@ -17,10 +17,22 @@ class PerformanceMonitor {
 
     // Track performance thresholds
     this.thresholds = {
-      tooltipDisplay: 100, // ms - target for tooltip display
-      debuggerAttach: 2000, // ms - maximum for debugger attachment
-      axTreeRetrieval: 1000, // ms - maximum for accessibility tree retrieval
-      nodeQuery: 500, // ms - maximum for DOM node queries
+      tooltipDisplay:
+        (typeof window !== "undefined" &&
+          window.NexusConstants?.PERFORMANCE_THRESHOLDS?.TOOLTIP_DISPLAY) ||
+        100, // ms - target for tooltip display
+      debuggerAttach:
+        (typeof window !== "undefined" &&
+          window.NexusConstants?.PERFORMANCE_THRESHOLDS?.DEBUGGER_ATTACH) ||
+        2000, // ms - maximum for debugger attachment
+      axTreeRetrieval:
+        (typeof window !== "undefined" &&
+          window.NexusConstants?.PERFORMANCE_THRESHOLDS?.AX_TREE_RETRIEVAL) ||
+        1000, // ms - maximum for accessibility tree retrieval
+      nodeQuery:
+        (typeof window !== "undefined" &&
+          window.NexusConstants?.PERFORMANCE_THRESHOLDS?.NODE_QUERY) ||
+        500, // ms - maximum for DOM node queries
     };
   }
 
@@ -172,7 +184,15 @@ class PerformanceMonitor {
       };
 
       // Warn if memory growth exceeds 50MB or 50%
-      if (growth > 50 * 1024 * 1024 || growthPercent > 50) {
+      const memoryLimits = (typeof window !== "undefined" &&
+        window.NexusConstants?.MEMORY_LIMITS) || {
+        GROWTH_WARNING_BYTES: 50 * 1024 * 1024,
+        GROWTH_WARNING_PERCENT: 50,
+      };
+      if (
+        growth > memoryLimits.GROWTH_WARNING_BYTES ||
+        growthPercent > memoryLimits.GROWTH_WARNING_PERCENT
+      ) {
         this.log.warn("High memory growth detected", result.growth);
       }
     }
