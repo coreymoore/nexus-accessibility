@@ -33,7 +33,14 @@
         "src/libs/dom-accessibility-api.js",
         "src/libs/aria-query.js",
         "src/components/tooltip/tooltip.js",
-        "src/content.js"
+        "src/content-utils.js",
+        "src/content-cache.js",
+        "src/content-events.js",
+        "src/content-accessibility.js",
+        "src/content-observers.js",
+        "src/content-tooltip.js",
+        "src/content-validation.js",
+        "src/content-main.js"
       ]
     }
   ],
