@@ -8,11 +8,26 @@ This is an early release and not feature complete.
 
 ## Known Issues
 
-These will be resolved before official release.
+**Recent Improvements (Latest Refactoring):**
+
+- ✅ Fixed memory leaks from duplicate message listeners
+- ✅ Implemented Chrome API promise wrappers to prevent race conditions
+- ✅ Added smart caching with TTL and LRU eviction
+- ✅ Enhanced error handling and recovery with automatic retry logic
+- ✅ Improved MV3 compatibility with service worker scheduler
+- ✅ Added proper cleanup on page unload
+- ✅ Enhanced logging and debugging capabilities
+- ✅ Improved tooltip accessibility with ARIA attributes and focus management
+- ✅ Added programmatic content script injection for better security
+- ✅ Enhanced frame context management for cross-origin support
+- ✅ Added comprehensive testing utilities for validation
+
+**Remaining Known Issues:**
+These will be resolved in upcoming releases.
 
 - Some accessibility properties do not properly display.
 - Potential access barriers on the tooltip or extension menu, as full accessibility testing has not yet been completed. I did try to minimize as many barriers as possible during development but I used a very quick iterative process and may have missed some.
-- The code is a bit spaghetti at this time. The plan is to go back and refine it manually before release.
+- Cross-origin iframe support needs further testing.
 
 ## Features
 
@@ -70,12 +85,32 @@ This extension does not collect or transmit any user data. All accessibility ins
 - No user information storage
 - All processing happens locally on your device
 
-## Shadow DOM Support and Limitations
+## Retrieval of Accessibility Information
 
-- For elements inside Shadow DOM, Nexus uses ARIA attributes and native properties to estimate accessible name, role, and description.
-- This may not match the computed accessibility tree shown in Chrome DevTools, and may miss browser-internal accessibility calculations.
-- For elements in the main document, full accessibility info is retrieved using the Chrome Debugger Protocol.
-- Due to Chrome’s architecture, extensions cannot access the full computed accessibility tree for shadow DOM elements.
+Nexus uses the Chrome DevTools Protocol (CDP) to retrieve full accessibility information for all elements, including those within Shadow DOM. When CDP is unavailable or fails for specific elements, the extension falls back to local computation using specialized libraries:
+
+**Primary Method - Chrome DevTools Protocol (CDP):**
+
+- Works with both regular DOM and Shadow DOM elements
+- Provides the most accurate accessibility information matching Chrome's internal calculations
+- Handles delegated focus patterns and complex Shadow DOM structures
+- Used for all elements when possible
+
+**Fallback Libraries (when CDP is unavailable):**
+
+- **dom-accessibility-api**: Computes accessible names and descriptions following W3C specifications
+- **aria-query**: Provides ARIA role definitions, properties, and validation
+- These libraries estimate accessibility properties using ARIA attributes and DOM structure
+- May not match browser-internal calculations exactly, but provide reliable fallback data
+
+**When Fallbacks Are Used:**
+
+- Network connectivity issues preventing CDP access
+- Cross-origin restrictions in certain iframe scenarios
+- Temporary CDP failures or timeouts
+- Elements in documents where debugger attachment is blocked
+
+The extension automatically detects when CDP is unavailable and seamlessly switches to the fallback computation, ensuring accessibility information is always available to developers.
 
 ## Performance and Caching Notes
 
@@ -96,6 +131,41 @@ To keep the inspector responsive on complex pages and sites that use frames/ifra
 - Slightly higher memory usage in the background service worker due to caches. The TTL and size cap bound this usage.
 - The extension uses the `debugger` permission to access CDP. While attached, DevTools may report that another debugger is attached. The extension mitigates this by detaching after short idle periods.
 - The extension requests `webNavigation` to coordinate across frames and improve targeting. No network requests are made; all CDP interactions are scoped to the active tab.
+
+## Technical Architecture
+
+**Modular Structure:**
+
+- `src/background/` - Service worker modules for debugger management, caching, and CDP communication
+- `src/components/` - UI components including the accessibility tooltip
+- `src/utils/` - Shared utilities for logging, Chrome API wrappers, and scheduling
+
+**Key Components:**
+
+- **DebuggerConnectionManager** - Serializes debugger operations to prevent race conditions
+- **SmartCache** - TTL-based caching with LRU eviction for memory management
+- **ServiceWorkerScheduler** - Replaces setTimeout/setInterval with chrome.alarms for MV3 compatibility
+- **Promise-wrapped Chrome APIs** - Eliminates callback-based race conditions
+
+**Memory Management:**
+
+- Automatic cleanup of event listeners on page unload
+- Bounded caches with TTL and size limits
+- Proper tooltip lifecycle management
+
+## Testing and Validation
+
+The extension includes built-in testing utilities for developers:
+
+1. Open Chrome DevTools while on the extension's service worker
+2. In the console, run: `window.NexusTestUtils.runAllTests()`
+
+Available test commands:
+
+- `testDebuggerStability()` - Tests debugger attach/detach cycles
+- `testCachePerformance()` - Validates cache read/write performance
+- `testMemoryUsage()` - Monitors memory consumption patterns
+- `testErrorRecovery()` - Validates error handling and retry logic
 
 ## AI Disclosure
 

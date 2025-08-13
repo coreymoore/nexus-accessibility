@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accessibility Library Validation Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .test-section {
+        border: 1px solid #ddd;
+        margin: 20px 0;
+        padding: 15px;
+        border-radius: 5px;
+      }
+      .test-section h3 {
+        margin-top: 0;
+        color: #333;
+      }
+      button {
+        background: #007cba;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #005a87;
+      }
+      .console-note {
+        background: #f0f0f0;
+        padding: 10px;
+        border-radius: 3px;
+        margin: 10px 0;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Accessibility Library Validation Test Page</h1>
+
+    <div class="console-note">
+      <strong>Instructions:</strong> Open DevTools Console and use these
+      functions: <br />• <code>validateAccessibilityLibraries(element)</code> -
+      Test a specific element <br />•
+      <code>batchValidateAccessibility('button')</code> - Test all buttons
+      <br />• <code>window.NEXUS_TESTING_MODE.verbose = true</code> - Enable
+      detailed logging <br />•
+      <code>window.NEXUS_TESTING_MODE.useLibraries = false</code> - Test without
+      libraries
+    </div>
+
+    <div class="test-section">
+      <h3>Basic Elements</h3>
+      <button id="test-button">Test Button</button>
+      <button aria-label="Custom labeled button">Aria Label Button</button>
+      <button disabled>Disabled Button</button>
+    </div>
+
+    <div class="test-section">
+      <h3>Form Elements</h3>
+      <label for="test-input">Test Input:</label>
+      <input type="text" id="test-input" placeholder="Enter text here" />
+
+      <label for="test-select">Choose option:</label>
+      <select id="test-select">
+        <option>Option 1</option>
+        <option>Option 2</option>
+      </select>
+
+      <label>
+        <input type="checkbox" id="test-checkbox" /> Nested Label Checkbox
+      </label>
+    </div>
+
+    <div class="test-section">
+      <h3>ARIA Elements</h3>
+      <div role="button" tabindex="0" aria-label="Custom ARIA Button">
+        Click me (ARIA button)
+      </div>
+
+      <div aria-describedby="desc1">Element with description</div>
+      <div id="desc1">This is the description text</div>
+
+      <div aria-labelledby="label1 label2">Element with multiple labels</div>
+      <span id="label1">First label</span>
+      <span id="label2">Second label</span>
+    </div>
+
+    <div class="test-section">
+      <h3>Images</h3>
+      <img
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='50' height='50' fill='%23ddd'/%3E%3C/svg%3E"
+        alt="Test image with alt text"
+      />
+      <img
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='50' height='50' fill='%23ddd'/%3E%3C/svg%3E"
+        alt=""
+      />
+      <img
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='50' height='50' fill='%23ddd'/%3E%3C/svg%3E"
+      />
+    </div>
+
+    <div class="test-section">
+      <h3>Shadow DOM Elements</h3>
+      <div id="shadow-host-1"></div>
+      <div id="shadow-host-2"></div>
+      <div id="shadow-host-3"></div>
+      <div id="shadow-host-4"></div>
+
+      <style>
+        .shadow-button {
+          background: #28a745;
+          color: white;
+          padding: 10px 15px;
+          border: none;
+          border-radius: 3px;
+          cursor: pointer;
+          margin: 5px;
+        }
+        .shadow-form {
+          background: #f8f9fa;
+          padding: 15px;
+          border: 1px solid #dee2e6;
+          border-radius: 5px;
+          margin: 10px 0;
+        }
+        .shadow-aria {
+          background: #17a2b8;
+          color: white;
+          padding: 10px;
+          border-radius: 3px;
+          cursor: pointer;
+        }
+      </style>
+    </div>
+
+    <div class="test-section">
+      <h3>Quick Tests</h3>
+      <button onclick="testCurrentElement(this)">Test This Button</button>
+      <button onclick="testAllButtons()">Test All Buttons</button>
+      <button onclick="testShadowElements()">Test Shadow DOM Elements</button>
+      <button onclick="toggleLibraries()">Toggle Libraries On/Off</button>
+      <button onclick="toggleVerbose()">Toggle Verbose Logging</button>
+    </div>
+
+    <script>
+      // Create Shadow DOM examples
+      function createShadowDOMExamples() {
+        // 1. Custom Button Component - WCAG compliant
+        const shadowHost1 = document.getElementById("shadow-host-1");
+        shadowHost1.setAttribute("role", "button");
+        shadowHost1.setAttribute("tabindex", "0");
+        shadowHost1.setAttribute("aria-label", "Custom Shadow Button");
+        shadowHost1.style.display = "inline-block";
+        shadowHost1.style.margin = "10px 5px";
+
+        const shadowRoot1 = shadowHost1.attachShadow({ mode: "open" });
+        shadowRoot1.innerHTML = `
+          <style>
+            :host {
+              background: #28a745;
+              color: white;
+              padding: 10px 15px;
+              border-radius: 3px;
+              cursor: pointer;
+              font-size: 14px;
+              outline: none;
+            }
+            :host(:focus) {
+              outline: 2px solid #fff;
+              outline-offset: 2px;
+              background: #218838;
+            }
+            :host(:hover) {
+              background: #218838;
+            }
+          </style>
+          <slot>Click me (Shadow DOM)</slot>
+        `;
+
+        // Add keyboard support for WCAG compliance
+        shadowHost1.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            console.log("Shadow button activated");
+          }
+        });
+
+        // 2. Custom Input Component - WCAG compliant with delegated focus
+        const shadowHost2 = document.getElementById("shadow-host-2");
+        shadowHost2.style.display = "block";
+        shadowHost2.style.margin = "10px 0";
+
+        const shadowRoot2 = shadowHost2.attachShadow({
+          mode: "open",
+          delegatesFocus: true,
+        });
+        shadowRoot2.innerHTML = `
+          <style>
+            :host {
+              display: block;
+              outline: none;
+            }
+            :host(:focus-within) {
+              outline: 2px solid #007cba;
+              outline-offset: 2px;
+            }
+            .form-group {
+              margin: 10px 0;
+            }
+            label {
+              display: block;
+              font-weight: bold;
+              margin-bottom: 5px;
+            }
+            input, select {
+              padding: 8px;
+              border: 2px solid #ccc;
+              border-radius: 4px;
+              font-size: 14px;
+              width: 200px;
+            }
+            input:focus, select:focus {
+              border-color: #007cba;
+              outline: 2px solid #007cba;
+              outline-offset: 2px;
+            }
+            .helper-text {
+              font-size: 12px;
+              color: #666;
+              margin-top: 5px;
+            }
+          </style>
+          <div class="form-group">
+            <label for="shadow-input">Email Address</label>
+            <input type="email" 
+                   id="shadow-input" 
+                   aria-describedby="input-help"
+                   placeholder="Enter your email"
+                   required>
+            <div id="input-help" class="helper-text">We'll never share your email</div>
+          </div>
+          <div class="form-group">
+            <label for="shadow-select">Country</label>
+            <select id="shadow-select" aria-describedby="select-help" required>
+              <option value="">Choose a country</option>
+              <option value="us">United States</option>
+              <option value="ca">Canada</option>
+              <option value="uk">United Kingdom</option>
+            </select>
+            <div id="select-help" class="helper-text">Select your country of residence</div>
+          </div>
+        `;
+
+        // Add focus event listeners to debug select behavior
+        const emailInput = shadowRoot2.getElementById("shadow-input");
+        const countrySelect = shadowRoot2.getElementById("shadow-select");
+
+        console.log("Email input element:", emailInput);
+        console.log("Country select element:", countrySelect);
+        console.log("Country select tabindex:", countrySelect.tabIndex);
+        console.log("Country select disabled:", countrySelect.disabled);
+
+        emailInput.addEventListener("focus", () => {
+          console.log("=== EMAIL INPUT FOCUSED ===");
+          console.log("Email input tagName:", emailInput.tagName);
+          console.log("Email input id:", emailInput.id);
+          console.log(
+            "Shadow root activeElement tagName:",
+            shadowRoot2.activeElement?.tagName
+          );
+          console.log(
+            "Shadow root activeElement id:",
+            shadowRoot2.activeElement?.id
+          );
+          console.log(
+            "Document activeElement tagName:",
+            document.activeElement?.tagName
+          );
+          console.log("Document activeElement id:", document.activeElement?.id);
+        });
+
+        countrySelect.addEventListener("focus", () => {
+          console.log("=== COUNTRY SELECT FOCUSED ===");
+          console.log("Country select tagName:", countrySelect.tagName);
+          console.log("Country select id:", countrySelect.id);
+          console.log(
+            "Shadow root activeElement tagName:",
+            shadowRoot2.activeElement?.tagName
+          );
+          console.log(
+            "Shadow root activeElement id:",
+            shadowRoot2.activeElement?.id
+          );
+          console.log(
+            "Document activeElement tagName:",
+            document.activeElement?.tagName
+          );
+          console.log("Document activeElement id:", document.activeElement?.id);
+        });
+
+        // Also listen for focusin events on the shadow host
+        shadowHost2.addEventListener("focusin", (e) => {
+          console.log("=== SHADOW HOST FOCUSIN ===");
+          console.log("Focusin target tagName:", e.target?.tagName);
+          console.log("Focusin target id:", e.target?.id);
+          console.log(
+            "Shadow root activeElement tagName:",
+            shadowRoot2.activeElement?.tagName
+          );
+          console.log(
+            "Shadow root activeElement id:",
+            shadowRoot2.activeElement?.id
+          );
+          console.log(
+            "Document activeElement tagName:",
+            document.activeElement?.tagName
+          );
+          console.log("Document activeElement id:", document.activeElement?.id);
+        });
+
+        // Test if we can manually focus the select
+        setTimeout(() => {
+          console.log("Attempting to focus select programmatically...");
+          countrySelect.focus();
+          console.log(
+            "After focus attempt - activeElement in shadow:",
+            shadowRoot2.activeElement
+          );
+          console.log(
+            "After focus attempt - document activeElement:",
+            document.activeElement
+          );
+        }, 2000);
+
+        // 3. Custom ARIA Widget - Expandable Content (WCAG compliant)
+        const shadowHost3 = document.getElementById("shadow-host-3");
+        shadowHost3.setAttribute("role", "button");
+        shadowHost3.setAttribute("tabindex", "0");
+        shadowHost3.setAttribute("aria-expanded", "false");
+        shadowHost3.setAttribute("aria-controls", "expandable-content");
+        shadowHost3.setAttribute("aria-label", "Toggle expandable content");
+        shadowHost3.style.display = "block";
+        shadowHost3.style.margin = "10px 0";
+
+        const shadowRoot3 = shadowHost3.attachShadow({ mode: "open" });
+        shadowRoot3.innerHTML = `
+          <style>
+            :host {
+              display: block;
+              background: #17a2b8;
+              color: white;
+              padding: 15px;
+              border-radius: 4px;
+              cursor: pointer;
+              border: 2px solid transparent;
+            }
+            :host(:focus) {
+              border-color: #fff;
+              outline: none;
+            }
+            :host(:hover) {
+              background: #138496;
+            }
+            .toggle-indicator {
+              float: right;
+              font-weight: bold;
+            }
+            .content {
+              margin-top: 15px;
+              padding: 10px;
+              background: rgba(255,255,255,0.1);
+              border-radius: 4px;
+              display: none;
+            }
+            :host([aria-expanded="true"]) .content {
+              display: block;
+            }
+            :host([aria-expanded="true"]) .toggle-indicator::before {
+              content: "−";
+            }
+            :host([aria-expanded="false"]) .toggle-indicator::before {
+              content: "+";
+            }
+          </style>
+          <div>
+            <span>Expandable Shadow Component</span>
+            <span class="toggle-indicator" aria-hidden="true"></span>
+          </div>
+          <div class="content" id="expandable-content" role="region" aria-label="Expanded content">
+            <p>This content is inside a shadow DOM and follows WCAG guidelines for expandable content.</p>
+            <button type="button">Action Button</button>
+          </div>
+        `;
+
+        // Add proper keyboard and click handlers
+        shadowHost3.addEventListener("click", toggleExpanded);
+        shadowHost3.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleExpanded();
+          }
+        });
+
+        function toggleExpanded() {
+          const isExpanded =
+            shadowHost3.getAttribute("aria-expanded") === "true";
+          shadowHost3.setAttribute("aria-expanded", (!isExpanded).toString());
+        }
+
+        // 4. Nested Shadow DOM with Modal Dialog Pattern (WCAG compliant)
+        const shadowHost4 = document.getElementById("shadow-host-4");
+        shadowHost4.style.display = "block";
+        shadowHost4.style.margin = "10px 0";
+
+        const shadowRoot4 = shadowHost4.attachShadow({ mode: "open" });
+        shadowRoot4.innerHTML = `
+          <style>
+            :host {
+              display: block;
+            }
+            .container {
+              background: #6f42c1;
+              color: white;
+              padding: 20px;
+              border-radius: 8px;
+              position: relative;
+            }
+            .trigger-button {
+              background: #fff;
+              color: #6f42c1;
+              border: 2px solid #fff;
+              padding: 10px 15px;
+              border-radius: 4px;
+              cursor: pointer;
+              font-weight: bold;
+            }
+            .trigger-button:focus {
+              outline: 2px solid #ffc107;
+              outline-offset: 2px;
+            }
+            h3 {
+              margin: 0 0 15px 0;
+              font-size: 18px;
+            }
+          </style>
+          <div class="container">
+            <h3>Complex Shadow Component</h3>
+            <p>This component contains nested shadow DOM with proper ARIA patterns.</p>
+            <button class="trigger-button" 
+                    type="button"
+                    aria-describedby="button-desc">
+              Open Nested Dialog
+            </button>
+            <div id="button-desc" style="font-size: 12px; margin-top: 5px; opacity: 0.8;">
+              Opens a dialog within nested shadow DOM
+            </div>
+            <div id="nested-container"></div>
+          </div>
+        `;
+
+        // Create nested shadow DOM with dialog
+        const nestedContainer = shadowRoot4.getElementById("nested-container");
+        const nestedShadowRoot = nestedContainer.attachShadow({ mode: "open" });
+        nestedShadowRoot.innerHTML = `
+          <style>
+            .dialog {
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              background: white;
+              color: black;
+              padding: 20px;
+              border-radius: 8px;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+              display: none;
+              min-width: 300px;
+              z-index: 1000;
+            }
+            .dialog[open] {
+              display: block;
+            }
+            .dialog h4 {
+              margin: 0 0 15px 0;
+            }
+            .dialog-buttons {
+              margin-top: 20px;
+              text-align: right;
+            }
+            .dialog-buttons button {
+              margin-left: 10px;
+              padding: 8px 15px;
+              border-radius: 4px;
+              cursor: pointer;
+            }
+            .close-btn {
+              background: #dc3545;
+              color: white;
+              border: none;
+            }
+            .confirm-btn {
+              background: #28a745;
+              color: white;
+              border: none;
+            }
+            .backdrop {
+              position: fixed;
+              top: 0;
+              left: 0;
+              width: 100%;
+              height: 100%;
+              background: rgba(0,0,0,0.5);
+              display: none;
+              z-index: 999;
+            }
+            .backdrop[open] {
+              display: block;
+            }
+          </style>
+          <div class="backdrop" role="presentation"></div>
+          <div class="dialog" 
+               role="dialog" 
+               aria-modal="true"
+               aria-labelledby="dialog-title"
+               aria-describedby="dialog-desc">
+            <h4 id="dialog-title">Nested Shadow Dialog</h4>
+            <p id="dialog-desc">This dialog is rendered within nested shadow DOM and follows WCAG modal patterns.</p>
+            <div class="dialog-buttons">
+              <button type="button" class="close-btn" aria-label="Close dialog">Cancel</button>
+              <button type="button" class="confirm-btn">Confirm</button>
+            </div>
+          </div>
+        `;
+
+        // Add dialog functionality
+        const triggerBtn = shadowRoot4.querySelector(".trigger-button");
+        const dialog = nestedShadowRoot.querySelector(".dialog");
+        const backdrop = nestedShadowRoot.querySelector(".backdrop");
+        const closeBtn = nestedShadowRoot.querySelector(".close-btn");
+        const confirmBtn = nestedShadowRoot.querySelector(".confirm-btn");
+
+        triggerBtn.addEventListener("click", () => {
+          dialog.setAttribute("open", "");
+          backdrop.setAttribute("open", "");
+          closeBtn.focus(); // Focus management for accessibility
+        });
+
+        closeBtn.addEventListener("click", closeDialog);
+        confirmBtn.addEventListener("click", closeDialog);
+        backdrop.addEventListener("click", closeDialog);
+
+        function closeDialog() {
+          dialog.removeAttribute("open");
+          backdrop.removeAttribute("open");
+          triggerBtn.focus(); // Return focus to trigger
+        }
+
+        // Keyboard handling for dialog
+        dialog.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            closeDialog();
+          }
+        });
+      }
+
+      function testCurrentElement(element) {
+        if (window.validateAccessibilityLibraries) {
+          window.validateAccessibilityLibraries(element);
+        } else {
+          console.error(
+            "Validation function not available. Is the extension loaded?"
+          );
+        }
+      }
+
+      function testAllButtons() {
+        if (window.batchValidateAccessibility) {
+          window.batchValidateAccessibility("button");
+        } else {
+          console.error(
+            "Batch validation function not available. Is the extension loaded?"
+          );
+        }
+      }
+
+      function testShadowElements() {
+        console.log("=== Testing Shadow DOM Elements ===");
+
+        // Test elements in shadow DOM
+        const shadowHosts = document.querySelectorAll('[id^="shadow-host-"]');
+        shadowHosts.forEach((host, index) => {
+          console.log(`\n--- Shadow Host ${index + 1} ---`);
+
+          if (host.shadowRoot) {
+            const shadowElements = host.shadowRoot.querySelectorAll(
+              'button, input, select, [role="button"]'
+            );
+            shadowElements.forEach((element, elIndex) => {
+              console.log(`Testing shadow element ${elIndex + 1}:`, element);
+              if (window.validateAccessibilityLibraries) {
+                window.validateAccessibilityLibraries(element);
+              }
+            });
+
+            // Test nested shadow DOM if present
+            const nestedHosts =
+              host.shadowRoot.querySelectorAll('[id*="nested"]');
+            nestedHosts.forEach((nestedHost) => {
+              if (nestedHost.shadowRoot) {
+                console.log(`\n--- Nested Shadow DOM in Host ${index + 1} ---`);
+                const nestedElements = nestedHost.shadowRoot.querySelectorAll(
+                  'button, input, select, [role="button"]'
+                );
+                nestedElements.forEach((element, elIndex) => {
+                  console.log(
+                    `Testing nested shadow element ${elIndex + 1}:`,
+                    element
+                  );
+                  if (window.validateAccessibilityLibraries) {
+                    window.validateAccessibilityLibraries(element);
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
+
+      function toggleLibraries() {
+        if (window.NEXUS_TESTING_MODE) {
+          window.NEXUS_TESTING_MODE.useLibraries =
+            !window.NEXUS_TESTING_MODE.useLibraries;
+          console.log(
+            `Libraries ${
+              window.NEXUS_TESTING_MODE.useLibraries ? "enabled" : "disabled"
+            }`
+          );
+        }
+      }
+
+      function toggleVerbose() {
+        if (window.NEXUS_TESTING_MODE) {
+          window.NEXUS_TESTING_MODE.verbose =
+            !window.NEXUS_TESTING_MODE.verbose;
+          console.log(
+            `Verbose logging ${
+              window.NEXUS_TESTING_MODE.verbose ? "enabled" : "disabled"
+            }`
+          );
+        }
+      }
+
+      // Check if extension is loaded
+      setTimeout(() => {
+        console.log("=== NEXUS EXTENSION DEBUG ===");
+        console.log(
+          "DOMAccessibilityAPI:",
+          typeof window.DOMAccessibilityAPI,
+          window.DOMAccessibilityAPI
+        );
+        console.log("AriaQuery:", typeof window.AriaQuery, window.AriaQuery);
+        console.log(
+          "validateAccessibilityLibraries:",
+          typeof window.validateAccessibilityLibraries
+        );
+        console.log("NEXUS_TESTING_MODE:", window.NEXUS_TESTING_MODE);
+
+        if (window.validateAccessibilityLibraries) {
+          console.log("✅ Nexus extension validation functions are available!");
+          console.log(
+            "Try: validateAccessibilityLibraries(document.querySelector('button'))"
+          );
+        } else {
+          console.log(
+            "❌ Extension validation functions not found. Make sure the extension is loaded and refresh the page."
+          );
+        }
+      }, 2000); // Increased timeout to 2 seconds
+
+      // Initialize shadow DOM examples when page loads
+      window.addEventListener("load", function () {
+        createShadowDOMExamples();
+        console.log("Test validation page loaded with shadow DOM examples");
+      });
+    </script>
+  </body>
+</html>

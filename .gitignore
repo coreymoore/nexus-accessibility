@@ -1,0 +1,9 @@
+# Build output and dependencies
+node_modules/
+package-lock.json
+build-src/
+rollup.config.js
+
+# Keep the generated library files
+!src/libs/dom-accessibility-api.js
+!src/libs/aria-query.js

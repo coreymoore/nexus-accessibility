@@ -1,4 +1,9 @@
 // Make formatter available globally
+/**
+ * Format accessibility information for display
+ * @param {Object} info - Accessibility information object
+ * @returns {string} Formatted HTML string
+ */
 window.formatAccessibilityInfo = function (info) {
   console.log("formatAccessibilityInfo called with:", info);
   console.log("info.states:", info.states);
