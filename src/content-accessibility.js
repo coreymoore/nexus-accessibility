@@ -37,8 +37,10 @@
       return normalizeStateValue(states.expanded);
     }
     if ("aria-expanded" in ariaProperties) {
-      return ariaProperties["aria-expanded"] === "true" ||
-             ariaProperties["aria-expanded"] === true;
+      return (
+        ariaProperties["aria-expanded"] === "true" ||
+        ariaProperties["aria-expanded"] === true
+      );
     }
     return null;
   }

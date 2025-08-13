@@ -324,11 +324,16 @@
           console.log("[NEXUS] Page context validation functions injected");
         };
         pageContextScript.onerror = (error) => {
-          console.error("[NEXUS] Failed to load page context validation:", error);
+          console.error(
+            "[NEXUS] Failed to load page context validation:",
+            error
+          );
           // Fallback to legacy validation functions
           injectLegacyValidationFunctions();
         };
-        (document.head || document.documentElement).appendChild(pageContextScript);
+        (document.head || document.documentElement).appendChild(
+          pageContextScript
+        );
       };
       validationCoreScript.onerror = (error) => {
         console.error("[NEXUS] Failed to load ValidationCore:", error);
@@ -336,7 +341,9 @@
         injectLegacyValidationFunctions();
       };
 
-      (document.head || document.documentElement).appendChild(validationCoreScript);
+      (document.head || document.documentElement).appendChild(
+        validationCoreScript
+      );
     } catch (error) {
       console.error(
         "[NEXUS] Failed to inject validation functions into page context:",
@@ -358,7 +365,9 @@
         "src/utils/validation-utils.js"
       );
       validationUtilsScript.onload = () => {
-        console.log("[NEXUS] Legacy ValidationUtils injected into page context");
+        console.log(
+          "[NEXUS] Legacy ValidationUtils injected into page context"
+        );
 
         // Then inject the legacy validation functions
         const validationScript = document.createElement("script");
@@ -366,25 +375,35 @@
           "src/libs/validation-functions.js"
         );
         validationScript.onload = () => {
-          console.log("[NEXUS] Legacy validation functions injected into page context");
+          console.log(
+            "[NEXUS] Legacy validation functions injected into page context"
+          );
         };
         validationScript.onerror = (error) => {
-          console.error("[NEXUS] Failed to load legacy validation functions:", error);
+          console.error(
+            "[NEXUS] Failed to load legacy validation functions:",
+            error
+          );
         };
-        (document.head || document.documentElement).appendChild(validationScript);
+        (document.head || document.documentElement).appendChild(
+          validationScript
+        );
       };
       validationUtilsScript.onerror = (error) => {
         console.error("[NEXUS] Failed to load legacy ValidationUtils:", error);
       };
 
-      (document.head || document.documentElement).appendChild(validationUtilsScript);
+      (document.head || document.documentElement).appendChild(
+        validationUtilsScript
+      );
     } catch (error) {
       console.error(
         "[NEXUS] Failed to inject legacy validation functions:",
         error
       );
     }
-  }  /**
+  }
+  /**
    * Test accessibility info retrieval for current focused element
    * @returns {Promise<Object>} Test results
    */

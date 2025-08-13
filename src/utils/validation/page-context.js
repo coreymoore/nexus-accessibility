@@ -30,7 +30,10 @@
       verbose: window.NEXUS_TESTING_MODE.verbose,
       useLibraries: window.NEXUS_TESTING_MODE.useLibraries,
     };
-    return window.ValidationCore.validateAccessibilityLibrariesCore(el, options);
+    return window.ValidationCore.validateAccessibilityLibrariesCore(
+      el,
+      options
+    );
   }
 
   /**
@@ -40,9 +43,11 @@
    * @returns {Array} Array of validation results
    */
   function batchValidateAccessibility(selector = "*", limit = null) {
-    const actualLimit = limit || 
-      (window.NexusConstants?.BATCH_LIMITS?.VALIDATION_PAGE_CONTEXT || 10);
-    
+    const actualLimit =
+      limit ||
+      window.NexusConstants?.BATCH_LIMITS?.VALIDATION_PAGE_CONTEXT ||
+      10;
+
     console.log(
       `[BATCH VALIDATION] Testing up to ${actualLimit} elements matching: ${selector}`
     );

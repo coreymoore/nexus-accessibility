@@ -108,8 +108,7 @@
         }
 
         if (window.AriaQuery) {
-          if (verbose)
-            console.log("[VALIDATION] ✅ AriaQuery is available");
+          if (verbose) console.log("[VALIDATION] ✅ AriaQuery is available");
           results.libraryResults.role_aria =
             window.AriaQuery.getImplicitRole(el);
           if (verbose) {
@@ -151,7 +150,9 @@
     if (typeof window !== "undefined" && window.SecurityUtils) {
       const validation = window.SecurityUtils.validateSelector(selector);
       if (!validation.valid) {
-        console.error(`[BATCH VALIDATION] Invalid selector: ${validation.reason}`);
+        console.error(
+          `[BATCH VALIDATION] Invalid selector: ${validation.reason}`
+        );
         return [];
       }
     }
@@ -167,7 +168,10 @@
     try {
       elements = document.querySelectorAll(selector);
     } catch (error) {
-      console.error(`[BATCH VALIDATION] Invalid selector syntax: ${selector}`, error);
+      console.error(
+        `[BATCH VALIDATION] Invalid selector syntax: ${selector}`,
+        error
+      );
       return [];
     }
 
@@ -202,7 +206,10 @@
     const comparison = {};
 
     // Compare names
-    if (libraryResults.name !== undefined && fallbackResults.name !== undefined) {
+    if (
+      libraryResults.name !== undefined &&
+      fallbackResults.name !== undefined
+    ) {
       comparison.name = {
         match: libraryResults.name === fallbackResults.name,
         library: libraryResults.name,
@@ -211,7 +218,10 @@
     }
 
     // Compare descriptions
-    if (libraryResults.description !== undefined && fallbackResults.description !== undefined) {
+    if (
+      libraryResults.description !== undefined &&
+      fallbackResults.description !== undefined
+    ) {
       comparison.description = {
         match: libraryResults.description === fallbackResults.description,
         library: libraryResults.description,

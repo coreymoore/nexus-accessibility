@@ -14,18 +14,22 @@
     const {
       validateAccessibilityLibrariesCore,
       batchValidateAccessibilityCore,
-      compareValidationResults
+      compareValidationResults,
     } = window.ValidationCore;
 
     // Export to global scope for backward compatibility
     window.ValidationUtils = window.ValidationCore;
-    
-    console.warn('[VALIDATION-UTILS] This module is deprecated. Use ValidationCore instead.');
+
+    console.warn(
+      "[VALIDATION-UTILS] This module is deprecated. Use ValidationCore instead."
+    );
     return;
   }
 
   // Fallback implementation for environments where ValidationCore isn't loaded
-  console.warn('[VALIDATION-UTILS] ValidationCore not available, using fallback implementation');
+  console.warn(
+    "[VALIDATION-UTILS] ValidationCore not available, using fallback implementation"
+  );
 
   /**
    * Core validation logic for accessibility libraries (DEPRECATED - use ValidationCore)
