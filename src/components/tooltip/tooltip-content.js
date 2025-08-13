@@ -63,6 +63,15 @@
      * @returns {string} Screen reader output HTML
      */
     getScreenReaderOutput(info) {
+      // Debug logging to understand the data structure
+      console.debug("[Tooltip] Accessibility info received:", {
+        role: info.role,
+        name: info.name,
+        ariaProperties: info.ariaProperties,
+        normalizedExpanded: info.normalizedExpanded,
+        states: info.states,
+      });
+
       // Base: role, name, description
       const base = [];
       if (info.role) {
@@ -84,15 +93,50 @@
       // Extras: states, aria-derived states, group, value, required
       const extras = [];
 
-      if (info.ariaProperties || info.states) {
-        // Handle aria-expanded
-        if (info.ariaProperties && "aria-expanded" in info.ariaProperties) {
-          const exp = utils.deepUnwrap(info.ariaProperties["aria-expanded"]);
-          extras.push(
-            `<span class="sr-state">${
-              utils.isTrue(exp) ? "expanded" : "collapsed"
-            }</span>`
+      if (
+        info.ariaProperties ||
+        info.states ||
+        info.normalizedExpanded !== null
+      ) {
+        // Handle aria-expanded (prioritize normalizedExpanded field)
+        let expandedValue = null;
+
+        // First try the normalized expanded field (this is the canonical source)
+        if (
+          info.normalizedExpanded !== null &&
+          info.normalizedExpanded !== undefined
+        ) {
+          expandedValue = info.normalizedExpanded;
+        }
+        // Fallback to aria-expanded from ariaProperties
+        else if (
+          info.ariaProperties &&
+          "aria-expanded" in info.ariaProperties
+        ) {
+          expandedValue = utils.deepUnwrap(
+            info.ariaProperties["aria-expanded"]
           );
+        }
+        // Fallback to expanded from states
+        else if (info.states && "expanded" in info.states) {
+          expandedValue = utils.deepUnwrap(info.states.expanded);
+        }
+
+        // Add expanded/collapsed state if we have a meaningful value
+        if (expandedValue !== null && expandedValue !== undefined) {
+          // Debug logging to understand the data
+          console.debug(
+            "[Tooltip] Expanded value found:",
+            expandedValue,
+            "type:",
+            typeof expandedValue
+          );
+
+          if (expandedValue === true || expandedValue === "true") {
+            extras.push(`<span class="sr-state">expanded</span>`);
+          } else if (expandedValue === false || expandedValue === "false") {
+            extras.push(`<span class="sr-state">collapsed</span>`);
+          }
         }
 
         // Handle aria-pressed
