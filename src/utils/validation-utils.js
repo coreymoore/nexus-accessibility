@@ -1,15 +1,34 @@
 /**
- * Centralized Validation Utilities
+ * Validation Utilities (Deprecated)
  *
- * Consolidates validation logic to eliminate duplication between
- * content-validation.js and libs/validation-functions.js
+ * This module is deprecated. Use src/utils/validation/core.js instead.
+ * Keeping this for backward compatibility during transition.
  */
 
 (function () {
   "use strict";
 
+  // Import validation core if available
+  if (typeof window !== "undefined" && window.ValidationCore) {
+    // Re-export from the new core module for backward compatibility
+    const {
+      validateAccessibilityLibrariesCore,
+      batchValidateAccessibilityCore,
+      compareValidationResults
+    } = window.ValidationCore;
+
+    // Export to global scope for backward compatibility
+    window.ValidationUtils = window.ValidationCore;
+    
+    console.warn('[VALIDATION-UTILS] This module is deprecated. Use ValidationCore instead.');
+    return;
+  }
+
+  // Fallback implementation for environments where ValidationCore isn't loaded
+  console.warn('[VALIDATION-UTILS] ValidationCore not available, using fallback implementation');
+
   /**
-   * Core validation logic for accessibility libraries
+   * Core validation logic for accessibility libraries (DEPRECATED - use ValidationCore)
    * @param {Element} el - Element to test
    * @param {Object} options - Validation options
    * @returns {Object} Validation results

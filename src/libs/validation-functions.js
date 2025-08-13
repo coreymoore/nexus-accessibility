@@ -1,20 +1,60 @@
 /*
- * Nexus Accessibility Validation Functions
+ * Nexus Accessibility Validation Functions (Legacy)
  * These functions are injected into the page context for testing accessibility libraries
+ * 
+ * This file is deprecated. New implementations should use:
+ * - src/utils/validation/core.js
+ * - src/utils/validation/page-context.js
  */
 
 (function () {
   "use strict";
 
   // Set up testing mode
-  window.NEXUS_TESTING_MODE = {
+  window.NEXUS_TESTING_MODE = window.NEXUS_TESTING_MODE || {
     useLibraries: true,
     verbose: false,
   };
 
-  // Load centralized validation utilities if not already available
+  // Check if ValidationCore is available (preferred)
+  if (window.ValidationCore) {
+    console.log("[NEXUS] ValidationCore detected, using new validation system");
+    
+    // Re-export ValidationCore functions for backward compatibility
+    window.validateAccessibilityLibraries = function(el) {
+      const options = {
+        verbose: window.NEXUS_TESTING_MODE.verbose,
+        useLibraries: window.NEXUS_TESTING_MODE.useLibraries,
+      };
+      return window.ValidationCore.validateAccessibilityLibrariesCore(el, options);
+    };
+
+    window.batchValidateAccessibility = function(selector = "*", limit = null) {
+      const actualLimit = limit || 
+        (window.NexusConstants?.BATCH_LIMITS?.VALIDATION_PAGE_CONTEXT || 10);
+      
+      const options = {
+        verbose: window.NEXUS_TESTING_MODE.verbose,
+        useLibraries: window.NEXUS_TESTING_MODE.useLibraries,
+      };
+
+      return window.ValidationCore.batchValidateAccessibilityCore(
+        selector,
+        actualLimit,
+        options
+      );
+    };
+
+    console.log("[NEXUS] ✅ Validation functions loaded via ValidationCore");
+    console.log(
+      "Available functions: validateAccessibilityLibraries(element), batchValidateAccessibility(selector, limit)"
+    );
+    return;
+  }
+
+  // Fallback to legacy ValidationUtils if ValidationCore isn't available
   if (!window.ValidationUtils) {
-    console.warn("[NEXUS] ValidationUtils not available, loading inline...");
+    console.warn("[NEXUS] ValidationCore not available, loading legacy ValidationUtils...");
     // Inline minimal validation for page context
     window.ValidationUtils = {
       validateAccessibilityLibrariesCore: function (el, options = {}) {

@@ -1,0 +1,42 @@
+{
+  "timeouts": {
+    "libraryCheckDelay": 100,
+    "accessibilityRetryBase": 50,
+    "exponentialBackoffBase": 100,
+    "debounceDefault": 150,
+    "cacheUpdateDebounce": 150,
+    "performanceMonitorInterval": 1000,
+    "debuggerStabilityTestDelay": 100
+  },
+  "retryAttempts": {
+    "accessibilityUpdate": 8,
+    "debuggerConnection": 3,
+    "errorRecoveryMax": 3
+  },
+  "performanceThresholds": {
+    "tooltipDisplay": 100,
+    "debuggerAttach": 2000,
+    "axTreeRetrieval": 1000,
+    "nodeQuery": 500
+  },
+  "memoryLimits": {
+    "growthWarningBytes": 52428800,
+    "growthWarningPercent": 50
+  },
+  "batchLimits": {
+    "validationDefault": 10,
+    "validationPageContext": 10,
+    "elementsMax": 5
+  },
+  "security": {
+    "maxSelectorLength": 1000,
+    "maxMessageSize": 10000,
+    "maxCacheKeyLength": 500,
+    "maxLogMessageLength": 5000
+  },
+  "cache": {
+    "defaultTtl": 30000,
+    "maxEntries": 500,
+    "cleanupInterval": 60000
+  }
+}

@@ -186,9 +186,16 @@ if (typeof chrome !== "undefined" && chrome.runtime) {
     },
   };
 
-  console.log(
-    "NexusTestUtils loaded. Run window.NexusTestUtils.runAllTests() to test the extension."
-  );
+  // Conditionally expose test utils based on environment
+  if (window.EnvironmentConfig?.isDevelopmentMode?.() !== false) {
+    console.log(
+      "NexusTestUtils loaded. Run window.NexusTestUtils.runAllTests() to test the extension."
+    );
+  } else {
+    console.log(
+      "NexusTestUtils loaded in production mode. Some functions may be restricted."
+    );
+  }
 }
 
 export default window.NexusTestUtils || {};

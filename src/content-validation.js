@@ -5,7 +5,7 @@
  * It includes library validation, batch testing, and debugging functions.
  * This module is optional and used primarily for development and testing.
  *
- * Dependencies: content-utils.js, content-accessibility.js
+ * Dependencies: content-utils.js, content-accessibility.js, validation/core.js
  */
 
 (function () {
@@ -77,15 +77,22 @@
       }${el.className ? "." + el.className.replace(/\s+/g, ".") : ""}`
     );
 
-    // Use centralized validation if available
+    // Use centralized validation core
     let results;
-    if (window.ValidationUtils) {
+    if (window.ValidationCore) {
+      results = window.ValidationCore.validateAccessibilityLibrariesCore(el, {
+        verbose: true,
+        useLibraries: window.NEXUS_TESTING_MODE?.useLibraries !== false,
+      });
+    } else if (window.ValidationUtils) {
+      // Fallback to legacy ValidationUtils for backward compatibility
       results = window.ValidationUtils.validateAccessibilityLibrariesCore(el, {
         verbose: true,
         useLibraries: window.NEXUS_TESTING_MODE?.useLibraries !== false,
       });
     } else {
-      // Fallback for when validation utils aren't loaded
+      // Fallback for when validation modules aren't loaded
+      console.warn("[VALIDATION] No validation modules available");
       results = {
         element: el,
         libraryResults: {},
@@ -112,7 +119,9 @@
     }
 
     // Compare results using centralized logic
-    if (window.ValidationUtils) {
+    if (window.ValidationCore) {
+      window.ValidationCore.compareValidationResults(results);
+    } else if (window.ValidationUtils) {
       window.ValidationUtils.compareValidationResults(results);
     } else {
       compareValidationResults(results);
@@ -199,8 +208,18 @@
     selector = "*",
     limit = window.NexusConstants?.BATCH_LIMITS?.VALIDATION_DEFAULT || 10
   ) {
-    // Use centralized validation if available
-    if (window.ValidationUtils) {
+    // Use centralized validation core
+    if (window.ValidationCore) {
+      return window.ValidationCore.batchValidateAccessibilityCore(
+        selector,
+        limit,
+        {
+          verbose: window.NEXUS_TESTING_MODE?.verbose || false,
+          useLibraries: window.NEXUS_TESTING_MODE?.useLibraries !== false,
+        }
+      );
+    } else if (window.ValidationUtils) {
+      // Fallback to legacy ValidationUtils for backward compatibility
       return window.ValidationUtils.batchValidateAccessibilityCore(
         selector,
         limit,
@@ -288,45 +307,84 @@
    */
   function injectValidationFunctions() {
     try {
-      // First inject the centralized validation utilities
+      // First inject the validation core
+      const validationCoreScript = document.createElement("script");
+      validationCoreScript.src = chrome.runtime.getURL(
+        "src/utils/validation/core.js"
+      );
+      validationCoreScript.onload = () => {
+        console.log("[NEXUS] ValidationCore injected into page context");
+
+        // Then inject the page context validation functions
+        const pageContextScript = document.createElement("script");
+        pageContextScript.src = chrome.runtime.getURL(
+          "src/utils/validation/page-context.js"
+        );
+        pageContextScript.onload = () => {
+          console.log("[NEXUS] Page context validation functions injected");
+        };
+        pageContextScript.onerror = (error) => {
+          console.error("[NEXUS] Failed to load page context validation:", error);
+          // Fallback to legacy validation functions
+          injectLegacyValidationFunctions();
+        };
+        (document.head || document.documentElement).appendChild(pageContextScript);
+      };
+      validationCoreScript.onerror = (error) => {
+        console.error("[NEXUS] Failed to load ValidationCore:", error);
+        // Fallback to legacy validation functions
+        injectLegacyValidationFunctions();
+      };
+
+      (document.head || document.documentElement).appendChild(validationCoreScript);
+    } catch (error) {
+      console.error(
+        "[NEXUS] Failed to inject validation functions into page context:",
+        error
+      );
+      // Fallback to legacy validation functions
+      injectLegacyValidationFunctions();
+    }
+  }
+
+  /**
+   * Inject legacy validation functions (fallback)
+   */
+  function injectLegacyValidationFunctions() {
+    try {
+      // Inject legacy validation utilities first
       const validationUtilsScript = document.createElement("script");
       validationUtilsScript.src = chrome.runtime.getURL(
         "src/utils/validation-utils.js"
       );
       validationUtilsScript.onload = () => {
-        console.log("[NEXUS] ✅ Validation utilities loaded into page context");
+        console.log("[NEXUS] Legacy ValidationUtils injected into page context");
 
-        // Then inject the page-specific validation functions
+        // Then inject the legacy validation functions
         const validationScript = document.createElement("script");
         validationScript.src = chrome.runtime.getURL(
           "src/libs/validation-functions.js"
         );
         validationScript.onload = () => {
-          console.log(
-            "[NEXUS] ✅ Validation functions loaded into page context"
-          );
+          console.log("[NEXUS] Legacy validation functions injected into page context");
         };
         validationScript.onerror = (error) => {
-          console.error("[NEXUS] Failed to load validation functions:", error);
+          console.error("[NEXUS] Failed to load legacy validation functions:", error);
         };
-
-        (document.head || document.documentElement).appendChild(
-          validationScript
-        );
+        (document.head || document.documentElement).appendChild(validationScript);
       };
       validationUtilsScript.onerror = (error) => {
-        console.error("[NEXUS] Failed to load validation utilities:", error);
+        console.error("[NEXUS] Failed to load legacy ValidationUtils:", error);
       };
 
-      (document.head || document.documentElement).appendChild(
-        validationUtilsScript
-      );
+      (document.head || document.documentElement).appendChild(validationUtilsScript);
     } catch (error) {
-      console.error("[NEXUS] Failed to inject validation functions:", error);
+      console.error(
+        "[NEXUS] Failed to inject legacy validation functions:",
+        error
+      );
     }
-  }
-
-  /**
+  }  /**
    * Test accessibility info retrieval for current focused element
    * @returns {Promise<Object>} Test results
    */
@@ -432,9 +490,15 @@
     // Validation module doesn't need to respond to state changes
   }
 
-  // Make validation functions globally available
-  window.validateAccessibilityLibraries = validateAccessibilityLibraries;
-  window.batchValidateAccessibility = batchValidateAccessibility;
+  // Conditionally expose validation functions globally based on environment
+  if (window.EnvironmentConfig?.isDevelopmentMode?.() !== false) {
+    // Default to exposing in development mode or when environment can't be determined
+    window.validateAccessibilityLibraries = validateAccessibilityLibraries;
+    window.batchValidateAccessibility = batchValidateAccessibility;
+    console.log("[VALIDATION] Debug functions exposed globally");
+  } else {
+    console.log("[VALIDATION] Production mode - debug functions not exposed");
+  }
 
   // Export the validation module
   CE.validation = {
@@ -451,6 +515,8 @@
     // Utility functions
     checkLibraryAvailability,
     injectLibrariesIntoPageContext,
+    injectValidationFunctions,
+    injectLegacyValidationFunctions,
     compareValidationResults,
 
     // Testing mode

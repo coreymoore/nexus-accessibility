@@ -15,6 +15,35 @@
   const CE = window.ContentExtension;
 
   /**
+   * Normalize a state value that might be wrapped in an object
+   * @param {*} value - The value to normalize
+   * @returns {boolean|null} Normalized boolean value or null
+   */
+  function normalizeStateValue(value) {
+    if (typeof value === "object" && value !== null && "value" in value) {
+      return value.value === true;
+    }
+    return value === true;
+  }
+
+  /**
+   * Normalize expanded state from states and aria properties
+   * @param {Object} states - Element states
+   * @param {Object} ariaProperties - Aria properties
+   * @returns {boolean|null} Normalized expanded state
+   */
+  function normalizeExpandedState(states, ariaProperties) {
+    if ("expanded" in states) {
+      return normalizeStateValue(states.expanded);
+    }
+    if ("aria-expanded" in ariaProperties) {
+      return ariaProperties["aria-expanded"] === "true" ||
+             ariaProperties["aria-expanded"] === true;
+    }
+    return null;
+  }
+
+  /**
    * Initialize the accessibility module
    */
   function initialize() {
@@ -326,22 +355,7 @@
     delete ariaProperties["aria-describedby"];
 
     // Normalize expanded state
-    let normalizedExpanded = null;
-    if ("expanded" in states) {
-      if (
-        typeof states.expanded === "object" &&
-        states.expanded !== null &&
-        "value" in states.expanded
-      ) {
-        normalizedExpanded = states.expanded.value === true;
-      } else {
-        normalizedExpanded = states.expanded === true;
-      }
-    } else if ("aria-expanded" in ariaProperties) {
-      normalizedExpanded =
-        ariaProperties["aria-expanded"] === "true" ||
-        ariaProperties["aria-expanded"] === true;
-    }
+    const normalizedExpanded = normalizeExpandedState(states, ariaProperties);
 
     const result = {
       role: info?.role || "(no role)",
