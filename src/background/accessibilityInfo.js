@@ -104,7 +104,7 @@ export async function getAccessibilityInfoForElement(
             console.log("Background: Got execution context ID:", ctxId);
 
             result = await chrome.debugger.sendCommand(
-              tabId,
+              { tabId },
               "Runtime.evaluate",
               {
                 expression: `

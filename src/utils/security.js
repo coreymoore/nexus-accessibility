@@ -71,9 +71,14 @@ class SecurityUtils {
 
     // Try to parse as CSS selector
     try {
-      // Use a dummy element to validate the selector
+      // Use document.querySelector to validate syntax without actually querying
       if (typeof document !== "undefined") {
-        document.createElement("div").querySelector(selector);
+        // This will throw a DOMException if the selector is invalid
+        // but won't actually perform the query since we catch any result
+        document.querySelector.call(
+          document.createDocumentFragment(),
+          selector
+        );
       }
     } catch (error) {
       return {

@@ -147,7 +147,11 @@
     options = {}
   ) {
     // Validate selector for security if SecurityUtils is available
-    if (typeof window !== "undefined" && window.SecurityUtils) {
+    if (
+      typeof window !== "undefined" &&
+      window.SecurityUtils &&
+      typeof window.SecurityUtils.validateSelector === "function"
+    ) {
       const validation = window.SecurityUtils.validateSelector(selector);
       if (!validation.valid) {
         console.error(

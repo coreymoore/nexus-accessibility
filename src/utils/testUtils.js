@@ -110,7 +110,7 @@ if (typeof chrome !== "undefined" && chrome.runtime) {
       });
 
       try {
-        await chrome.debugger.attach({ tab: tab.id }, "1.3");
+        await chrome.debugger.attach({ tabId: tab.id }, "1.3");
         await chrome.debugger.sendCommand({ tabId: tab.id }, "DOM.enable");
 
         const afterAttach = performance.memory.usedJSHeapSize;

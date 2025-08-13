@@ -142,13 +142,14 @@ class PerformanceMonitor {
    */
   recordMemoryBaseline() {
     if (typeof globalThis.performance.memory !== "undefined") {
-      return {
+      const baseline = {
         used: globalThis.performance.memory.usedJSHeapSize,
         total: globalThis.performance.memory.totalJSHeapSize,
         limit: globalThis.performance.memory.jsHeapSizeLimit,
         timestamp: Date.now(),
       };
-      this.log.debug("Memory baseline recorded", this.memoryBaseline);
+      this.log.debug("Memory baseline recorded", baseline);
+      return baseline;
     }
   }
 

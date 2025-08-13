@@ -142,24 +142,26 @@ export const logger = loggers;
 export { initializeLogger };
 export default loggers;
 
-// Also provide exports for different environments
-if (typeof module !== "undefined" && module.exports) {
+// Environment-specific exports
+(function setupEnvironmentExports() {
   // Node.js/CommonJS environment
-  module.exports = { Logger, logger: loggers, initializeLogger };
-}
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { Logger, logger: loggers, initializeLogger };
+    return;
+  }
 
-if (typeof window !== "undefined") {
-  // Browser environment - attach to window for content scripts
-  window.Logger = Logger;
-  window.logger = loggers;
-  window.initializeLogger = initializeLogger;
+  // Browser environment - determine which globals to set
+  if (typeof window !== "undefined") {
+    // Content scripts and popup environment
+    window.Logger = Logger;
+    window.logger = loggers;
+    window.initializeLogger = initializeLogger;
 
-  // Auto-initialize for content scripts
-  initializeLogger();
-}
-
-// Also export for modules that can handle it
-if (typeof globalThis !== "undefined") {
-  globalThis.Logger = Logger;
-  globalThis.logger = loggers;
-}
+    // Auto-initialize for content scripts
+    initializeLogger();
+  } else if (typeof globalThis !== "undefined") {
+    // Worker or other global contexts
+    globalThis.Logger = Logger;
+    globalThis.logger = loggers;
+  }
+})();
