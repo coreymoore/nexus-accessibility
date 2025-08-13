@@ -34,7 +34,10 @@ export class MessageValidator {
             throw new Error("Invalid useDirectReference flag");
           }
           // elementSelector is optional for backup, but if provided must be string
-          if (msg.elementSelector !== undefined && typeof msg.elementSelector !== "string") {
+          if (
+            msg.elementSelector !== undefined &&
+            typeof msg.elementSelector !== "string"
+          ) {
             throw new Error("Invalid backup elementSelector");
           }
         } else {

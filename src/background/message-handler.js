@@ -75,13 +75,15 @@ export class MessageHandler {
       // Check if we're using the new direct reference approach
       if (msg.useDirectReference) {
         console.log("Background: Using direct element reference approach");
-        
+
         // For direct reference, we don't need complex selectors or caching by selector
         // Clear any existing cache when we get a new request to ensure fresh data
         const cacheKey = `element-direct-${tabId}-${frameId || 0}`;
-        console.log("Background: Clearing any existing cache for fresh element data");
+        console.log(
+          "Background: Clearing any existing cache for fresh element data"
+        );
         this.cache.delete(cacheKey);
-        
+
         // Don't use cache for direct reference - always get fresh data
         // This ensures we always get the current element, not a cached previous one
 
@@ -91,15 +93,20 @@ export class MessageHandler {
         console.log("Background: debugger attached, connection:", connection);
 
         // Get accessibility info using direct reference method
-        console.log("Background: calling getAccessibilityInfoForElement with direct reference");
+        console.log(
+          "Background: calling getAccessibilityInfoForElement with direct reference"
+        );
         const result = await getAccessibilityInfoForElement(
           tabId,
           frameId || 0,
           null, // No selector needed for direct reference
           connection,
-          true  // Flag to use direct reference
+          true // Flag to use direct reference
         );
-        console.log("Background: got result from direct reference method:", result);
+        console.log(
+          "Background: got result from direct reference method:",
+          result
+        );
 
         // Don't cache direct reference results to ensure we always get fresh data
         // Each focus change should get the current element, not cached data
@@ -137,7 +144,10 @@ export class MessageHandler {
         msg.elementSelector,
         connection
       );
-      console.log("Background: got result from getAccessibilityInfoForElement:", result);
+      console.log(
+        "Background: got result from getAccessibilityInfoForElement:",
+        result
+      );
 
       // Cache the result
       this.cache.set(cacheKey, result);

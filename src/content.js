@@ -3,7 +3,7 @@ console.log(
 );
 
 // Global element storage for CDP accessibility retrieval
-// IMPORTANT: Do not change this approach! This method uses Runtime.evaluate with direct element 
+// IMPORTANT: Do not change this approach! This method uses Runtime.evaluate with direct element
 // references followed by DOM.requestNode, which is the most reliable way to get nodeIds for CDP.
 // It works regardless of duplicate IDs, classes, or broken markup, and doesn't depend on selectors.
 window.nexusTargetElement = null;
@@ -14,17 +14,22 @@ window.nexusTargetElement = null;
  * @param {Element} element - The element to store for CDP access
  * @param {string} selectionType - The type of selection ('focus', 'hover', 'click', etc.)
  */
-function storeElementForCDP(element, selectionType = 'focus') {
+function storeElementForCDP(element, selectionType = "focus") {
   if (!element || element.nodeType !== Node.ELEMENT_NODE) {
-    console.warn('Invalid element provided to storeElementForCDP');
+    console.warn("Invalid element provided to storeElementForCDP");
     return;
   }
-  
+
   // Since document.activeElement is reliable and always accessible from CDP,
   // we don't need complex injection. The element should already be the active element
   // when this is called from focus events.
-  console.log(`[NEXUS] Element stored for CDP access (${selectionType}):`, element);
-  console.log(`[NEXUS] This element should be accessible via document.activeElement in CDP context`);
+  console.log(
+    `[NEXUS] Element stored for CDP access (${selectionType}):`,
+    element
+  );
+  console.log(
+    `[NEXUS] This element should be accessible via document.activeElement in CDP context`
+  );
 }
 
 // Initialize logger
@@ -862,17 +867,20 @@ function onFocusIn(e) {
     refetchTimers.delete(lastFocusedElement);
   }
   lastFocusedElement = targetElement;
-  
+
   // Store the focused element for CDP access - this ensures we always have the current focused element
-  console.log("[NEXUS] Focus changed - storing new element for CDP:", targetElement);
+  console.log(
+    "[NEXUS] Focus changed - storing new element for CDP:",
+    targetElement
+  );
   console.log("[NEXUS] Element details:", {
     tagName: targetElement.tagName,
     id: targetElement.id,
     className: targetElement.className,
-    textContent: targetElement.textContent?.substring(0, 50)
+    textContent: targetElement.textContent?.substring(0, 50),
   });
-  storeElementForCDP(targetElement, 'focus');
-  
+  storeElementForCDP(targetElement, "focus");
+
   // If the focused element manages active item with aria-activedescendant, inspect that item
   let targetForInspect = targetElement;
   const activeDescId = targetElement.getAttribute("aria-activedescendant");
