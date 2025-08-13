@@ -67,20 +67,17 @@ export async function getAccessibilityInfoForElement(
       
       // IMPORTANT: Direct reference approach using Runtime.evaluate + DOM.requestNode
       // This is the most reliable method and should not be changed!
-      // It works regardless of duplicate IDs, classes, or broken markup.
+      // Use document.activeElement since it's always accurate and accessible
       if (useDirectReference) {
-        console.log("Background: Using direct element reference method");
+        console.log("Background: Using document.activeElement direct reference method");
         
         try {
-          // Try to get the element from the global reference first
-          let elementExpression = "window.nexusTargetElement";
-          
-          // Fallback to document.activeElement if global reference fails
+          // Use document.activeElement directly - it's the most reliable approach
           const result = await chromeAsync.debugger.sendCommand(
             { tabId },
             "Runtime.evaluate",
             { 
-              expression: `${elementExpression} || document.activeElement`,
+              expression: "document.activeElement",
               returnByValue: false 
             }
           );
@@ -156,6 +153,69 @@ export async function getAccessibilityInfoForElement(
       
       // Fallback to selector-based approach or if useDirectReference is false
       if (!elementSelector) {
+        console.log("Background: Direct reference failed and no selector provided");
+        console.log("Background: Attempting to use document.activeElement as last resort");
+        
+        try {
+          // Last resort: try document.activeElement directly
+          const activeResult = await chromeAsync.debugger.sendCommand(
+            { tabId },
+            "Runtime.evaluate",
+            { 
+              expression: "document.activeElement",
+              returnByValue: false 
+            }
+          );
+          
+          if (activeResult.result?.objectId) {
+            console.log("Background: Found document.activeElement as fallback");
+            
+            // Initialize DOM if needed
+            try {
+              await chromeAsync.debugger.sendCommand(
+                { tabId },
+                "DOM.getDocument",
+                { depth: 0 }
+              );
+            } catch (domError) {
+              console.log("Background: DOM already initialized");
+            }
+            
+            // Convert objectId to nodeId
+            const nodeResult = await chromeAsync.debugger.sendCommand(
+              { tabId },
+              "DOM.requestNode",
+              { objectId: activeResult.result.objectId }
+            );
+            
+            const nodeId = nodeResult.nodeId;
+            if (nodeId && nodeId > 0) {
+              // Get accessibility info
+              const { nodes } = await chromeAsync.debugger.sendCommand(
+                { tabId },
+                "Accessibility.getPartialAXTree",
+                {
+                  nodeId,
+                  fetchRelatives: true,
+                }
+              );
+
+              if (nodes && nodes.length > 0) {
+                let node = nodes[0];
+                const pick = nodes.find(
+                  (n) => n && !n.ignored && n.role && (n.role.value || n.role)
+                );
+                if (pick) node = pick;
+
+                console.log("Background: Got accessibility info from document.activeElement fallback");
+                return formatAccessibilityNode(node);
+              }
+            }
+          }
+        } catch (fallbackError) {
+          console.error("Background: document.activeElement fallback also failed:", fallbackError);
+        }
+        
         return { error: "No element selector provided and direct reference failed" };
       }
       

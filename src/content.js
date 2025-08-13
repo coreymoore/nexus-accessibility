@@ -20,19 +20,11 @@ function storeElementForCDP(element, selectionType = 'focus') {
     return;
   }
   
-  // Store the element globally for CDP access
-  window.nexusTargetElement = element;
-  
-  // Optional: Store metadata about the selection type for debugging
-  window.nexusSelectionMetadata = {
-    type: selectionType,
-    timestamp: Date.now(),
-    tagName: element.tagName,
-    id: element.id || null,
-    className: element.className || null
-  };
-  
-  console.log(`[NEXUS] Stored element for CDP access (${selectionType}):`, element);
+  // Since document.activeElement is reliable and always accessible from CDP,
+  // we don't need complex injection. The element should already be the active element
+  // when this is called from focus events.
+  console.log(`[NEXUS] Element stored for CDP access (${selectionType}):`, element);
+  console.log(`[NEXUS] This element should be accessible via document.activeElement in CDP context`);
 }
 
 // Initialize logger
@@ -549,9 +541,12 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 8) {
 
     try {
       // Use the new CDP approach with direct element reference
+      // Also provide a selector as backup in case direct reference fails
+      const selector = getUniqueSelector(target);
       const response = await chrome.runtime.sendMessage({
         action: "getBackendNodeIdAndAccessibleInfo",
         useDirectReference: true, // Flag to indicate we're using the global reference approach
+        elementSelector: selector, // Backup selector in case direct reference fails
         frameId: 0,
       });
 
@@ -610,9 +605,12 @@ async function waitForAccessibilityUpdate(target, maxAttempts = 8) {
   console.log("Final attempt after all retries...");
   try {
     // Use the new CDP approach with direct element reference for final attempt too
+    // Also provide a selector as backup
+    const selector = getUniqueSelector(target);
     const response = await chrome.runtime.sendMessage({
       action: "getBackendNodeIdAndAccessibleInfo",
       useDirectReference: true,
+      elementSelector: selector, // Backup selector
       frameId: 0,
     });
 
@@ -634,9 +632,6 @@ async function getAccessibleInfo(target, forceUpdate = false) {
     "forceUpdate:",
     forceUpdate
   );
-
-  // Store the element for CDP access using our modular approach
-  storeElementForCDP(target, 'focus');
 
   const existing = inflightRequests.get(target);
   if (existing) {
@@ -867,6 +862,17 @@ function onFocusIn(e) {
     refetchTimers.delete(lastFocusedElement);
   }
   lastFocusedElement = targetElement;
+  
+  // Store the focused element for CDP access - this ensures we always have the current focused element
+  console.log("[NEXUS] Focus changed - storing new element for CDP:", targetElement);
+  console.log("[NEXUS] Element details:", {
+    tagName: targetElement.tagName,
+    id: targetElement.id,
+    className: targetElement.className,
+    textContent: targetElement.textContent?.substring(0, 50)
+  });
+  storeElementForCDP(targetElement, 'focus');
+  
   // If the focused element manages active item with aria-activedescendant, inspect that item
   let targetForInspect = targetElement;
   const activeDescId = targetElement.getAttribute("aria-activedescendant");

@@ -34,4 +34,21 @@ export class CacheManager {
   clear() {
     this.cache.clear();
   }
+
+  delete(key) {
+    return this.cache.delete(key);
+  }
+
+  has(key) {
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+
+    // Check TTL
+    if (Date.now() - entry.timestamp > this.ttlMs) {
+      this.cache.delete(key);
+      return false;
+    }
+
+    return true;
+  }
 }
