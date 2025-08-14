@@ -94,6 +94,14 @@
       const { onClose, enabled } = options;
 
       // Debug logging
+      console.debug("[Tooltip] showTooltip called:", {
+        hasInfo: !!info,
+        hasTarget: !!target,
+        targetTag: target?.tagName,
+        targetId: target?.id,
+        miniMode: this.miniMode,
+      });
+
       try {
         console.debug("[AX Tooltip] group info:", info && info.group);
       } catch {}
@@ -115,13 +123,32 @@
       // Create new tooltip element
       this._createTooltipElement(target);
 
+      // Add element reference to info for violation checking
+      if (target && target.nodeType === Node.ELEMENT_NODE) {
+        info.element = target;
+      }
+
       // Generate and set content
+      console.debug("[Tooltip] Generating content:", {
+        miniMode: this.miniMode,
+        hasElement: !!(info && info.element),
+        hasAxeIntegration: !!window.AxeIntegration,
+      });
+
       const tooltipContent = content.generateTooltipContent(
         info,
         this.miniMode,
         { onClose, enabled }
       );
       this.tooltip.innerHTML = tooltipContent;
+
+      console.debug(
+        "[Tooltip] Content generated and set, checking for alerts placeholder"
+      );
+      const alertsPlaceholder = this.tooltip.querySelector(
+        "#alerts-placeholder"
+      );
+      console.debug("[Tooltip] Alerts placeholder found:", !!alertsPlaceholder);
 
       // Setup initial positioning (offscreen for measurement)
       this._setupInitialPosition();
@@ -136,6 +163,9 @@
       // Setup focus management and observers
       this.focus.setupFocusManagement({ onClose, enabled });
       this._ensureObserver();
+
+      // Check for accessibility violations asynchronously
+      this._checkViolationsAsync(target);
     }
 
     _createTooltipElement(target) {
@@ -281,6 +311,105 @@
       if (this._scrollHandler) {
         window.removeEventListener("scroll", this._scrollHandler, true);
         this._scrollHandler = null;
+      }
+    }
+
+    /**
+     * Check for accessibility violations asynchronously
+     * @param {Element} target - The target element to check
+     */
+    async _checkViolationsAsync(target) {
+      console.debug("[Tooltip] _checkViolationsAsync called:", {
+        hasTarget: !!target,
+        targetTag: target?.tagName,
+        targetId: target?.id,
+        targetClass: target?.className,
+        hasTooltip: !!this.tooltip,
+        hasAxeIntegration: !!window.AxeIntegration,
+      });
+
+      // Safety checks
+      if (!target || !this.tooltip) {
+        console.debug("[Tooltip] Early return: missing target or tooltip");
+        return;
+      }
+
+      if (!window.AxeIntegration) {
+        console.debug(
+          "[Tooltip] AxeIntegration not available, removing placeholder"
+        );
+        // AxeIntegration not available, just remove placeholder
+        const placeholder = this.tooltip.querySelector("#alerts-placeholder");
+        if (placeholder) {
+          console.debug("[Tooltip] Removed placeholder (no AxeIntegration)");
+          placeholder.remove();
+        }
+        return;
+      }
+
+      try {
+        // Check if the AxeIntegration service has the required methods
+        if (
+          typeof window.AxeIntegration.getViolationsForElement !== "function"
+        ) {
+          console.warn(
+            "[Tooltip] AxeIntegration.getViolationsForElement not available"
+          );
+          console.debug("[Tooltip] getViolationsForElement method not found");
+          const placeholder = this.tooltip.querySelector("#alerts-placeholder");
+          if (placeholder) {
+            placeholder.remove();
+          }
+          return;
+        }
+
+        console.debug(
+          "[Tooltip] Starting violation check for element:",
+          target
+        );
+
+        // Get violations for this specific element
+        const violations = await window.AxeIntegration.getViolationsForElement(
+          target
+        );
+
+        console.debug("[Tooltip] Violations check complete:", {
+          violationsFound: violations?.length || 0,
+          violations,
+        });
+
+        if (violations && violations.length > 0) {
+          console.debug("[Tooltip] Processing violations for display");
+          // Format violations for tooltip display
+          let formattedViolations = violations;
+          if (
+            typeof window.AxeIntegration.formatViolationsForTooltip ===
+            "function"
+          ) {
+            formattedViolations =
+              window.AxeIntegration.formatViolationsForTooltip(violations);
+          }
+
+          // Update the alerts section in the tooltip
+          content.updateAlertsSection(this.tooltip, formattedViolations);
+          console.debug("[Tooltip] Alerts section updated with violations");
+
+          // Re-position tooltip if size changed
+          if (this._lastTarget) {
+            this.positioning.positionTooltipWithConnector(this._lastTarget);
+          }
+        } else {
+          console.debug(
+            "[Tooltip] No violations found, cleaning up alerts section"
+          );
+          // No violations found - use updateAlertsSection to handle proper cleanup
+          content.updateAlertsSection(this.tooltip, []);
+        }
+      } catch (error) {
+        this.logger.error("[Tooltip] Failed to check violations:", error);
+
+        // Remove alerts placeholder on error - use updateAlertsSection for proper cleanup
+        content.updateAlertsSection(this.tooltip, []);
       }
     }
   }

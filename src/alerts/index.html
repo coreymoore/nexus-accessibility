@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nexus Accessibility Alerts</title>
+    <link rel="stylesheet" href="alerts.css" />
+
+    <!-- Core Dependencies -->
+    <script src="../libs/axe-core.js"></script>
+    <script src="../utils/impact-icons.js"></script>
+
+    <!-- Modular Components -->
+    <script src="js/wcag-parser.js"></script>
+    <script src="js/rule-processor.js"></script>
+    <script src="js/html-generator.js"></script>
+    <script src="js/alerts-controller.js"></script>
+  </head>
+  <body>
+    <div class="alerts-container">
+      <header class="alerts-header">
+        <h1>
+          <img src="../assets/nexus-logo.svg" alt="Nexus" class="logo" />
+          Accessibility Alerts
+        </h1>
+        <p>
+          WCAG A and AA accessibility rules from axe-core
+          <span id="axe-version">loading...</span>
+        </p>
+      </header>
+
+      <main class="alerts-content">
+        <h2>
+          WCAG A/AA Accessibility Rules (<span id="rule-count">Loading...</span
+          >)
+        </h2>
+
+        <div id="rules-container">
+          <p>Loading rules from axe-core...</p>
+        </div>
+      </main>
+
+      <footer class="alerts-footer">
+        <p>
+          Accessibility testing and alerts powered by
+          <a
+            href="https://github.com/dequelabs/axe-core"
+            target="_blank"
+            rel="noopener"
+            >axe-core</a
+          >
+          <span id="footer-version">loading...</span>
+        </p>
+        <p>Generated on <span id="generation-date"></span></p>
+      </footer>
+    </div>
+  </body>
+</html>

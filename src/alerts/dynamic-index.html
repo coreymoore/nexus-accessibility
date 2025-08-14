@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nexus Accessibility Alerts</title>
+    <link rel="stylesheet" href="alerts.css" />
+    <script src="../libs/axe-core.js"></script>
+  </head>
+  <body>
+    <div class="alerts-container">
+      <header class="alerts-header">
+        <h1>
+          <img src="../assets/nexus-logo.svg" alt="Nexus" class="logo" />
+          Accessibility Alerts
+        </h1>
+        <p>
+          Complete reference of accessibility rules from axe-core
+          <span id="axe-version">loading...</span>
+        </p>
+      </header>
+
+      <main class="alerts-content">
+        <h2>
+          All Accessibility Rules (<span id="rule-count">Loading...</span>)
+        </h2>
+
+        <div id="rules-container">
+          <p>Loading rules from axe-core...</p>
+        </div>
+      </main>
+
+      <footer class="alerts-footer">
+        <p>
+          Accessibility testing and alerts powered by
+          <a
+            href="https://github.com/dequelabs/axe-core"
+            target="_blank"
+            rel="noopener"
+            >axe-core</a
+          >
+          <span id="footer-version">loading...</span>
+        </p>
+        <p>Generated on <span id="generation-date"></span></p>
+      </footer>
+    </div>
+
+    <script>
+      function escapeHtml(text) {
+        if (!text) return "";
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function generateRulesPage() {
+        try {
+          // Get rules directly from axe-core
+          const rules = axe._audit.rules;
+          const version = axe.version;
+
+          // Update version info
+          document.getElementById("axe-version").textContent = version;
+          document.getElementById("footer-version").textContent = `v${version}`;
+          document.getElementById("generation-date").textContent =
+            new Date().toLocaleDateString();
+
+          // Sort rules alphabetically
+          const sortedRules = Object.values(rules).sort((a, b) =>
+            a.id.localeCompare(b.id)
+          );
+
+          // Update rule count
+          document.getElementById("rule-count").textContent =
+            sortedRules.length;
+
+          // Generate rule sections
+          const rulesHtml = sortedRules
+            .map((rule) => {
+              const ruleData = rule.metadata || rule;
+              const impact = ruleData.impact || "minor";
+              const tags = ruleData.tags || [];
+
+              return `
+                        <section id="rule-${
+                          rule.id
+                        }" class="rule-section impact-${impact}">
+                            <h3>
+                                <a href="#rule-${
+                                  rule.id
+                                }" class="rule-anchor">${rule.id}</a>
+                                <span class="impact-badge impact-${impact}">${impact}</span>
+                            </h3>
+                            <div class="rule-content">
+                                <p class="rule-description">${escapeHtml(
+                                  ruleData.description
+                                )}</p>
+                                <p class="rule-help">${escapeHtml(
+                                  ruleData.help
+                                )}</p>
+                                ${
+                                  ruleData.helpUrl
+                                    ? `<p class="rule-link"><a href="${ruleData.helpUrl}" target="_blank" rel="noopener">Learn more</a></p>`
+                                    : ""
+                                }
+                                
+                                ${
+                                  tags.length > 0
+                                    ? `
+                                <div class="rule-tags">
+                                    <strong>Tags:</strong> ${tags
+                                      .map(
+                                        (tag) =>
+                                          `<span class="tag">${escapeHtml(
+                                            tag
+                                          )}</span>`
+                                      )
+                                      .join(" ")}
+                                </div>`
+                                    : ""
+                                }
+                            </div>
+                        </section>
+                    `;
+            })
+            .join("");
+
+          document.getElementById("rules-container").innerHTML = rulesHtml;
+        } catch (error) {
+          console.error("Error generating rules page:", error);
+          document.getElementById("rules-container").innerHTML =
+            '<p class="error">Error loading rules from axe-core. Please check the console for details.</p>';
+        }
+      }
+
+      // Generate the page when axe-core is loaded
+      document.addEventListener("DOMContentLoaded", function () {
+        if (typeof axe !== "undefined") {
+          generateRulesPage();
+        } else {
+          // Wait a bit for axe-core to load
+          setTimeout(() => {
+            if (typeof axe !== "undefined") {
+              generateRulesPage();
+            } else {
+              document.getElementById("rules-container").innerHTML =
+                '<p class="error">Failed to load axe-core. Please check that axe-core.js is available.</p>';
+            }
+          }, 100);
+        }
+      });
+    </script>
+  </body>
+</html>

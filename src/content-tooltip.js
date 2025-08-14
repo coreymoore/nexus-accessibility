@@ -52,12 +52,29 @@
    * @param {Element} target - The target element
    */
   function showTooltip(info, target) {
+    console.debug("[ContentExtension.tooltip] showTooltip called:", {
+      hasInfo: !!info,
+      hasTarget: !!target,
+      targetTag: target?.tagName,
+      targetId: target?.id,
+      hasChromeAxTooltip: !!window.chromeAxTooltip,
+      hasShowTooltipMethod: !!(
+        window.chromeAxTooltip && window.chromeAxTooltip.showTooltip
+      ),
+    });
+
     if (
       !window.chromeAxTooltip ||
       typeof window.chromeAxTooltip.showTooltip !== "function"
     ) {
       console.warn(
         "[ContentExtension.tooltip] chromeAxTooltip.showTooltip not available"
+      );
+      console.debug(
+        "[ContentExtension.tooltip] Available on window.chromeAxTooltip:",
+        window.chromeAxTooltip
+          ? Object.keys(window.chromeAxTooltip)
+          : "chromeAxTooltip not found"
       );
       return;
     }
@@ -67,6 +84,9 @@
       enabled: () => (CE.main ? CE.main.isEnabled() : true),
     };
 
+    console.debug(
+      "[ContentExtension.tooltip] Calling window.chromeAxTooltip.showTooltip"
+    );
     window.chromeAxTooltip.showTooltip(info, target, options);
 
     // Broadcast that this frame is showing a tooltip
@@ -280,5 +300,5 @@
     createCloseHandler,
   };
 
-  console.log("[ContentExtension.tooltip] Module loaded");
+  console.log("[ContentExtension.tooltip] Module loaded - VERSION 1.1.9");
 })();

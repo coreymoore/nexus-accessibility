@@ -128,12 +128,8 @@
      * @param {KeyboardEvent} e - Keyboard event
      */
     _handleFocusShortcut(e) {
-      // Allow focus into tooltip content only when user intentionally invokes the shortcut
-      const body = this.core.tooltip.querySelector(".chrome-ax-tooltip-body");
-      if (body) {
-        body.removeAttribute("inert");
-        body.style.pointerEvents = "";
-      }
+      // Enable focus management for keyboard navigation
+      this.core.focus.enableFocusAcceptance();
 
       const srNode = this.core.tooltip.querySelector(".chrome-ax-tooltip-sr");
       const closeButton = this.core.tooltip.querySelector(

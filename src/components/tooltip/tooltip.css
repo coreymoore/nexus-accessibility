@@ -92,6 +92,165 @@
   border-left: 3px solid #683ab7;
 }
 
+/* Accessibility alerts section */
+.chrome-ax-tooltip-alerts {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 245, 245, 0.9),
+    rgba(254, 235, 235, 0.9)
+  );
+  color: #7f1d1d;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.2);
+  border-left: 3px solid #dc2626;
+}
+
+.chrome-ax-tooltip-alerts .alerts-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #991b1b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.chrome-ax-tooltip-alerts .alerts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chrome-ax-tooltip-alert {
+  margin: 0 0 8px 0;
+  padding: 0;
+}
+
+.chrome-ax-tooltip-alert:last-child {
+  margin-bottom: 0;
+}
+
+.chrome-ax-tooltip-alert .alert-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  background: transparent;
+  border-radius: 4px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.chrome-ax-tooltip-alert .alert-link:hover,
+.chrome-ax-tooltip-alert .alert-link:focus {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  text-decoration: underline;
+}
+
+/* Alert header with icon and impact label */
+.chrome-ax-tooltip-alert .alert-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.chrome-ax-tooltip-alert .alert-impact-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.chrome-ax-tooltip-alert .alert-impact {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  align-self: flex-start;
+}
+
+.chrome-ax-tooltip-alert .alert-impact.impact-critical {
+  background: #dc2626;
+  color: white;
+}
+
+.chrome-ax-tooltip-alert .alert-impact.impact-serious {
+  background: #ea580c;
+  color: white;
+}
+
+.chrome-ax-tooltip-alert .alert-impact.impact-moderate {
+  background: #ca8a04;
+  color: white;
+}
+
+.chrome-ax-tooltip-alert .alert-impact.impact-minor {
+  background: #059669;
+  color: white;
+}
+
+.chrome-ax-tooltip-alert .alert-description {
+  font-weight: 500;
+  font-size: 14px;
+  color: #7f1d1d;
+  line-height: 1.3;
+}
+
+.chrome-ax-tooltip-alert .alert-message {
+  font-size: 14px;
+  color: #2d1958;
+  line-height: 1.4;
+  text-decoration: underline;
+  flex: 1;
+  font-style: normal;
+}
+
+/* Alerts within definition list */
+.chrome-ax-tooltip-alerts-list {
+  margin: 0;
+  padding: 0;
+}
+
+.chrome-ax-tooltip-alerts-list .chrome-ax-tooltip-alert {
+  margin: 0 0 8px 0;
+  padding: 0;
+}
+
+.chrome-ax-tooltip-alerts-list .chrome-ax-tooltip-alert:last-child {
+  margin-bottom: 0;
+}
+
+/* Loading state for alerts in definition list */
+.alerts-loading {
+  font-style: italic;
+  color: #7f1d1d;
+  opacity: 0.7;
+}
+
+/* Content state for alerts in definition list */
+.alerts-content-dd {
+  margin: 0;
+  padding: 0;
+}
+
+.chrome-ax-tooltip-alerts .alerts-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #7f1d1d;
+  font-size: 14px;
+  font-style: italic;
+}
+
 /* Focus/hover within tooltip */
 .chrome-ax-tooltip *:focus {
   outline: 2px solid #683ab7 !important;

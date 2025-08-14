@@ -399,12 +399,48 @@
     // Function to actually fetch the accessibility info
     const fetchAccessibilityInfo = () => {
       if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-        CE.accessibility
-          .getAccessibleInfo(targetForInspect, true)
+        console.debug(
+          "[ContentExtension.events] Starting getAccessibleInfo call"
+        );
+        const promise = CE.accessibility.getAccessibleInfo(
+          targetForInspect,
+          true
+        );
+        console.debug(
+          "[ContentExtension.events] getAccessibleInfo returned:",
+          promise
+        );
+        console.debug(
+          "[ContentExtension.events] Is it a Promise?",
+          promise instanceof Promise
+        );
+
+        promise
           .then((info) => {
             clearTimeout(loadingTimeout);
+            console.debug(
+              "[ContentExtension.events] Accessibility info received:",
+              {
+                hasInfo: !!info,
+                lastFocusedElement: lastFocusedElement?.tagName,
+                lastFocusedElementId: lastFocusedElement?.id,
+                targetElement: targetElement?.tagName,
+                targetElementId: targetElement?.id,
+                elementsMatch: lastFocusedElement === targetElement,
+                hasTooltip: !!CE.tooltip,
+              }
+            );
+
             if (lastFocusedElement === targetElement && CE.tooltip) {
+              console.debug(
+                "[ContentExtension.events] Calling CE.tooltip.showTooltip"
+              );
               CE.tooltip.showTooltip(info, targetForInspect);
+            } else {
+              console.debug("[ContentExtension.events] NOT showing tooltip:", {
+                elementMismatch: lastFocusedElement !== targetElement,
+                noTooltip: !CE.tooltip,
+              });
             }
           })
           .catch((error) => {
@@ -421,7 +457,13 @@
     };
 
     // Fetch accessibility info immediately - timing is now handled in background script
+    console.debug(
+      "[ContentExtension.events] About to call fetchAccessibilityInfo"
+    );
     fetchAccessibilityInfo();
+    console.debug(
+      "[ContentExtension.events] fetchAccessibilityInfo call completed"
+    );
   }
 
   /**

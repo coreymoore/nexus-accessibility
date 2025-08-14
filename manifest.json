@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nexus Accessibility Testing Toolkit",
-  "version": "1.1.7",
+  "version": "1.3.7",
   "description": "Nexus Accessibility Testing Toolkit: A Chrome extension for accessibility inspection and testing.",
   "permissions": [
     "activeTab",
@@ -21,13 +21,14 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["<all_urls>", "file://*/*"],
       "all_frames": true,
       "match_about_blank": true,
       "js": [
         "src/utils/constants.js",
         "src/utils/enhanced-constants.js",
         "src/utils/environment.js",
+        "src/utils/impact-icons.js",
         "src/utils/dom-sanitizer.js",
         "src/utils/error-handler.js",
         "src/utils/debounce.js",
@@ -35,6 +36,8 @@
         "src/utils/formatter.js",
         "src/libs/dom-accessibility-api.js",
         "src/libs/aria-query.js",
+        "src/libs/axe-core.js",
+        "src/services/axe-integration.js",
         "src/utils/validation/core.js",
         "src/components/tooltip/tooltip-utils.js",
         "src/components/tooltip/tooltip-content.js",
@@ -73,7 +76,14 @@
         "src/assets/fonts/jetbrains-mono-latin-ext-400.woff2",
         "src/libs/dom-accessibility-api.js",
         "src/libs/aria-query.js",
-        "src/libs/validation-functions.js"
+        "src/libs/axe-core.js",
+        "src/libs/validation-functions.js",
+        "src/services/axe-integration.js",
+        "src/alerts/index.html",
+        "src/alerts/alerts.css",
+        "src/alerts/alerts.js",
+        "src/alerts/rules-metadata.json",
+        "src/config/axe-config.json"
       ],
       "matches": ["<all_urls>"]
     }

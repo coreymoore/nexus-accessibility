@@ -19,7 +19,7 @@
   "use strict";
 
   console.log(
-    "Content script loading... v2.1 - Refactored modular architecture"
+    "Content script loading... v2.1 - INTEGRATED VERSION 1.2.2 - Refactored modular architecture"
   );
 
   // Ensure our namespace exists

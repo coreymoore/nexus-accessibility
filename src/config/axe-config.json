@@ -1,0 +1,38 @@
+{
+  "axeIntegration": {
+    "enabled": true,
+    "scanOnTooltipShow": true,
+    "cacheTimeout": 30000,
+    "ruleConfig": {
+      "tags": ["wcag2a", "wcag2aa", "wcag21aa", "best-practice"],
+      "level": "AA",
+      "enabledRules": [],
+      "disabledRules": []
+    },
+    "guidanceUrl": "src/alerts/index.html",
+    "showViolationsInTooltip": true,
+    "maxViolationsDisplayed": 5
+  },
+  "tooltip": {
+    "showAlertsSection": true,
+    "alertsPosition": "top",
+    "showImpactLevel": true,
+    "linkToGuidance": true
+  },
+  "guidance": {
+    "enableSearch": true,
+    "enableNavigation": true,
+    "groupByCategory": true,
+    "showWcagReferences": true,
+    "attribution": {
+      "showAxeVersion": true,
+      "showGenerationDate": true,
+      "showLicense": true
+    }
+  },
+  "performance": {
+    "debounceDelay": 500,
+    "lazyLoadViolations": true,
+    "cacheViolations": true
+  }
+}

@@ -1,10 +1,7 @@
 /**
- * Content Script Accessibility Data Management
- *
- * This module handles fetching accessibility information from Chrome DevTools Protocol
- * and provides fallback local computation when CDP is unavailable.
- *
- * Dependencies: content-utils.js, content-cache.js
+ * Accessibility Information Module
+ * Handles accessibility data retrieval and processing for the Nexus extension
+ * Updated: 2025-08-14 - Added enhanced debugging for Promise chain
  */
 
 (function () {
@@ -216,6 +213,12 @@
     }
 
     const promise = (async () => {
+      console.log(
+        "getAccessibleInfo: async function started for element:",
+        target?.tagName,
+        target?.id
+      );
+
       // Check cache first, unless forceUpdate is true
       let cached;
       if (!forceUpdate && cache) {
@@ -266,7 +269,15 @@
         }
 
         // Process accessibility information
+        console.log(
+          "getAccessibleInfo: calling processAccessibilityInfo with info:",
+          info
+        );
         const result = processAccessibilityInfo(info, target);
+        console.log(
+          "getAccessibleInfo: processAccessibilityInfo returned:",
+          result
+        );
 
         // Cache the result if meaningful and not a force update
         if (!forceUpdate && cache && result) {
@@ -304,6 +315,7 @@
           }
         }
 
+        console.log("getAccessibleInfo: about to return result:", result);
         return result;
       } catch (error) {
         console.error("Failed to get accessibility info:", error);

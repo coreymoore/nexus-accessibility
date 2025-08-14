@@ -48,35 +48,22 @@
 
       this._onFocusInCapture = (e) => {
         try {
+          // Allow interactions with interactive elements (buttons, links, inputs)
           if (
-            !this._acceptingFocus &&
-            this.core.tooltip &&
-            this.core.tooltip.style.display === "block" &&
-            this.core.tooltip.contains(e.target)
+            e.target &&
+            (e.target.closest("button") ||
+              e.target.closest("a") ||
+              e.target.closest("input") ||
+              e.target.closest("select") ||
+              e.target.closest("textarea") ||
+              e.target.closest("[tabindex]"))
           ) {
-            e.stopPropagation();
-
-            // Return focus to the inspected element if possible
-            if (
-              this.core._lastTarget &&
-              typeof this.core._lastTarget.focus === "function"
-            ) {
-              try {
-                this.core._lastTarget.focus({ preventScroll: true });
-              } catch (error) {
-                console.warn("Failed to restore focus to target:", error);
-              }
-            }
-
-            // Blur the node inside tooltip to avoid sticky focus
-            if (e.target && typeof e.target.blur === "function") {
-              try {
-                e.target.blur();
-              } catch (error) {
-                console.warn("Failed to blur tooltip element:", error);
-              }
-            }
+            return; // Allow normal interaction
           }
+
+          // If user hasn't explicitly enabled focus and tries to focus tooltip content,
+          // just let it happen naturally now that we removed inert
+          // This allows for text selection and natural interaction
         } catch (error) {
           console.warn("Error in focus guard:", error);
         }
@@ -259,15 +246,8 @@
     enableFocusAcceptance() {
       this._acceptingFocus = true;
 
-      // Remove inert attribute from tooltip body
+      // Make tooltip visible to assistive technology
       if (this.core.tooltip) {
-        const body = this.core.tooltip.querySelector(".chrome-ax-tooltip-body");
-        if (body) {
-          body.removeAttribute("inert");
-          body.style.pointerEvents = "";
-        }
-
-        // Make tooltip visible to assistive technology
         this.core.tooltip.removeAttribute("aria-hidden");
       }
     }
@@ -278,15 +258,8 @@
     disableFocusAcceptance() {
       this._acceptingFocus = false;
 
-      // Add inert attribute to tooltip body
+      // Hide tooltip from assistive technology
       if (this.core.tooltip) {
-        const body = this.core.tooltip.querySelector(".chrome-ax-tooltip-body");
-        if (body) {
-          body.setAttribute("inert", "");
-          body.style.pointerEvents = "none";
-        }
-
-        // Hide tooltip from assistive technology
         this.core.tooltip.setAttribute("aria-hidden", "true");
       }
     }
