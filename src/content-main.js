@@ -30,6 +30,9 @@
   let extensionEnabled = true;
   let initialized = false;
 
+  // Add global debug flag
+  window.CONTENT_SCRIPT_DEBUG = true;
+
   /**
    * Initialize the content script extension
    */
@@ -69,6 +72,9 @@
       CE.observers.initialize();
       CE.tooltip.initialize();
 
+      // Initialize page-level accessibility scanning
+      initializePageScanning();
+
       // Set up extension state management
       setupExtensionState();
 
@@ -82,6 +88,204 @@
       // Attempt graceful degradation
       fallbackInitialization();
     }
+  }
+
+  /**
+   * Initialize automatic page-level accessibility scanning
+   */
+  function initializePageScanning() {
+    console.log(
+      "[ContentExtension] Initializing page-level accessibility scanning"
+    );
+
+    // Create global scan data storage
+    if (!window.AccessibilityPageData) {
+      window.AccessibilityPageData = {
+        scanResults: null,
+        lastScanTime: null,
+        isScanning: false,
+        url: window.location.href,
+        initialized: true,
+      };
+    }
+
+    // Wait for AxeIntegration to be available before scanning
+    const waitForAxeAndScan = () => {
+      if (
+        window.AxeIntegration &&
+        typeof window.AxeIntegration.runScan === "function"
+      ) {
+        console.log(
+          "[ContentExtension] AxeIntegration available, starting page scan"
+        );
+        runPageScan();
+      } else {
+        console.log("[ContentExtension] Waiting for AxeIntegration...");
+        setTimeout(waitForAxeAndScan, 100);
+      }
+    };
+
+    // Run initial scan when page is ready
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => {
+        setTimeout(waitForAxeAndScan, 200); // Give time for all scripts to load
+      });
+    } else {
+      // DOM already loaded
+      setTimeout(waitForAxeAndScan, 200);
+    }
+
+    // Set up re-scanning on significant DOM changes (but wait for initial scan)
+    setTimeout(setupPageRescanning, 1000);
+  }
+
+  /**
+   * Run a full page accessibility scan
+   */
+  async function runPageScan() {
+    if (!window.AxeIntegration) {
+      console.warn(
+        "[ContentExtension] AxeIntegration not available for page scan"
+      );
+      return;
+    }
+
+    if (window.AccessibilityPageData.isScanning) {
+      console.debug("[ContentExtension] Page scan already in progress");
+      return;
+    }
+
+    // Check if this is a scannable page
+    const url = window.location.href;
+    if (
+      url.startsWith("chrome://") ||
+      url.startsWith("chrome-extension://") ||
+      url.startsWith("moz-extension://") ||
+      url === "about:blank" ||
+      url.startsWith("file://")
+    ) {
+      console.debug(
+        "[ContentExtension] Skipping scan for system/file page:",
+        url
+      );
+      window.AccessibilityPageData.scanResults = {
+        violations: [],
+        passes: [],
+        incomplete: [],
+        inapplicable: [],
+        error: "Cannot scan this page type",
+      };
+      window.AccessibilityPageData.lastScanTime = Date.now();
+      return;
+    }
+
+    try {
+      console.log("[ContentExtension] Running page accessibility scan...");
+      window.AccessibilityPageData.isScanning = true;
+
+      const scanResults = await window.AxeIntegration.runScan();
+
+      window.AccessibilityPageData.scanResults = scanResults;
+      window.AccessibilityPageData.lastScanTime = Date.now();
+      window.AccessibilityPageData.url = window.location.href;
+
+      console.log("[ContentExtension] Page scan completed:", {
+        violations: scanResults.violations?.length || 0,
+        passes: scanResults.passes?.length || 0,
+        incomplete: scanResults.incomplete?.length || 0,
+        inapplicable: scanResults.inapplicable?.length || 0,
+      });
+
+      // Dispatch custom event for other parts of the extension
+      window.dispatchEvent(
+        new CustomEvent("accessibility-page-scan-complete", {
+          detail: { scanResults },
+        })
+      );
+    } catch (error) {
+      console.error("[ContentExtension] Page scan failed:", error);
+      window.AccessibilityPageData.scanResults = {
+        violations: [],
+        passes: [],
+        incomplete: [],
+        inapplicable: [],
+        error: error.message,
+      };
+      window.AccessibilityPageData.lastScanTime = Date.now();
+    } finally {
+      window.AccessibilityPageData.isScanning = false;
+    }
+  }
+
+  /**
+   * Set up automatic re-scanning on DOM changes
+   */
+  function setupPageRescanning() {
+    let rescanningStopped = false;
+    let rescanTimeout = null;
+
+    // Debounced rescan function
+    const debouncedRescan = () => {
+      if (rescanningStopped) return;
+
+      clearTimeout(rescanTimeout);
+      rescanTimeout = setTimeout(() => {
+        if (!rescanningStopped) {
+          console.debug(
+            "[ContentExtension] DOM changed significantly, re-scanning page"
+          );
+          runPageScan();
+        }
+      }, 2000); // Wait 2 seconds after last change
+    };
+
+    // Monitor significant DOM changes
+    const observer = new MutationObserver((mutations) => {
+      if (rescanningStopped) return;
+
+      const significantChange = mutations.some((mutation) => {
+        // Consider it significant if elements are added/removed or attributes change
+        return (
+          (mutation.type === "childList" &&
+            (mutation.addedNodes.length > 0 ||
+              mutation.removedNodes.length > 0)) ||
+          (mutation.type === "attributes" &&
+            ["aria-", "role", "tabindex", "alt", "title"].some(
+              (attr) =>
+                mutation.attributeName?.startsWith(attr) ||
+                mutation.attributeName === attr
+            ))
+        );
+      });
+
+      if (significantChange) {
+        debouncedRescan();
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: [
+        "aria-hidden",
+        "aria-expanded",
+        "aria-selected",
+        "aria-checked",
+        "aria-pressed",
+        "role",
+        "tabindex",
+        "alt",
+        "title",
+      ],
+    });
+
+    // Stop rescanning when page unloads
+    window.addEventListener("beforeunload", () => {
+      rescanningStopped = true;
+      clearTimeout(rescanTimeout);
+      observer.disconnect();
+    });
   }
 
   /**

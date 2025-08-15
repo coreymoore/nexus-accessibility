@@ -168,7 +168,25 @@
         });
 
         // Process and cache results
-        const processedResults = this.processResults(results);
+        let processedResults;
+        try {
+          processedResults = this.processResults(results);
+        } catch (processError) {
+          logger.warn(
+            "[AxeIntegration] Failed to process results, using raw results:",
+            processError
+          );
+          // Fallback to basic processing
+          processedResults = {
+            violations: results.violations || [],
+            passes: results.passes || [],
+            incomplete: results.incomplete || [],
+            inapplicable: results.inapplicable || [],
+            timestamp: Date.now(),
+            url: window.location.href,
+          };
+        }
+
         this.cacheResult(cacheKey, processedResults);
 
         logger.info(
@@ -201,12 +219,28 @@
           element?.id
         );
 
-        // If no scan results provided, run a targeted scan
+        // If no scan results provided, check for stored page scan data first
         if (!scanResults) {
           logger.debug(
-            "[AxeIntegration] No scan results provided, running new scan"
+            "[AxeIntegration] No scan results provided, checking for stored page data"
           );
-          scanResults = await this.runScan();
+
+          // Try to use stored page scan data first
+          if (
+            window.AccessibilityPageData &&
+            window.AccessibilityPageData.scanResults
+          ) {
+            logger.debug(
+              "[AxeIntegration] Using stored page scan data from:",
+              new Date(window.AccessibilityPageData.lastScanTime)
+            );
+            scanResults = window.AccessibilityPageData.scanResults;
+          } else {
+            logger.debug(
+              "[AxeIntegration] No stored page data available, running new scan"
+            );
+            scanResults = await this.runScan();
+          }
         }
 
         logger.debug(
@@ -453,10 +487,12 @@
         chrome.runtime &&
         chrome.runtime.getURL
       ) {
-        return chrome.runtime.getURL(`src/alerts/index.html#rule-${ruleId}`);
+        return chrome.runtime.getURL(
+          `src/alerts/dynamic-index.html#rule-${ruleId}`
+        );
       }
       // Fallback for testing or other contexts
-      return `../alerts/index.html#rule-${ruleId}`;
+      return `../alerts/dynamic-index.html#rule-${ruleId}`;
     },
 
     /**
@@ -478,6 +514,62 @@
           }
           return { tag };
         });
+    },
+
+    /**
+     * Get guidance information for a rule
+     * @param {string} ruleId - The axe rule ID
+     * @returns {Object} Guidance information
+     */
+    getGuidanceInfo(ruleId) {
+      try {
+        // Get rule from axe-core if available
+        if (window.axe && typeof window.axe.getRule === "function") {
+          const rule = window.axe.getRule(ruleId);
+          if (rule) {
+            return {
+              wcag: rule.tags?.filter((tag) => tag.startsWith("wcag")) || [],
+              help: rule.help || "",
+              helpUrl: rule.helpUrl || "",
+              description: rule.description || "",
+              impact: rule.impact || "minor",
+            };
+          }
+        }
+
+        // Fallback to metadata if available
+        if (window.AxeRuleMetadata && window.AxeRuleMetadata[ruleId]) {
+          const metadata = window.AxeRuleMetadata[ruleId];
+          return {
+            wcag: metadata.wcag || [],
+            help: metadata.help || "",
+            helpUrl: metadata.helpUrl || "",
+            description: metadata.description || "",
+            impact: metadata.impact || "minor",
+          };
+        }
+
+        // Default guidance
+        return {
+          wcag: [],
+          help: "",
+          helpUrl: "",
+          description: "",
+          impact: "minor",
+        };
+      } catch (error) {
+        logger.warn(
+          `[AxeIntegration] Failed to get guidance for rule ${ruleId}:`,
+          error
+        );
+        return {
+          wcag: [],
+          help: "",
+          helpUrl: "",
+          description: "",
+          impact: "minor",
+        };
+      }
     },
 
     /**

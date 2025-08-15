@@ -9,7 +9,7 @@
       "enabledRules": [],
       "disabledRules": []
     },
-    "guidanceUrl": "src/alerts/index.html",
+    "guidanceUrl": "src/alerts/dynamic-index.html",
     "showViolationsInTooltip": true,
     "maxViolationsDisplayed": 5
   },

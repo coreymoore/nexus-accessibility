@@ -127,7 +127,13 @@
   function initMessageListener() {
     if (messageListener) return; // Prevent duplicates
 
-    messageListener = (msg) => {
+    console.log("[ContentExtension.events] Setting up message listener");
+
+    messageListener = (msg, sender, sendResponse) => {
+      if (window.CONTENT_SCRIPT_DEBUG) {
+        console.log("[ContentExtension.events] Message received:", msg);
+      }
+
       try {
         if (
           msg &&
@@ -139,6 +145,110 @@
             CE.tooltip.hideTooltip();
           }
         }
+
+        // Handle diagnostic ping to check if content script is responsive
+        if (msg && msg.action === "diagnostic") {
+          console.log("[ContentExtension.events] Diagnostic request received");
+          sendResponse({
+            success: true,
+            contentScriptLoaded: true,
+            axeIntegrationAvailable: !!window.AxeIntegration,
+            accessibilityPageDataExists: !!window.AccessibilityPageData,
+            url: window.location.href,
+            timestamp: Date.now(),
+          });
+          return;
+        }
+
+        // Handle popup requests for accessibility scan data
+        if (msg && msg.action === "getPageAccessibilityData") {
+          // Use stored page scan data instead of running a new scan
+          try {
+            console.debug(
+              "[ContentExtension.events] Page accessibility data requested"
+            );
+            console.debug(
+              "[ContentExtension.events] AccessibilityPageData state:",
+              {
+                exists: !!window.AccessibilityPageData,
+                initialized: window.AccessibilityPageData?.initialized,
+                hasScanResults: !!window.AccessibilityPageData?.scanResults,
+                isScanning: window.AccessibilityPageData?.isScanning,
+                lastScanTime: window.AccessibilityPageData?.lastScanTime,
+              }
+            );
+
+            if (!window.AccessibilityPageData) {
+              console.warn(
+                "[ContentExtension.events] AccessibilityPageData not initialized"
+              );
+              sendResponse({
+                success: false,
+                error:
+                  "Page scanning not initialized. Extension may still be loading.",
+              });
+              return;
+            }
+
+            if (window.AccessibilityPageData.isScanning) {
+              console.debug("[ContentExtension.events] Page scan in progress");
+              sendResponse({
+                success: false,
+                error:
+                  "Page scan in progress. Please wait a moment and try again.",
+              });
+              return;
+            }
+
+            if (!window.AccessibilityPageData.scanResults) {
+              console.warn(
+                "[ContentExtension.events] No page scan data available yet"
+              );
+              sendResponse({
+                success: false,
+                error:
+                  "Page scan not yet complete. Please wait for scanning to finish.",
+              });
+              return;
+            }
+
+            const scanResults = window.AccessibilityPageData.scanResults;
+
+            console.debug(
+              "[ContentExtension.events] Returning cached page scan data:",
+              {
+                violations: scanResults.violations?.length || 0,
+                passes: scanResults.passes?.length || 0,
+                incomplete: scanResults.incomplete?.length || 0,
+                inapplicable: scanResults.inapplicable?.length || 0,
+                scanTime: window.AccessibilityPageData.lastScanTime,
+              }
+            );
+
+            sendResponse({
+              success: true,
+              data: {
+                violations: scanResults.violations || [],
+                passes: scanResults.passes?.length || 0,
+                incomplete: scanResults.incomplete?.length || 0,
+                inapplicable: scanResults.inapplicable?.length || 0,
+                url: window.AccessibilityPageData.url,
+                timestamp: window.AccessibilityPageData.lastScanTime,
+                error: scanResults.error || null,
+              },
+            });
+          } catch (error) {
+            console.error(
+              "[ContentExtension.events] Failed to get page accessibility data:",
+              error
+            );
+            sendResponse({
+              success: false,
+              error: error.message || "Failed to get scan data",
+            });
+          }
+          return;
+        }
       } catch (error) {
         console.error(
           "[ContentExtension.events] Error in message listener:",
@@ -148,6 +258,9 @@
     };
 
     chrome.runtime.onMessage.addListener(messageListener);
+    console.log(
+      "[ContentExtension.events] Message listener added to chrome.runtime.onMessage"
+    );
   }
 
   /**

@@ -24,6 +24,16 @@
         <button
           role="tab"
           aria-selected="false"
+          aria-controls="tabpanel-alerts"
+          id="tab-alerts"
+          tabindex="-1"
+          class="tab"
+        >
+          Alerts
+        </button>
+        <button
+          role="tab"
+          aria-selected="false"
           aria-controls="tabpanel-shortcuts"
           id="tab-shortcuts"
           tabindex="-1"
@@ -60,6 +70,57 @@
             <dd id="page-lang">Loading…</dd>
           </dl>
         </div>
+        <div
+          id="accessibility-alerts-section"
+          class="info-container"
+          style="margin-top: 16px"
+        >
+          <h2>Accessibility Alerts</h2>
+          <div id="alerts-summary-loading" class="loading-state">
+            <div class="spinner"></div>
+            <span>Scanning page...</span>
+          </div>
+          <div id="alerts-summary-content" style="display: none">
+            <div
+              id="alerts-overview-summary"
+              class="alerts-overview-summary"
+            ></div>
+            <button
+              id="view-all-alerts-btn"
+              class="view-all-alerts-btn"
+              style="display: none"
+            >
+              View All Alerts
+            </button>
+          </div>
+          <div
+            id="alerts-summary-error"
+            class="error-state"
+            style="display: none"
+          >
+            <span>Unable to scan page</span>
+          </div>
+        </div>
+      </div>
+      <div
+        id="tabpanel-alerts"
+        role="tabpanel"
+        aria-labelledby="tab-alerts"
+        tabindex="0"
+        class="tabpanel"
+        hidden
+      >
+        <h2>Accessibility Alerts</h2>
+        <div id="alerts-loading" class="loading-state">
+          <div class="spinner"></div>
+          <span>Scanning page for accessibility alerts...</span>
+        </div>
+        <div id="alerts-content" style="display: none">
+          <div id="alerts-list" class="alerts-list"></div>
+        </div>
+        <div id="alerts-error" class="error-state" style="display: none">
+          <span>Unable to scan page for alerts</span>
+        </div>
       </div>
       <div
         id="tabpanel-shortcuts"
@@ -86,6 +147,7 @@
         </div>
       </div>
     </div>
+    <script src="../utils/impact-icons.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

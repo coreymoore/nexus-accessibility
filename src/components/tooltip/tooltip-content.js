@@ -454,10 +454,12 @@
         chrome.runtime &&
         chrome.runtime.getURL
       ) {
-        return chrome.runtime.getURL(`src/alerts/index.html#rule-${ruleId}`);
+        return chrome.runtime.getURL(
+          `src/alerts/dynamic-index.html#rule-${ruleId}`
+        );
       }
       // Fallback for testing or other contexts
-      return `../alerts/index.html#rule-${ruleId}`;
+      return `../alerts/dynamic-index.html#rule-${ruleId}`;
     },
 
     /**

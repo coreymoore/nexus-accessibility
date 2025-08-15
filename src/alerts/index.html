@@ -5,36 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nexus Accessibility Alerts</title>
     <link rel="stylesheet" href="alerts.css" />
-
-    <!-- Core Dependencies -->
+    <link rel="stylesheet" href="rule-descriptions.css" />
+    <!-- 
+    IMPORTANT: This is a DYNAMIC alerts page that generates content from axe-core at runtime.
+    
+    DO NOT CONVERT TO STATIC HTML!
+    
+    This page uses a modular JavaScript system to:
+    1. Load axe-core rules dynamically via axe.getRules(['wcag2a', 'wcag2aa'])
+    2. Generate comprehensive rule descriptions with plain language explanations
+    3. Include WCAG mapping with links to success criteria and techniques
+    4. Provide inline examples and guidance (not in disclosure/details elements)
+    5. Support real-time updates when axe-core is updated
+    
+    The system includes:
+    - rule-descriptions.js: Comprehensive descriptions for WCAG A/AA rules
+    - js/alerts-controller.js: Main controller for dynamic generation
+    - js/html-generator.js: HTML generation with enhanced descriptions
+    - js/rule-processor.js: Rule processing and filtering
+    - js/wcag-parser.js: WCAG criteria parsing and links
+    
+    This dynamic approach ensures:
+    - Always up-to-date with current axe-core version
+    - Comprehensive accessibility guidance inline with rules
+    - Proper WCAG links and technique references
+    - Consistent formatting without excessive emojis
+    
+    If you need to modify the content, update the JavaScript modules, not this HTML file.
+    -->
+    <!-- Load axe-core first -->
     <script src="../libs/axe-core.js"></script>
-    <script src="../utils/impact-icons.js"></script>
-
-    <!-- Modular Components -->
-    <script src="js/wcag-parser.js"></script>
-    <script src="js/rule-processor.js"></script>
-    <script src="js/html-generator.js"></script>
-    <script src="js/alerts-controller.js"></script>
   </head>
   <body>
     <div class="alerts-container">
       <header class="alerts-header">
         <h1>
-          <img src="../assets/nexus-logo.svg" alt="Nexus" class="logo" />
+          <img src="../assets/nexus-logo.svg" alt="Nexus" class="logo-large" />
+          <br />
           Accessibility Alerts
         </h1>
-        <p>
-          WCAG A and AA accessibility rules from axe-core
-          <span id="axe-version">loading...</span>
-        </p>
       </header>
 
       <main class="alerts-content">
-        <h2>
-          WCAG A/AA Accessibility Rules (<span id="rule-count">Loading...</span
-          >)
-        </h2>
-
         <div id="rules-container">
           <p>Loading rules from axe-core...</p>
         </div>
@@ -42,17 +54,143 @@
 
       <footer class="alerts-footer">
         <p>
-          Accessibility testing and alerts powered by
+          Extended documentation © 2025 Nexus Accessibility Testing Toolkit.
+        </p>
+        <p>
+          Accessibility alerts powered by
           <a
             href="https://github.com/dequelabs/axe-core"
             target="_blank"
             rel="noopener"
             >axe-core</a
           >
-          <span id="footer-version">loading...</span>
         </p>
-        <p>Generated on <span id="generation-date"></span></p>
+
+        <p>
+          axe-core rules © 2025 Deque Systems, Inc. axe-core is licensed under
+          the Mozilla Public License 2.0.<br />
+          This extension uses axe-core under the terms of the MPL-2.0 license.
+        </p>
       </footer>
     </div>
+
+    <!-- Loading animation -->
+    <div id="loader" class="loader-container">
+      <div class="loader-icon"></div>
+      <p>Loading Accessibility Rules...</p>
+    </div>
+
+    <!-- Dynamic alerts generation system -->
+    <script src="../utils/impact-icons.js"></script>
+    <script src="../utils/axe-config.js"></script>
+    <script src="js/rule-processor.js"></script>
+    <script src="js/html-generator.js"></script>
+    <script src="js/alerts-controller.js"></script>
+
+    <!-- Load all rule documentation modules -->
+    <script src="rule-docs/area-alt.js"></script>
+    <script src="rule-docs/aria-allowed-attr.js"></script>
+    <script src="rule-docs/aria-braille-equivalent.js"></script>
+    <script src="rule-docs/aria-command-name.js"></script>
+    <script src="rule-docs/aria-conditional-attr.js"></script>
+    <script src="rule-docs/aria-deprecated-role.js"></script>
+    <script src="rule-docs/aria-hidden-body.js"></script>
+    <script src="rule-docs/aria-hidden-focus.js"></script>
+    <script src="rule-docs/aria-input-field-name.js"></script>
+    <script src="rule-docs/aria-meter-name.js"></script>
+    <script src="rule-docs/aria-progressbar-name.js"></script>
+    <script src="rule-docs/aria-prohibited-attr.js"></script>
+    <script src="rule-docs/aria-required-attr.js"></script>
+    <script src="rule-docs/aria-required-children.js"></script>
+    <script src="rule-docs/aria-required-parent.js"></script>
+    <script src="rule-docs/aria-roledescription.js"></script>
+    <script src="rule-docs/aria-roles.js"></script>
+    <script src="rule-docs/aria-toggle-field-name.js"></script>
+    <script src="rule-docs/aria-tooltip-name.js"></script>
+    <script src="rule-docs/aria-treeitem-name.js"></script>
+    <script src="rule-docs/aria-valid-attr-value.js"></script>
+    <script src="rule-docs/aria-valid-attr.js"></script>
+    <script src="rule-docs/audio-caption.js"></script>
+    <script src="rule-docs/avoid-inline-spacing.js"></script>
+    <script src="rule-docs/blink.js"></script>
+    <script src="rule-docs/button-name.js"></script>
+    <script src="rule-docs/bypass.js"></script>
+    <script src="rule-docs/color-contrast.js"></script>
+    <script src="rule-docs/definition-list.js"></script>
+    <script src="rule-docs/dlitem.js"></script>
+    <script src="rule-docs/document-title.js"></script>
+    <script src="rule-docs/duplicate-id-aria.js"></script>
+    <script src="rule-docs/form-field-multiple-labels.js"></script>
+    <script src="rule-docs/frame-focusable-content.js"></script>
+    <script src="rule-docs/frame-title-unique.js"></script>
+    <script src="rule-docs/frame-title.js"></script>
+    <script src="rule-docs/html-has-lang.js"></script>
+    <script src="rule-docs/html-lang-valid.js"></script>
+    <script src="rule-docs/html-xml-lang-mismatch.js"></script>
+    <script src="rule-docs/image-alt.js"></script>
+    <script src="rule-docs/input-button-name.js"></script>
+    <script src="rule-docs/input-image-alt.js"></script>
+    <script src="rule-docs/label.js"></script>
+    <script src="rule-docs/link-in-text-block.js"></script>
+    <script src="rule-docs/link-name.js"></script>
+    <script src="rule-docs/list.js"></script>
+    <script src="rule-docs/listitem.js"></script>
+    <script src="rule-docs/marquee.js"></script>
+    <script src="rule-docs/meta-refresh.js"></script>
+    <script src="rule-docs/meta-viewport.js"></script>
+    <script src="rule-docs/nested-interactive.js"></script>
+    <script src="rule-docs/no-autoplay-audio.js"></script>
+    <script src="rule-docs/object-alt.js"></script>
+    <script src="rule-docs/p-as-heading.js"></script>
+    <script src="rule-docs/role-img-alt.js"></script>
+    <script src="rule-docs/scrollable-region-focusable.js"></script>
+    <script src="rule-docs/select-name.js"></script>
+    <script src="rule-docs/server-side-image-map.js"></script>
+    <script src="rule-docs/summary-name.js"></script>
+    <script src="rule-docs/svg-img-alt.js"></script>
+    <script src="rule-docs/table-fake-caption.js"></script>
+    <script src="rule-docs/td-has-header.js"></script>
+    <script src="rule-docs/td-headers-attr.js"></script>
+    <script src="rule-docs/th-has-data-cells.js"></script>
+    <script src="rule-docs/valid-lang.js"></script>
+    <script src="rule-docs/video-caption.js"></script>
+
+    <script>
+      // Initialize the alerts system after DOM and scripts are loaded
+      document.addEventListener("DOMContentLoaded", function () {
+        console.log("DOM loaded, initializing alerts system...");
+
+        // Simple initialization since rule docs are loaded via script tags
+        function initializeAlerts() {
+          if (typeof axe !== "undefined" && !window.alertsInitialized) {
+            console.log(`🚀 Initializing alerts with axe-core...`);
+            console.log(
+              `📚 RULE_DESCRIPTIONS available: ${
+                typeof window.RULE_DESCRIPTIONS !== "undefined"
+              }`
+            );
+            if (window.RULE_DESCRIPTIONS) {
+              console.log(
+                `📊 Rule descriptions count: ${
+                  Object.keys(window.RULE_DESCRIPTIONS).length
+                }`
+              );
+            }
+
+            try {
+              AlertsController.init();
+            } catch (error) {
+              console.error("Error initializing alerts:", error);
+            }
+          } else if (typeof axe === "undefined") {
+            console.warn("axe-core not loaded, retrying in 500ms...");
+            setTimeout(initializeAlerts, 500);
+          }
+        }
+
+        // Start initialization
+        initializeAlerts();
+      });
+    </script>
   </body>
 </html>

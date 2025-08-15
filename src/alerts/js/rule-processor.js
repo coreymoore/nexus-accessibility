@@ -90,9 +90,17 @@
      */
     getCompleteRules(tags = []) {
       try {
+        // Use centralized config if tags not provided
+        if (tags.length === 0 && window.AxeConfig) {
+          tags = window.AxeConfig.getTags();
+        }
+
         // Get public rules with official tag filtering
-        const publicRules =
-          typeof axe !== "undefined" ? axe.getRules(tags) : [];
+        const publicRules = window.AxeConfig
+          ? window.AxeConfig.getRules()
+          : typeof axe !== "undefined"
+          ? axe.getRules(tags)
+          : [];
 
         // Get internal audit rules (has impact, selector, enabled, etc.)
         const auditRules = this._getAuditRules();

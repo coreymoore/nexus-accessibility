@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Axe Config Test</title>
+  </head>
+  <body>
+    <h1>Testing Axe Configuration Consistency</h1>
+    <div id="results"></div>
+
+    <!-- Load axe and config -->
+    <script src="src/libs/axe-core.js"></script>
+    <script src="src/utils/axe-config.js"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const resultsDiv = document.getElementById("results");
+
+        // Test axe-core availability
+        resultsDiv.innerHTML += "<h2>Axe-core Test Results</h2>";
+
+        if (typeof window.axe !== "undefined") {
+          resultsDiv.innerHTML += "<p>✅ Axe-core loaded successfully</p>";
+
+          if (typeof window.AxeConfig !== "undefined") {
+            resultsDiv.innerHTML += "<p>✅ AxeConfig loaded successfully</p>";
+
+            const rules = window.AxeConfig.getRules();
+            resultsDiv.innerHTML += `<p>📋 Found ${rules.length} WCAG A/AA rules</p>`;
+
+            resultsDiv.innerHTML += "<h3>Rule IDs (first 20):</h3><ul>";
+            rules.slice(0, 20).forEach((rule) => {
+              const ruleId = rule.ruleId || rule.id;
+              resultsDiv.innerHTML += `<li>${ruleId}</li>`;
+            });
+            resultsDiv.innerHTML += "</ul>";
+
+            // Test scan
+            window.AxeConfig.runScan()
+              .then((results) => {
+                resultsDiv.innerHTML += `<h3>Scan Results:</h3>`;
+                resultsDiv.innerHTML += `<p>Violations: ${results.violations.length}</p>`;
+                resultsDiv.innerHTML += `<p>Passes: ${results.passes.length}</p>`;
+                resultsDiv.innerHTML += `<p>Incomplete: ${results.incomplete.length}</p>`;
+                resultsDiv.innerHTML += `<p>Inapplicable: ${results.inapplicable.length}</p>`;
+              })
+              .catch((error) => {
+                resultsDiv.innerHTML += `<p>❌ Scan failed: ${error.message}</p>`;
+              });
+          } else {
+            resultsDiv.innerHTML += "<p>❌ AxeConfig not loaded</p>";
+          }
+        } else {
+          resultsDiv.innerHTML += "<p>❌ Axe-core not loaded</p>";
+        }
+      });
+    </script>
+  </body>
+</html>

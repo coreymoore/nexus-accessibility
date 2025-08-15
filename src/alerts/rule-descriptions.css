@@ -1,0 +1,357 @@
+/* Main container for the rule description */
+.rule-section {
+  background: #ffffff;
+  border: 1px solid #e8e2f5;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(45, 25, 88, 0.05);
+  overflow: hidden;
+}
+
+/* Header section with rule title and impact */
+.rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 24px;
+  background: rgba(249, 248, 253, 0.5);
+  border-bottom: 1px solid #e8e2f5;
+  gap: 16px;
+}
+
+.rule-help {
+  color: #2d1958;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.3;
+  flex: 1;
+}
+
+/* Impact Badge Styles - using original color scheme */
+.impact-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  border: 1px solid;
+}
+
+.impact-badge.impact-critical {
+  background: rgba(153, 27, 27, 0.08);
+  color: #991b1b;
+  border-color: rgba(153, 27, 27, 0.2);
+}
+.impact-badge.impact-serious {
+  background: rgba(194, 65, 12, 0.08);
+  color: #c2410c;
+  border-color: rgba(194, 65, 12, 0.2);
+}
+.impact-badge.impact-moderate {
+  background: rgba(161, 98, 7, 0.08);
+  color: #a16207;
+  border-color: rgba(161, 98, 7, 0.2);
+}
+.impact-badge.impact-minor {
+  background: rgba(22, 101, 52, 0.08);
+  color: #166534;
+  border-color: rgba(22, 101, 52, 0.2);
+}
+
+/* Main content area */
+.rule-content {
+  padding: 24px 32px;
+}
+
+.rule-description {
+  color: #45326a;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* Enhanced description sections */
+.comprehensive-description {
+  border-top: 1px solid #e8e2f5;
+  padding-top: 24px;
+  margin-top: 24px;
+}
+
+.plain-language-section,
+.why-matters-section,
+.how-to-fix-section,
+.examples-section,
+.wcag-mapping-section {
+  margin-bottom: 32px;
+}
+
+.comprehensive-description h4 {
+  color: #2d1958;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 2px solid rgba(104, 58, 183, 0.1);
+  padding-bottom: 8px;
+}
+
+ul.plain-language-list {
+  list-style-type: none;
+}
+
+/* Informational subsections */
+.what-it-means,
+.why-it-matters,
+.who-it-affects {
+  margin-bottom: 24px;
+  padding-left: 20px;
+  border-left-width: 4px;
+  border-left-style: solid;
+  line-height: 1.7;
+}
+
+.what-it-means {
+  border-left-color: #683ab7; /* Primary purple */
+}
+
+.why-it-matters {
+  border-left-color: #c2410c; /* Serious orange */
+}
+
+.who-it-affects {
+  border-left-color: #166534; /* Minor green */
+}
+
+.what-it-means strong,
+.why-it-matters strong,
+.who-it-affects strong {
+  color: #2d1958;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 8px;
+  font-size: 1.1em;
+}
+
+/* Lists */
+.reasons-list {
+  margin: 0;
+  padding-left: 24px;
+  list-style-type: "✓  ";
+  color: #166534;
+}
+
+.reasons-list li {
+  margin-bottom: 10px;
+  line-height: 1.6;
+  color: #45326a;
+  padding-left: 8px;
+}
+
+/* How-to-fix section */
+.fix-method {
+  border: 1px solid #e8e2f5;
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 16px;
+  background: #ffffff;
+}
+
+.fix-method strong {
+  color: #2d1958;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.fix-method p {
+  margin: 0 0 12px 0;
+  color: #45326a;
+  line-height: 1.6;
+}
+
+/* Code blocks */
+pre,
+.fix-method pre,
+.example-item pre {
+  background: #f9f8fd;
+  color: #2d1958;
+  border: 1px solid #e8e2f5;
+  border-radius: 6px;
+  padding: 16px;
+  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  margin: 12px 0 0 0;
+  white-space: pre-wrap;
+}
+
+/* Examples section */
+.examples-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.failing-examples,
+.passing-examples {
+  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid #e8e2f5;
+}
+
+.failing-examples {
+  background-color: rgba(153, 27, 27, 0.03);
+  grid-column: 1; /* Explicitly place in the first column */
+}
+
+.passing-examples {
+  background-color: rgba(22, 101, 52, 0.03);
+  grid-column: 2; /* Explicitly place in the second column */
+}
+
+.failing-examples h5,
+.passing-examples h5 {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.failing-examples h5 {
+  color: #991b1b;
+}
+
+.passing-examples h5 {
+  color: #166534;
+}
+
+.example-item h6 {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d1958;
+}
+
+.example-issue,
+.example-explanation {
+  font-size: 0.95rem;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  line-height: 1.5;
+}
+
+.example-issue {
+  color: #991b1b;
+  background: rgba(153, 27, 27, 0.05);
+  border: 1px solid rgba(153, 27, 27, 0.1);
+}
+
+.example-explanation {
+  color: #166534;
+  background: rgba(22, 101, 52, 0.05);
+  border: 1px solid rgba(22, 101, 52, 0.1);
+}
+
+/* WCAG Mapping */
+.wcag-guidelines h6,
+.wcag-techniques h6 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d1958;
+}
+
+.guideline-item,
+.technique-item {
+  background: #f9f8fd;
+  border: 1px solid #e8e2f5;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: background-color 0.2s ease;
+}
+
+.guideline-item:hover,
+.technique-item:hover {
+  background-color: #f5f1fe;
+}
+
+a {
+  text-decoration: underline;
+}
+
+.guideline-link,
+.technique-link {
+  color: #683ab7;
+  text-decoration: underline;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.guideline-link:hover,
+.technique-link:hover {
+  text-decoration: underline;
+}
+
+.guideline-relationship {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  color: #5a4a7e;
+}
+
+/* Responsive Design */
+@media (max-width: 800px) {
+  .examples-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .rule-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .rule-content {
+    padding: 24px;
+  }
+}
+
+/* Utilities */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Loading State */
+.comprehensive-description.loading {
+  opacity: 0.5;
+  position: relative;
+}
+
+.comprehensive-description.loading::after {
+  content: "Loading Description...";
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 10px 20px;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  font-style: italic;
+}
