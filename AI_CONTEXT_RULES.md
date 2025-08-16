@@ -82,7 +82,7 @@ This document provides strict rules and context for any AI agent generating code
 
 - **Font families:**
 
-  - Primary font: `'Inter', sans-serif` - For all UI text (loaded from local WOFF2 files and Google Fonts CDN)
+  - Primary font: `'Inter', sans-serif` - For all UI text (loaded from local WOFF2 files only)
   - Monospace font: `'JetBrains Mono', monospace` - For code examples, technical output, and screen reader information display
   - Fallback fonts: System sans-serif stack for general text, system monospace for code
   - Icon font: None. All icons are SVGs.
@@ -96,7 +96,7 @@ This document provides strict rules and context for any AI agent generating code
 
 - **Font loading:**
 
-  - Inter: Loaded via both local WOFF2 files (`src/assets/fonts/inter*.woff2`) and Google Fonts CDN fallback
+  - Inter: Loaded via local WOFF2 files (`src/assets/fonts/inter*.woff2`)
   - JetBrains Mono: Loaded via local WOFF2 files (`src/assets/fonts/jetbrains-mono*.woff2`)
   - Font-display: `swap` - Ensures text remains visible during font load
 
@@ -246,6 +246,20 @@ This document provides strict rules and context for any AI agent generating code
 - **Global validation functions:** `validateAccessibilityLibraries()` and `batchValidateAccessibility()`
 - **Library injection:** Must inject both DOM API and ARIA Query into page context for testing
 
+### 3.4 Validation Implementation Hierarchy
+
+The extension uses three distinct validation layers that work together:
+
+1. **CDP Validation (Primary)**: Implemented in utils/validation/core.js, uses Chrome DevTools Protocol
+2. **Library Fallback (Secondary)**: Uses dom-accessibility-api and aria-query when CDP is unavailable
+3. **Content Script Validation**: Implemented in content/content-validation.js for in-page validation
+
+When implementing new validation features:
+
+- Always attempt CDP validation first
+- Provide complete fallback implementation using libraries
+- Update both core and content validation modules when adding new checks
+
 ---
 
 ## 4. Security & Privacy
@@ -328,6 +342,39 @@ src/
 - **Batch CDP commands:** Group related commands when possible
 - **Handle debugger limits:** Respect Chrome's debugger attachment constraints
 
+### 6.4 Lifecycle-based Memory Management
+
+Memory cleanup must occur at these specific lifecycle points:
+
+1. **Tab Navigation**: Clear tab-specific caches and listeners (content scripts)
+2. **Tab Close**: Remove all tab data from background storage
+3. **Extension Unload**: Release global resources and service worker state
+4. **Element Reference Cleanup**: Use WeakMap or explicit cleanup when element references are no longer needed
+
+All new features must implement cleanup at all applicable lifecycle points.
+
+### 6.5 Standardized Cache Implementation
+
+All caches in the extension must follow these specifications:
+
+1. **TTL**: All cached items expire after 5 minutes by default
+2. **Size Limits**: Maximum 1000 items per cache type
+3. **Implementation**: Use CacheManager from utils/cache-manager.js
+4. **Invalidation**: Clear relevant caches on page navigation or DOM mutations
+5. **Priority**: Implement LRU (Least Recently Used) eviction policy
+
+Example implementation:
+
+```javascript
+import { CacheManager } from "../utils/cache-manager.js";
+
+const elementCache = new CacheManager({
+  name: "elements",
+  maxSize: 1000,
+  ttl: 5 * 60 * 1000, // 5 minutes
+});
+```
+
 ---
 
 ## 7. Error Handling & Resilience
@@ -343,6 +390,38 @@ src/
 - **Consistent logging prefixes:** Use `[NEXUS]` for general messages and `[VALIDATION]` for validation-specific logging
 - **Log levels:** Support verbose mode via `NEXUS_TESTING_MODE.verbose`
 - **No console errors in production:** Catch and handle all exceptions
+
+### 7.3 Standard Error Handling Pattern
+
+All code must follow this error handling pattern:
+
+1. **Async Operations**: Use try/catch with async/await pattern
+2. **Error Classification**: Categorize errors as recoverable or fatal
+3. **Recovery Strategy**: Use ErrorRecovery class for retryable operations
+4. **User Feedback**: Show user-friendly error messages in UI
+5. **Logging**: Log detailed error information for debugging
+
+Example implementation:
+
+```javascript
+import { ErrorRecovery } from "../utils/error-recovery.js";
+
+async function validateElement(element) {
+  const recovery = new ErrorRecovery("validateElement", {
+    maxRetries: 3,
+    backoffFactor: 1.5,
+  });
+
+  return recovery.attempt(async () => {
+    try {
+      // Validation logic here
+    } catch (error) {
+      console.error("[VALIDATION] Element validation failed:", error);
+      throw error; // Will be caught by recovery.attempt
+    }
+  });
+}
+```
 
 ---
 
@@ -465,6 +544,18 @@ src/
 - **Required fields:** action/type, tabId (for certain actions)
 - **Sender validation:** Must be from same extension ID
 - **Action whitelist:** Only allow predefined action types
+
+### 14.3 Message Validation Implementation
+
+All message validation must use the MessageValidator class:
+
+1. **Import**: `import { MessageValidator } from '../utils/validation/message-validator.js'`
+2. **Validation**: All messages must be validated with `MessageValidator.validate(message)`
+3. **Schema**: Messages must follow the schema defined in message-schemas.js
+4. **Error Handling**: Invalid messages must be rejected with clear error messages
+5. **New Message Types**: When adding new message types, update both the validator and schema
+
+This applies to all contexts: background, content scripts, and popup.
 
 ---
 
