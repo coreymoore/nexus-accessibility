@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Reports Modal</title>
+    <link rel="stylesheet" href="src/popup/popup.css" />
+    <style>
+      body {
+        padding: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui;
+      }
+      .test-container {
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .test-button {
+        background: #0366d6;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        margin: 10px 0;
+      }
+      .test-button:hover {
+        background: #0256cc;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="test-container">
+      <h1>Test Reports Modal</h1>
+      <p>This page tests the View All Reports modal functionality.</p>
+
+      <button id="test-modal-btn" class="test-button">
+        Test View All Reports Modal
+      </button>
+      <button id="add-sample-data-btn" class="test-button">
+        Add Sample Report Data
+      </button>
+
+      <div
+        id="test-output"
+        style="
+          margin-top: 20px;
+          padding: 10px;
+          background: #f6f8fa;
+          border-radius: 4px;
+          min-height: 100px;
+        "
+      >
+        <p>
+          Click "Add Sample Report Data" first, then "Test View All Reports
+          Modal"
+        </p>
+      </div>
+    </div>
+
+    <!-- Include required scripts -->
+    <script src="src/utils/accessibility-database.js"></script>
+    <script src="src/popup/modules/modal-manager.js"></script>
+    <script src="src/popup/modules/reports-manager.js"></script>
+
+    <script>
+      // Initialize components
+      let db, modalManager, reportsManager;
+
+      async function initTest() {
+        try {
+          // Initialize database
+          db = new AccessibilityDatabase();
+          await db.init();
+
+          // Initialize modal manager
+          modalManager = new ModalManager();
+          modalManager.init();
+          window.modalManager = modalManager;
+
+          // Initialize reports manager
+          reportsManager = new ReportsManager();
+          reportsManager.setDatabase(db);
+          reportsManager.init();
+
+          document.getElementById("test-output").innerHTML =
+            '<p style="color: green;">✓ Components initialized successfully!</p>';
+        } catch (error) {
+          document.getElementById(
+            "test-output"
+          ).innerHTML = `<p style="color: red;">✗ Initialization failed: ${error.message}</p>`;
+        }
+      }
+
+      async function addSampleData() {
+        try {
+          const sampleReports = [
+            {
+              urls: ["https://example.com"],
+              timestamp: Date.now() - 86400000, // 1 day ago
+              scanResults: {
+                violations: [
+                  { id: "color-contrast", impact: "serious" },
+                  { id: "heading-order", impact: "moderate" },
+                ],
+              },
+              deviceId: "test-device",
+              pages: [
+                {
+                  url: "https://example.com",
+                  timestamp: Date.now() - 86400000,
+                  scanResults: {
+                    violations: [
+                      { id: "color-contrast", impact: "serious" },
+                      { id: "heading-order", impact: "moderate" },
+                    ],
+                  },
+                },
+              ],
+            },
+            {
+              urls: ["https://google.com", "https://google.com/search"],
+              timestamp: Date.now() - 3600000, // 1 hour ago
+              scanResults: {
+                violations: [{ id: "aria-label", impact: "critical" }],
+              },
+              deviceId: "test-device",
+              pages: [
+                {
+                  url: "https://google.com",
+                  timestamp: Date.now() - 3600000,
+                  scanResults: {
+                    violations: [{ id: "aria-label", impact: "critical" }],
+                  },
+                },
+                {
+                  url: "https://google.com/search",
+                  timestamp: Date.now() - 3000000,
+                  scanResults: { violations: [] },
+                },
+              ],
+            },
+            {
+              urls: ["https://github.com"],
+              timestamp: Date.now() - 1800000, // 30 minutes ago
+              scanResults: {
+                violations: [],
+              },
+              deviceId: "test-device",
+              pages: [
+                {
+                  url: "https://github.com",
+                  timestamp: Date.now() - 1800000,
+                  scanResults: { violations: [] },
+                },
+              ],
+            },
+          ];
+
+          for (const report of sampleReports) {
+            await db.saveReport(
+              report.urls,
+              report.scanResults,
+              report.deviceId,
+              report.timestamp
+            );
+          }
+
+          document.getElementById("test-output").innerHTML =
+            '<p style="color: green;">✓ Sample reports added successfully!</p>';
+        } catch (error) {
+          document.getElementById(
+            "test-output"
+          ).innerHTML = `<p style="color: red;">✗ Failed to add sample data: ${error.message}</p>`;
+        }
+      }
+
+      async function testModal() {
+        try {
+          await reportsManager.handleViewAllReports();
+          document.getElementById("test-output").innerHTML =
+            '<p style="color: green;">✓ Reports modal opened successfully!</p>';
+        } catch (error) {
+          document.getElementById(
+            "test-output"
+          ).innerHTML = `<p style="color: red;">✗ Failed to open modal: ${error.message}</p>`;
+        }
+      }
+
+      // Set up event listeners
+      document
+        .getElementById("add-sample-data-btn")
+        .addEventListener("click", addSampleData);
+      document
+        .getElementById("test-modal-btn")
+        .addEventListener("click", testModal);
+
+      // Initialize on page load
+      initTest();
+    </script>
+  </body>
+</html>

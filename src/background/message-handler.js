@@ -2,9 +2,10 @@ import { MessageValidator } from "./message-validator.js";
 import { getAccessibilityInfoForElement } from "./accessibilityInfo.js";
 
 export class MessageHandler {
-  constructor(cacheManager, debuggerManager) {
+  constructor(cacheManager, debuggerManager, badgeManager) {
     this.cache = cacheManager;
     this.debugger = debuggerManager;
+    this.badge = badgeManager;
   }
 
   async handle(msg, sender) {
@@ -29,6 +30,9 @@ export class MessageHandler {
 
         case "keepAlive":
           return { status: "alive" };
+
+        case "scanCompleted":
+          return await this.handleScanCompleted(msg, sender);
 
         default:
           throw new Error(`Unhandled action: ${action}`);
@@ -192,6 +196,36 @@ export class MessageHandler {
       return { status: "no_tab_id" };
     } catch (error) {
       throw new Error(`Failed to detach debugger: ${error.message}`);
+    }
+  }
+
+  async handleScanCompleted(msg, sender) {
+    try {
+      // Try to get tabId from sender first, then from message
+      const tabId = sender.tab?.id || msg.tabId;
+      if (!tabId) {
+        console.warn("[MessageHandler] No tab ID in scan completed message");
+        return { status: "no_tab_id" };
+      }
+
+      const violationCount = msg.violationCount || 0;
+      console.log(
+        `[MessageHandler] Scan completed for tab ${tabId}: ${violationCount} violations (source: ${
+          sender.tab?.id ? "content" : "popup"
+        })`
+      );
+
+      // Update badge with violation count
+      if (this.badge) {
+        this.badge.updateViolationCount(tabId, violationCount);
+      } else {
+        console.warn("[MessageHandler] Badge manager not available");
+      }
+
+      return { status: "badge_updated", tabId, violationCount };
+    } catch (error) {
+      console.error("[MessageHandler] Error handling scan completed:", error);
+      throw new Error(`Failed to handle scan completed: ${error.message}`);
     }
   }
 }

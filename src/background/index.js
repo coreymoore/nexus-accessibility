@@ -1,18 +1,32 @@
 import { CacheManager } from "./cache-manager.js";
 import { DebuggerManager } from "./debugger-manager.js";
 import { MessageHandler } from "./message-handler.js";
+import { BadgeManager } from "./badge-manager.js";
 
 // Initialize managers
 const cacheManager = new CacheManager();
 const debuggerManager = new DebuggerManager();
-const messageHandler = new MessageHandler(cacheManager, debuggerManager);
+const badgeManager = new BadgeManager();
+const messageHandler = new MessageHandler(
+  cacheManager,
+  debuggerManager,
+  badgeManager
+);
 
 // Setup message listener
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  console.log("[BackgroundService] Received message:", msg, "from:", sender);
+
   messageHandler
     .handle(msg, sender)
-    .then(sendResponse)
-    .catch((error) => sendResponse({ error: error.message }));
+    .then((response) => {
+      console.log("[BackgroundService] Sending response:", response);
+      sendResponse(response);
+    })
+    .catch((error) => {
+      console.error("[BackgroundService] Message handling error:", error);
+      sendResponse({ error: error.message });
+    });
   return true; // Keep channel open for async response
 });
 

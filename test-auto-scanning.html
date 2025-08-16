@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto-Scanning Test Page</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .test-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .violation-example {
+        color: red;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Auto-Scanning Test Page</h1>
+
+    <div class="test-section">
+      <h2>Test Instructions</h2>
+      <ol>
+        <li>
+          Install and enable the Nexus Accessibility Testing Toolkit extension
+        </li>
+        <li>
+          <strong>With Inspector OFF:</strong> Open popup - should see blurred
+          preview with "Enable Inspector to Scan for Accessibility Alerts"
+        </li>
+        <li>
+          <strong>Enable Inspector:</strong> Should trigger automatic scan and
+          remove blur
+        </li>
+        <li>
+          <strong>Disable Inspector:</strong> Should show blur again with
+          inspector message
+        </li>
+        <li>
+          <strong>No View Report button:</strong> Verify the View Report button
+          below the blur has been removed
+        </li>
+        <li>
+          Check that scan results are cached and available when inspector is
+          enabled
+        </li>
+      </ol>
+    </div>
+
+    <div class="test-section">
+      <h2>Expected Behavior Changes</h2>
+      <ul>
+        <li>
+          ✅ <strong>Blur shows when no cached scan:</strong> If inspector is
+          disabled, blur overlay appears
+        </li>
+        <li>
+          ✅ <strong>New message:</strong> "Enable Inspector to Scan for
+          Accessibility Alerts" (no period)
+        </li>
+        <li>
+          ✅ <strong>View Report button removed:</strong> No button below the
+          blur overlay
+        </li>
+        <li>
+          ✅ <strong>Blur removed with data:</strong> When scan results are
+          available, blur disappears
+        </li>
+      </ul>
+    </div>
+
+    <div class="test-section">
+      <h2>Accessibility Violations (Intentional)</h2>
+      <p>
+        These elements contain intentional accessibility issues to test
+        scanning:
+      </p>
+
+      <!-- Missing alt text -->
+      <img
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ff0000' width='100' height='100'/%3E%3C/svg%3E"
+        width="100"
+        height="100"
+      />
+
+      <!-- Missing form label -->
+      <div>
+        <input type="text" placeholder="Enter your name" />
+      </div>
+
+      <!-- Low contrast text -->
+      <div style="color: #ccc; background-color: #fff">
+        This text has low contrast and should be flagged
+      </div>
+
+      <!-- Missing heading hierarchy -->
+      <h4>This H4 comes after H2, skipping H3</h4>
+    </div>
+
+    <div class="test-section">
+      <h2>Console Output Expected</h2>
+      <ul>
+        <li>"Content script loaded with axe-core scanning"</li>
+        <li>
+          "DOM loaded - initializing axe integration" or "DOM already loaded -
+          initializing axe integration"
+        </li>
+        <li>"Axe integration and accessibility cache available"</li>
+        <li>"Inspector enabled - running automatic page scan" (if enabled)</li>
+        <li>"Running accessibility scan..."</li>
+        <li>"Scan completed: X violations found and cached"</li>
+      </ul>
+    </div>
+
+    <div class="test-section">
+      <h2>Testing Inspector Toggle</h2>
+      <p>
+        Use the extension popup to toggle the inspector on/off and watch for
+        scanning activity in the console.
+      </p>
+    </div>
+
+    <script>
+      console.log("[Test Page] Auto-scanning test page loaded");
+
+      // Monitor extension state changes
+      let checkCount = 0;
+      const maxChecks = 10;
+
+      function checkExtensionComponents() {
+        checkCount++;
+        console.log(
+          `[Test Page] Extension component check ${checkCount}/${maxChecks}:`
+        );
+        console.log(
+          "- AxeIntegration available:",
+          typeof window.AxeIntegration !== "undefined"
+        );
+        console.log(
+          "- AccessibilityCache available:",
+          typeof window.AccessibilityCache !== "undefined"
+        );
+
+        if (window.AccessibilityCache) {
+          const stats = window.AccessibilityCache.getStats();
+          console.log("- Cache stats:", stats);
+        }
+
+        if (checkCount < maxChecks) {
+          setTimeout(checkExtensionComponents, 1000);
+        }
+      }
+
+      // Start monitoring after page load
+      setTimeout(checkExtensionComponents, 500);
+
+      // Test manual scan trigger
+      window.testManualScan = function () {
+        if (window.AxeIntegration) {
+          console.log("[Test Page] Triggering manual scan...");
+          window.AxeIntegration.runScan()
+            .then((results) => {
+              console.log("[Test Page] Manual scan results:", results);
+
+              if (window.AccessibilityCache) {
+                window.AccessibilityCache.setPageResults(results, false);
+                console.log("[Test Page] Results cached");
+              }
+            })
+            .catch((error) => {
+              console.error("[Test Page] Manual scan failed:", error);
+            });
+        } else {
+          console.error(
+            "[Test Page] AxeIntegration not available for manual scan"
+          );
+        }
+      };
+
+      console.log(
+        "[Test Page] Test functions loaded. Call testManualScan() to trigger manual scan."
+      );
+    </script>
+  </body>
+</html>

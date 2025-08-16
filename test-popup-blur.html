@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Popup Blur Behavior Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .test-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background: #f9f9f9;
+      }
+      .expected {
+        color: #16a34a;
+        font-weight: bold;
+      }
+      .changed {
+        color: #dc2626;
+        font-weight: bold;
+      }
+      .step {
+        margin: 10px 0;
+        padding: 10px;
+        background: white;
+        border-left: 3px solid #3b82f6;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Popup Blur Behavior Test</h1>
+
+    <div class="test-section">
+      <h2>Testing the New Blur Logic</h2>
+      <p>
+        This page tests the updated behavior where the blur overlay only shows
+        when there is <strong>no cached scan</strong> available.
+      </p>
+
+      <div class="step">
+        <h3>Step 1: Fresh Start (No Cache)</h3>
+        <p>
+          <span class="expected">Expected:</span> Single alerts section with
+          blur and "Enable Inspector..." message
+        </p>
+        <ul>
+          <li>Clear extension data if needed</li>
+          <li>Open popup with inspector disabled</li>
+          <li>
+            Should see single alerts section with default content (3 Critical, 2
+            Serious, 1 Moderate)
+          </li>
+          <li>Entire section should be blurred (filter: blur(3px))</li>
+          <li>
+            Message shows "Enable Inspector to Scan for Accessibility Alerts"
+          </li>
+          <li>No View Report button below blur</li>
+        </ul>
+      </div>
+
+      <div class="step">
+        <h3>Step 2: Enable Inspector</h3>
+        <p>
+          <span class="expected">Expected:</span> Auto-scan runs, same section
+          updates with real data, blur removed
+        </p>
+        <ul>
+          <li>Toggle inspector on via popup</li>
+          <li>Should automatically trigger scan</li>
+          <li>Same alerts section updates with real scan results</li>
+          <li>Blur effect is removed (filter: none)</li>
+          <li>Content becomes interactive again</li>
+          <li>Message changes to "Create a Report to Scan..."</li>
+        </ul>
+      </div>
+
+      <div class="step">
+        <h3>Step 3: Disable Inspector (With Cached Data)</h3>
+        <p>
+          <span class="changed">NEW BEHAVIOR:</span> Should keep showing real
+          cached data, no blur
+        </p>
+        <ul>
+          <li>Toggle inspector off</li>
+          <li>
+            Since cached data exists, same section continues showing real data
+          </li>
+          <li>No blur applied over cached data</li>
+          <li>Real scan results remain visible and interactive</li>
+        </ul>
+      </div>
+
+      <div class="step">
+        <h3>Step 4: Clear Cache</h3>
+        <p>
+          <span class="expected">Expected:</span> Returns to default content
+          with blur
+        </p>
+        <ul>
+          <li>Clear extension data or use developer tools to clear cache</li>
+          <li>Refresh popup</li>
+          <li>
+            Should return to default content (3 Critical, 2 Serious, 1 Moderate)
+          </li>
+          <li>Blur effect applied again</li>
+          <li>Message returns to "Enable Inspector..."</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h2>Key Changes Made</h2>
+      <ul>
+        <li>
+          <strong>Single Section Design:</strong> Uses one alerts section
+          instead of dual mock/real sections
+        </li>
+        <li>
+          <strong>Dynamic Content:</strong> Same section shows default content
+          OR real scan results
+        </li>
+        <li>
+          <strong>Smart Blur:</strong> Blur applied directly to content when no
+          cached scan available
+        </li>
+        <li>
+          <strong>Content Updates:</strong> Real scan results replace default
+          content in same container
+        </li>
+        <li>
+          <strong>Message Text:</strong> "Enable Inspector to Scan for
+          Accessibility Alerts" (removed period)
+        </li>
+        <li>
+          <strong>Removed Button:</strong> View Report button below blur is
+          completely removed
+        </li>
+        <li>
+          <strong>Cleaner Logic:</strong> No more section switching, just blur
+          on/off and content updates
+        </li>
+      </ul>
+    </div>
+
+    <div class="test-section">
+      <h2>Files Modified</h2>
+      <ul>
+        <li>
+          <code>src/popup/popup.html</code> - Simplified to single alerts
+          section, removed duplicate containers
+        </li>
+        <li>
+          <code>src/popup/modules/ui-manager.js</code> - Updated to use single
+          section with dynamic blur control
+        </li>
+        <li>
+          <code>test-popup-blur.html</code> - Updated test instructions for
+          single-section approach
+        </li>
+      </ul>
+    </div>
+
+    <!-- Test elements with violations -->
+    <img
+      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23333' width='100' height='100'/%3E%3C/svg%3E"
+      width="100"
+      height="100"
+    />
+    <input type="text" placeholder="Test input" />
+    <div style="color: #ccc; background: white">
+      Low contrast text for testing
+    </div>
+
+    <script>
+      console.log("[Test Page] Blur behavior test page loaded");
+      console.log(
+        "[Test Page] This page contains accessibility violations to test scanning"
+      );
+
+      // Test inspector toggle simulation
+      window.testInspectorToggle = function () {
+        console.log(
+          "[Test Page] Simulating inspector toggle - check popup behavior"
+        );
+        // In real usage, this would be done via the popup UI
+      };
+
+      // Monitor extension status
+      setTimeout(() => {
+        console.log("[Test Page] Extension components:");
+        console.log(
+          "- AxeIntegration:",
+          typeof window.AxeIntegration !== "undefined"
+        );
+        console.log(
+          "- AccessibilityCache:",
+          typeof window.AccessibilityCache !== "undefined"
+        );
+      }, 1000);
+    </script>
+  </body>
+</html>

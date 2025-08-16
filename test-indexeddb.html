@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reports IndexedDB Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 10px;
+      }
+      .results {
+        margin-top: 20px;
+        padding: 20px;
+        border: 1px solid #ccc;
+      }
+      .success {
+        color: green;
+      }
+      .error {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Reports IndexedDB Test Page</h1>
+    <button id="test-db">Test Database</button>
+    <button id="test-manual-report">Test Report Creation</button>
+    <button id="test-append-report">Test Append to Report</button>
+    <div id="results"></div>
+
+    <script src="src/utils/accessibility-database.js"></script>
+    <script>
+      document.getElementById("test-db").addEventListener("click", async () => {
+        const resultsDiv = document.getElementById("results");
+        resultsDiv.innerHTML = "Testing basic functionality...";
+
+        try {
+          const db = new AccessibilityDatabase();
+          await db.init();
+
+          // Test saving reports (all are now manual)
+          const testData = {
+            violations: [
+              {
+                id: "test-rule",
+                impact: "moderate",
+                description: "Test violation",
+              },
+            ],
+            passes: [],
+            incomplete: [],
+            inapplicable: [],
+          };
+
+          const reportId1 = await db.saveReport("http://test1.com", testData);
+          const reportId2 = await db.saveReport("http://test2.com", testData);
+
+          // Test retrieving reports
+          const retrieved1 = await db.getLatestReport("http://test1.com");
+          const retrieved2 = await db.getLatestReport("http://test2.com");
+
+          // Test stats
+          const stats = await db.getStats();
+
+          resultsDiv.innerHTML = `
+                    <h3>Test Results</h3>
+                    <p><strong>Report 1 ID:</strong> ${reportId1}</p>
+                    <p><strong>Report 2 ID:</strong> ${reportId2}</p>
+                    <p><strong>Retrieved Reports:</strong> ${
+                      retrieved1 && retrieved2 ? "Success" : "Failed"
+                    }</p>
+                    <p><strong>Total Reports:</strong> ${stats.totalReports}</p>
+                    <p><strong>Unique URLs:</strong> ${stats.uniqueUrls}</p>
+                    <p><strong>Device ID:</strong> ${db.deviceId}</p>
+                    <p><strong>Database Initialized:</strong> ${
+                      db.db ? "Yes" : "No"
+                    }</p>
+                    <p class="success">✓ All tests passed!</p>
+                `;
+        } catch (error) {
+          resultsDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+          console.error(error);
+        }
+      });
+
+      document
+        .getElementById("test-manual-report")
+        .addEventListener("click", async () => {
+          const resultsDiv = document.getElementById("results");
+          resultsDiv.innerHTML = "Testing manual report creation...";
+
+          try {
+            const db = new AccessibilityDatabase();
+            await db.init();
+
+            // Simulate report data (all reports are now manual)
+            const reportData = {
+              violations: [
+                {
+                  id: "manual-test",
+                  impact: "serious",
+                  description: "User-created violation",
+                },
+              ],
+              passes: [
+                { id: "manual-pass", description: "User-verified pass" },
+              ],
+              incomplete: [],
+              inapplicable: [],
+            };
+
+            const reportId = await db.saveReport(
+              window.location.href,
+              reportData
+            );
+            const stats = await db.getStats();
+
+            resultsDiv.innerHTML = `
+                    <h3>Manual Report Test Results</h3>
+                    <p><strong>Report ID:</strong> ${reportId}</p>
+                    <p><strong>Report URL:</strong> ${window.location.href}</p>
+                    <p><strong>Total Reports:</strong> ${stats.totalReports}</p>
+                    <p><strong>Unique URLs:</strong> ${stats.uniqueUrls}</p>
+                    <p class="success">✓ Report created successfully!</p>
+                `;
+          } catch (error) {
+            resultsDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            console.error(error);
+          }
+        });
+
+      document
+        .getElementById("test-append-report")
+        .addEventListener("click", async () => {
+          const resultsDiv = document.getElementById("results");
+          resultsDiv.innerHTML = "Testing append to report...";
+
+          try {
+            const db = new AccessibilityDatabase();
+            await db.init();
+
+            // First create a base report
+            const baseData = {
+              violations: [
+                {
+                  id: "base-violation",
+                  impact: "moderate",
+                  description: "Base report violation",
+                },
+              ],
+              passes: [{ id: "base-pass", description: "Base report pass" }],
+              incomplete: [],
+              inapplicable: [],
+            };
+
+            const baseReportId = await db.saveReport(
+              "http://example.com",
+              baseData
+            );
+
+            // Then append new data to it
+            const appendData = {
+              violations: [
+                {
+                  id: "appended-violation",
+                  impact: "serious",
+                  description: "Appended violation",
+                },
+              ],
+              passes: [{ id: "appended-pass", description: "Appended pass" }],
+              incomplete: [],
+              inapplicable: [],
+            };
+
+            const updatedReport = await db.appendToReport(
+              baseReportId,
+              appendData,
+              "http://example.com/page2"
+            );
+            const stats = await db.getStats();
+            const summaries = await db.getReportSummaries();
+
+            resultsDiv.innerHTML = `
+                    <h3>Append Report Test Results</h3>
+                    <p><strong>Base Report ID:</strong> ${baseReportId}</p>
+                    <p><strong>Updated Report Pages:</strong> ${
+                      updatedReport.pages ? updatedReport.pages.length : 1
+                    }</p>
+                    <p><strong>Has Reports for URL:</strong> ${await db.hasReportsForUrl(
+                      "http://example.com"
+                    )}</p>
+                    <p><strong>Total Reports:</strong> ${stats.totalReports}</p>
+                    <p><strong>Report Summaries:</strong> ${
+                      summaries.length
+                    }</p>
+                    <p class="success">✓ Append functionality working!</p>
+                `;
+          } catch (error) {
+            resultsDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            console.error(error);
+          }
+        });
+    </script>
+  </body>
+</html>

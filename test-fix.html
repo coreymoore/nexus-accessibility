@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Quick Fix Test</title>
+  </head>
+  <body>
+    <h1>Testing IndexedDB Fix</h1>
+    <button id="test-init">Test Database Initialization</button>
+    <div id="results"></div>
+
+    <script src="src/utils/accessibility-database.js"></script>
+    <script>
+      document
+        .getElementById("test-init")
+        .addEventListener("click", async () => {
+          const resultsDiv = document.getElementById("results");
+          resultsDiv.innerHTML = "Testing initialization...";
+
+          try {
+            console.log("Starting test...");
+            const db = new AccessibilityDatabase();
+
+            console.log("Calling init...");
+            await db.init();
+
+            console.log("Database initialized, checking properties...");
+            console.log("DB object:", db.db ? "Present" : "Missing");
+            console.log("Device ID:", db.deviceId);
+
+            // Test that we can call methods without recursion issues
+            const stats = await db.getStats();
+            console.log("Stats:", stats);
+
+            resultsDiv.innerHTML = `
+                    <h3>✓ Fix Successful!</h3>
+                    <p><strong>Database:</strong> ${
+                      db.db ? "Initialized" : "Failed"
+                    }</p>
+                    <p><strong>Device ID:</strong> ${db.deviceId}</p>
+                    <p><strong>Stats:</strong> ${stats.totalReports} reports</p>
+                    <p style="color: green;">No more infinite recursion!</p>
+                `;
+          } catch (error) {
+            console.error("Test failed:", error);
+            resultsDiv.innerHTML = `
+                    <h3>❌ Test Failed</h3>
+                    <p style="color: red;">Error: ${error.message}</p>
+                `;
+          }
+        });
+    </script>
+  </body>
+</html>

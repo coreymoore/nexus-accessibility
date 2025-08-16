@@ -38,8 +38,9 @@
       if (this._messageListener) return; // Prevent duplicate listeners
 
       this._messageListener = (msg, sender, sendResponse) => {
-        if (msg && typeof msg.miniMode === "boolean") {
-          this.core.miniMode = msg.miniMode;
+        if (msg && msg.inspectorMode) {
+          // Update inspector mode
+          this.core.inspectorMode = msg.inspectorMode;
           if (
             this.core.tooltip &&
             this.core.tooltip.style.display === "block"

@@ -1,0 +1,417 @@
+/* Modal Styles - ARIA APG Compliant Modal Dialogs */
+
+/* Screen reader only class for announcements */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+  animation: modal-fade-in 0.15s ease-out;
+}
+
+.modal-overlay[aria-hidden="false"] {
+  display: flex;
+}
+
+/* Modal Dialog */
+.modal-dialog {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.99),
+    rgba(249, 245, 255, 0.97)
+  );
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modal-slide-in 0.15s ease-out;
+}
+
+/* Dialog sizes */
+.modal-dialog--small {
+  width: 400px;
+}
+
+.modal-dialog--medium {
+  width: 600px;
+}
+
+.modal-dialog--large {
+  width: 800px;
+}
+
+/* Modal Content */
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Modal Header */
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  background: #f9fafb;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    sans-serif;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  transition: all 0.15s ease;
+}
+
+.modal-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-close:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  background: #f3f4f6;
+}
+
+/* Modal Body */
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+  color: #374151;
+  line-height: 1.6;
+}
+
+.modal-body p {
+  margin: 0 0 16px 0;
+}
+
+.modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* Modal Footer */
+.modal-footer {
+  padding: 20px 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  background: #f9fafb;
+}
+
+/* Modal Buttons */
+.modal-button {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: -0.011em;
+}
+
+.modal-button--primary {
+  background: linear-gradient(135deg, #683ab7 0%, #5b33a2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.modal-button--primary:hover {
+  background: linear-gradient(135deg, #5b33a2 0%, #4a2c91 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(104, 58, 183, 0.25);
+}
+
+.modal-button--primary:focus {
+  outline: 2px solid #683ab7 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px #fff !important;
+}
+
+.modal-button--secondary {
+  background: linear-gradient(
+    to bottom,
+    rgba(245, 241, 255, 0.9),
+    rgba(237, 231, 254, 0.9)
+  );
+  color: #2d1958;
+  border: 1px solid rgba(104, 58, 183, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.modal-button--secondary:hover {
+  background: linear-gradient(
+    to bottom,
+    rgba(237, 231, 254, 0.9),
+    rgba(229, 221, 253, 0.9)
+  );
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(104, 58, 183, 0.15);
+  border-color: rgba(104, 58, 183, 0.3);
+}
+
+.modal-button--secondary:focus {
+  outline: 2px solid #683ab7 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px #fff !important;
+}
+
+.modal-button--danger {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
+.modal-button--danger:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.modal-button--danger:focus {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+}
+
+.modal-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-button:disabled:hover {
+  background: inherit;
+  border-color: inherit;
+}
+
+/* Loading State */
+.modal-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #6b7280;
+}
+
+.modal-loading .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 12px;
+}
+
+/* Form Elements in Modals */
+.modal-body label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+
+.modal-body input,
+.modal-body select,
+.modal-body textarea {
+  width: 100%;
+  padding: 12px 16px;
+  background: linear-gradient(
+    to bottom,
+    rgba(245, 241, 255, 0.9),
+    rgba(237, 231, 254, 0.9)
+  );
+  border: 1px solid rgba(104, 58, 183, 0.2);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
+  color: #2d1958;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.modal-body input:focus,
+.modal-body select:focus,
+.modal-body textarea:focus {
+  outline: 2px solid #683ab7 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px #fff !important;
+  border-color: #683ab7;
+}
+
+/* List Elements */
+.modal-body ul {
+  margin: 0 0 16px 0;
+  padding-left: 20px;
+}
+
+.modal-body li {
+  margin-bottom: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .modal-dialog {
+    width: 95vw;
+    max-width: none;
+    margin: 20px;
+  }
+
+  .modal-dialog--small,
+  .modal-dialog--medium,
+  .modal-dialog--large {
+    width: 95vw;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 16px;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+  }
+
+  .modal-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Animations */
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-slide-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .modal-overlay {
+    background-color: rgba(0, 0, 0, 0.8);
+  }
+
+  .modal-dialog {
+    border: 2px solid #000;
+  }
+
+  .modal-button {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal-dialog,
+  .modal-button,
+  .modal-close {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Focus management */
+.modal-dialog:focus {
+  outline: none;
+}
+
+/* Ensure modal content is scrollable */
+.modal-body {
+  overflow-y: auto;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

@@ -316,11 +316,11 @@
     console.log("[Alerts] Enhancing rules with axe-core metadata...");
 
     // No need for manual rule mapping - axe-core provides proper impact levels
-    // The rules-metadata.json file now contains accurate impact classifications:
-    // - Critical: 22 rules (complete blockers)
-    // - Serious: 51 rules (significant barriers)
-    // - Moderate: 17 rules (important impediments)
-    // - Minor: 14 rules (best practices)
+    // Impact classifications are handled directly by axe-core scan results:
+    // - Critical: complete blockers
+    // - Serious: significant barriers
+    // - Moderate: important impediments
+    // - Minor: best practices
 
     // Update each rule card with proper impact icon from metadata
     ruleCards.forEach((card) => {

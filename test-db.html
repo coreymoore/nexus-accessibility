@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Database Test</title>
+    <script src="src/utils/accessibility-database.js"></script>
+  </head>
+  <body>
+    <h1>Database Test</h1>
+    <div id="result"></div>
+
+    <script>
+      async function testDatabase() {
+        const resultDiv = document.getElementById("result");
+        try {
+          console.log("Testing database initialization...");
+          const db = new AccessibilityDatabase();
+          await db.init();
+          console.log("Database initialized successfully");
+
+          // Test getting all reports
+          const reports = await db.getAllReports();
+          console.log("Reports:", reports);
+
+          resultDiv.innerHTML = `
+                    <p>✅ Database initialized successfully</p>
+                    <p>Device ID: ${db.deviceId}</p>
+                    <p>Reports count: ${reports.length}</p>
+                `;
+        } catch (error) {
+          console.error("Database test failed:", error);
+          resultDiv.innerHTML = `
+                    <p style="color: red">❌ Database test failed: ${error.message}</p>
+                    <pre>${error.stack}</pre>
+                `;
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", testDatabase);
+    </script>
+  </body>
+</html>

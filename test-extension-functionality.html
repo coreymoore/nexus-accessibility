@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Extension Functionality Test</title>
+  </head>
+  <body>
+    <h1>Extension Test Page</h1>
+
+    <!-- Create some accessibility violations for testing -->
+    <img
+      src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCI+PHJlY3QgZmlsbD0iIzAwMCIgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz48L3N2Zz4="
+      width="100"
+      height="100"
+    />
+    <input type="text" placeholder="Name" />
+    <div style="color: #ccc; background: white">Low contrast text</div>
+
+    <script>
+      // Test extension integration
+      console.log("Test page loaded");
+
+      // Test manual scan after delay
+      setTimeout(() => {
+        if (window.AxeIntegration) {
+          console.log("Testing manual scan...");
+          window.AxeIntegration.runScan().then((results) => {
+            console.log("Manual scan results:", results);
+          });
+        }
+      }, 3000);
+    </script>
+  </body>
+</html>

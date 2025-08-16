@@ -1,0 +1,23 @@
+<div class="inspector-control-row">
+  <span id="inspector-label" class="inspector-label">Inspector</span>
+  <fieldset
+    class="segmented-control-fieldset"
+    aria-labelledby="inspector-label"
+  >
+    <legend class="visually-hidden">Inspector</legend>
+    <div class="segmented-control" id="nexus-inspector-control">
+      <input
+        type="radio"
+        id="inspector-off"
+        name="inspector"
+        value="off"
+        checked
+      />
+      <label for="inspector-off">Off</label>
+      <input type="radio" id="inspector-on" name="inspector" value="on" />
+      <label for="inspector-on">On</label>
+      <input type="radio" id="inspector-mini" name="inspector" value="mini" />
+      <label for="inspector-mini">Mini<span class="sr-only"> Mode</span></label>
+    </div>
+  </fieldset>
+</div>

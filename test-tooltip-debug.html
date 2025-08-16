@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tooltip Debug Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .test-element {
+        background: #f0f0f0;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .status {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .error {
+        background: #ffe7e7;
+        border: 1px solid #ffb3b3;
+        color: #d00;
+      }
+      .success {
+        background: #e7ffe7;
+        border: 1px solid #b3ffb3;
+        color: #0a0;
+      }
+      button {
+        background: #007cba;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #005a87;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Tooltip Debug Test</h1>
+    <div id="status" class="status">Checking tooltip system...</div>
+
+    <h2>Test Elements</h2>
+    <div class="test-element">
+      <button id="test-button" aria-label="Test button with aria-label">
+        Test Button
+      </button>
+      <p>
+        Try hovering over or focusing on the button above - tooltip should
+        appear
+      </p>
+    </div>
+
+    <div class="test-element">
+      <input
+        id="test-input"
+        type="text"
+        placeholder="Test input field"
+        aria-describedby="input-help"
+      />
+      <div id="input-help">This is help text for the input</div>
+    </div>
+
+    <div class="test-element">
+      <a href="#" id="test-link" title="This is a test link">Test Link</a>
+    </div>
+
+    <h2>Debug Information</h2>
+    <button onclick="debugTooltipSystem()">Check Tooltip System</button>
+    <button onclick="testTooltipShow()">Force Show Tooltip</button>
+    <button onclick="enableExtension()">Enable Extension</button>
+    <button onclick="clearLog()">Clear Log</button>
+
+    <div id="debug-log" class="status"></div>
+
+    <script>
+      let logMessages = [];
+
+      function log(message, type = "info") {
+        const timestamp = new Date().toLocaleTimeString();
+        logMessages.push(`[${timestamp}] ${message}`);
+        updateLog();
+        console.log(`[Tooltip Debug] ${message}`);
+      }
+
+      function updateLog() {
+        const logDiv = document.getElementById("debug-log");
+        logDiv.innerHTML =
+          "<h3>Debug Log:</h3><pre>" +
+          logMessages.slice(-20).join("\n") +
+          "</pre>";
+      }
+
+      function clearLog() {
+        logMessages = [];
+        updateLog();
+      }
+
+      function debugTooltipSystem() {
+        log("=== Checking Tooltip System ===");
+
+        // Check if ContentExtension namespace exists
+        if (typeof window.ContentExtension !== "undefined") {
+          log("✓ ContentExtension namespace exists");
+
+          // Check each module
+          const modules = [
+            "main",
+            "tooltip",
+            "events",
+            "cache",
+            "observers",
+            "accessibility",
+          ];
+          modules.forEach((module) => {
+            if (window.ContentExtension[module]) {
+              log(`✓ CE.${module} exists`);
+              if (
+                typeof window.ContentExtension[module].initialize === "function"
+              ) {
+                log(`  - Has initialize function`);
+              }
+              if (module === "main") {
+                if (
+                  typeof window.ContentExtension[module].isEnabled ===
+                  "function"
+                ) {
+                  const enabled = window.ContentExtension[module].isEnabled();
+                  log(`  - Extension enabled: ${enabled}`);
+                }
+                if (
+                  typeof window.ContentExtension[module].getState === "function"
+                ) {
+                  const state = window.ContentExtension[module].getState();
+                  log(`  - Extension state: ${JSON.stringify(state)}`);
+                }
+              }
+            } else {
+              log(`✗ CE.${module} missing`);
+            }
+          });
+        } else {
+          log("✗ ContentExtension namespace missing");
+        }
+
+        // Check chromeAxTooltip
+        if (typeof window.chromeAxTooltip !== "undefined") {
+          log("✓ window.chromeAxTooltip exists");
+          log(`  - Type: ${typeof window.chromeAxTooltip}`);
+          log(
+            `  - Has showTooltip: ${
+              typeof window.chromeAxTooltip.showTooltip === "function"
+            }`
+          );
+          log(
+            `  - Has hideTooltip: ${
+              typeof window.chromeAxTooltip.hideTooltip === "function"
+            }`
+          );
+          log(`  - Initialized: ${window.chromeAxTooltip._initialized}`);
+          if (window.chromeAxTooltip._initTime) {
+            log(
+              `  - Init time: ${new Date(
+                window.chromeAxTooltip._initTime
+              ).toLocaleTimeString()}`
+            );
+          }
+        } else {
+          log("✗ window.chromeAxTooltip missing");
+        }
+
+        // Check NexusTooltip
+        if (typeof window.NexusTooltip !== "undefined") {
+          log("✓ window.NexusTooltip exists");
+          if (window.NexusTooltip.instance) {
+            log("  - Has instance");
+          }
+        } else {
+          log("✗ window.NexusTooltip missing");
+        }
+
+        // Check storage state
+        if (typeof chrome !== "undefined" && chrome.storage) {
+          log("Checking chrome.storage for extension state...");
+          chrome.storage.sync.get(
+            ["extensionEnabled", "miniMode"],
+            (result) => {
+              log(
+                `Storage values: extensionEnabled=${result.extensionEnabled}, miniMode=${result.miniMode}`
+              );
+            }
+          );
+        } else {
+          log("✗ chrome.storage not available");
+        }
+      }
+
+      function testTooltipShow() {
+        log("=== Testing Tooltip Show ===");
+
+        const button = document.getElementById("test-button");
+
+        if (window.ContentExtension && window.ContentExtension.tooltip) {
+          log("Calling CE.tooltip.showTooltip...");
+          try {
+            const testInfo = {
+              name: "Test Button",
+              role: "button",
+              description: "This is a test tooltip",
+            };
+            window.ContentExtension.tooltip.showTooltip(testInfo, button);
+            log("✓ CE.tooltip.showTooltip called successfully");
+          } catch (error) {
+            log(`✗ Error calling CE.tooltip.showTooltip: ${error.message}`);
+          }
+        } else if (window.chromeAxTooltip) {
+          log("Calling chromeAxTooltip.showTooltip...");
+          try {
+            const testInfo = {
+              name: "Test Button",
+              role: "button",
+              description: "This is a test tooltip",
+            };
+            window.chromeAxTooltip.showTooltip(testInfo, button);
+            log("✓ chromeAxTooltip.showTooltip called successfully");
+          } catch (error) {
+            log(
+              `✗ Error calling chromeAxTooltip.showTooltip: ${error.message}`
+            );
+          }
+        } else {
+          log("✗ No tooltip system available");
+        }
+      }
+
+      function enableExtension() {
+        log("=== Enabling Extension ===");
+        if (typeof chrome !== "undefined" && chrome.storage) {
+          chrome.storage.sync.set({ extensionEnabled: true }, () => {
+            log("✓ Extension enabled in storage");
+            // Trigger state update if ContentExtension is available
+            if (
+              window.ContentExtension &&
+              window.ContentExtension.main &&
+              window.ContentExtension.main.getState
+            ) {
+              // Force reload of state (this might need a page refresh in real usage)
+              setTimeout(() => {
+                const state = window.ContentExtension.main.getState();
+                log(`Updated state: ${JSON.stringify(state)}`);
+              }, 100);
+            }
+          });
+        } else {
+          log("✗ chrome.storage not available");
+        }
+      }
+
+      // Wait for page load then run initial checks
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          debugTooltipSystem();
+        }, 1000);
+      });
+
+      // Also check when extension might load
+      setTimeout(() => {
+        const status = document.getElementById("status");
+        if (typeof window.ContentExtension !== "undefined") {
+          status.textContent =
+            "Extension detected - tooltip system should be available";
+          status.className = "status success";
+        } else {
+          status.textContent =
+            "Extension not detected - make sure it's loaded and enabled";
+          status.className = "status error";
+        }
+      }, 2000);
+    </script>
+  </body>
+</html>

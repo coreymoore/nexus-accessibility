@@ -1,0 +1,23 @@
+/* Page info section styles */
+.page-info {
+  padding: 12px;
+  background: rgba(245, 241, 255, 0.7);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(104, 58, 183, 0.1);
+}
+
+.page-info p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #4a5568;
+}
+
+.page-info p:last-child {
+  margin-bottom: 0;
+}
+
+.page-info .page-title,
+.page-info .page-lang {
+  font-weight: 600;
+  color: #2d3748;
+}

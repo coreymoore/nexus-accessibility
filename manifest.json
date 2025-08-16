@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nexus Accessibility Testing Toolkit",
-  "version": "1.3.7",
+  "version": "1.3.8",
   "description": "Nexus Accessibility Testing Toolkit: A Chrome extension for accessibility inspection and testing.",
   "permissions": [
     "activeTab",
@@ -9,14 +9,15 @@
     "debugger",
     "storage",
     "webNavigation",
-    "alarms"
+    "alarms",
+    "tabs"
   ],
   "host_permissions": ["<all_urls>"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none';"
   },
   "background": {
-    "service_worker": "src/background/index.js",
+    "service_worker": "src/background-minimal.js",
     "type": "module"
   },
   "content_scripts": [
@@ -34,6 +35,7 @@
         "src/utils/debounce.js",
         "src/utils/logger-content.js",
         "src/utils/formatter.js",
+        "src/utils/accessibility-cache.js",
         "src/libs/dom-accessibility-api.js",
         "src/libs/aria-query.js",
         "src/libs/axe-core.js",
@@ -87,8 +89,12 @@
         "src/alerts/js/rule-processor.js",
         "src/alerts/js/html-generator.js",
         "src/alerts/js/alerts-controller.js",
-        "src/alerts/rules-metadata.json",
-        "src/config/axe-config.json"
+        "src/config/axe-config.json",
+        "src/report.html",
+        "src/report.css",
+        "src/report.js",
+        "src/utils/accessibility-database.js",
+        "src/assets/nexus-logo.svg"
       ],
       "matches": ["<all_urls>"]
     }

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Popup Test</title>
+    <style>
+      body {
+        margin: 20px;
+        font-family: system-ui;
+      }
+      .container {
+        max-width: 500px;
+        margin: 0 auto;
+      }
+      .preview {
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 16px;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      iframe {
+        border: none;
+        width: 100%;
+        height: 600px;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Popup Preview</h1>
+      <div class="preview">
+        <iframe src="../popup/popup.html"></iframe>
+      </div>
+
+      <h2>Changes Made</h2>
+      <ul>
+        <li>✅ "Accessibility Alerts" heading remains unblurred and visible</li>
+        <li>
+          ✅ Added message above blurred alerts: "Create a Report to Scan for
+          Accessibility Alerts."
+        </li>
+        <li>
+          ✅ View Report button moved below blurred alerts, properly centered
+        </li>
+        <li>✅ Split button looks unified with darker separator line</li>
+        <li>
+          ✅ Full ARIA APG compliance with arrow key navigation in dropdown
+        </li>
+        <li>
+          ✅ Enhanced keyboard support (Arrow Up/Down, Home/End, Enter, Space,
+          Escape)
+        </li>
+      </ul>
+
+      <h2>Test Instructions</h2>
+      <ol>
+        <li>
+          The "Accessibility Alerts" heading should be clear and unblurred
+        </li>
+        <li>
+          Message "Create a Report to Scan for Accessibility Alerts." appears
+          above blurred preview
+        </li>
+        <li>The alerts preview should be blurred with mock data</li>
+        <li>
+          The "Create Report" button should be centered below the blurred alerts
+        </li>
+        <li>
+          Click the caret (▼) - dropdown should open with "New Report" and "Add
+          to Existing Report"
+        </li>
+        <li>
+          Keyboard navigation tests:
+          <ul>
+            <li>Tab to caret button, press Arrow Down or Enter to open menu</li>
+            <li>Use Arrow Up/Down to navigate between menu items</li>
+            <li>Press Home/End to jump to first/last menu item</li>
+            <li>Press Enter or Space to select a menu item</li>
+            <li>Press Escape to close menu and return focus to caret</li>
+          </ul>
+        </li>
+        <li>
+          Both parts of the split button should look like one unified control
+        </li>
+      </ol>
+    </div>
+  </body>
+</html>

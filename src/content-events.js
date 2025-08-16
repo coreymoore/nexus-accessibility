@@ -119,6 +119,10 @@
   function initialize() {
     console.log("[ContentExtension.events] Initializing event management");
     initMessageListener();
+
+    // Enable event listeners for focus/keyboard events
+    enableEventListeners();
+    console.log("[ContentExtension.events] Event listeners enabled");
   }
 
   /**
@@ -157,7 +161,7 @@
             url: window.location.href,
             timestamp: Date.now(),
           });
-          return;
+          return true; // Indicates we handled the message
         }
 
         // Handle popup requests for accessibility scan data
@@ -187,7 +191,7 @@
                 error:
                   "Page scanning not initialized. Extension may still be loading.",
               });
-              return;
+              return true; // Indicates we handled the message
             }
 
             if (window.AccessibilityPageData.isScanning) {
@@ -197,7 +201,7 @@
                 error:
                   "Page scan in progress. Please wait a moment and try again.",
               });
-              return;
+              return true; // Indicates we handled the message
             }
 
             if (!window.AccessibilityPageData.scanResults) {
@@ -209,7 +213,7 @@
                 error:
                   "Page scan not yet complete. Please wait for scanning to finish.",
               });
-              return;
+              return true; // Indicates we handled the message
             }
 
             const scanResults = window.AccessibilityPageData.scanResults;
@@ -247,7 +251,20 @@
               error: error.message || "Failed to get scan data",
             });
           }
-          return;
+          return true; // Indicates we handled the message
+        }
+
+        // Handle any other popup-related actions to prevent warnings
+        if (
+          msg &&
+          msg.action &&
+          ["getCachedResults", "runAccessibilityScan"].includes(msg.action)
+        ) {
+          console.log(
+            `[ContentExtension.events] Delegating popup action to main: ${msg.action}`
+          );
+          // Let content-main.js handle these
+          return false; // Don't prevent other listeners from handling this
         }
       } catch (error) {
         console.error(
@@ -709,6 +726,104 @@
             });
         }
       }
+    }
+
+    // Trigger rescan on navigation keys (space, enter, arrow keys)
+    if (isNavigationKey(e.key)) {
+      console.debug(
+        "[ContentExtension.events] Navigation key pressed, triggering additive rescan:",
+        e.key
+      );
+      triggerPageRescan();
+    }
+
+    // Trigger full reset on Shift+R
+    if (e.key === "r" && e.shiftKey) {
+      console.debug(
+        "[ContentExtension.events] Shift+R pressed, triggering full cache reset"
+      );
+      triggerFullReset();
+    }
+  }
+
+  /**
+   * Check if a key is a navigation key that should trigger a rescan
+   * @param {string} key - The key that was pressed
+   * @returns {boolean} True if it's a navigation key
+   */
+  function isNavigationKey(key) {
+    const navigationKeys = [
+      " ", // Space
+      "Enter", // Enter
+      "ArrowUp", // Up arrow
+      "ArrowDown", // Down arrow
+      "ArrowLeft", // Left arrow
+      "ArrowRight", // Right arrow
+    ];
+    return navigationKeys.includes(key);
+  }
+
+  /**
+   * Trigger a page rescan to refresh accessibility data
+   */
+  function triggerPageRescan() {
+    console.debug("[ContentExtension.events] Triggering additive page rescan");
+
+    // Clear only element-level cache, preserve page results for merging
+    if (window.AccessibilityCache) {
+      window.AccessibilityCache.clear({
+        elementCache: true,
+        pageResults: false,
+      });
+      console.debug(
+        "[ContentExtension.events] Element cache cleared, page results preserved"
+      );
+    }
+
+    // Clear the legacy cache
+    if (CE.cache) {
+      CE.cache.clearAll();
+      console.debug("[ContentExtension.events] Legacy cache cleared");
+    }
+
+    // Trigger a new page scan (will merge with existing data)
+    if (CE.main && CE.main.triggerPageScan) {
+      CE.main.triggerPageScan();
+    } else {
+      console.warn(
+        "[ContentExtension.events] CE.main.triggerPageScan not available"
+      );
+    }
+  }
+
+  /**
+   * Trigger a full cache reset and fresh scan
+   */
+  function triggerFullReset() {
+    console.debug("[ContentExtension.events] Triggering full cache reset");
+
+    // Clear everything in enhanced cache
+    if (window.AccessibilityCache) {
+      window.AccessibilityCache.clear({ all: true });
+      window.AccessibilityCache.forceReplaceOnNextScan();
+      console.debug(
+        "[ContentExtension.events] Enhanced cache completely cleared"
+      );
+    }
+
+    // Clear the legacy cache
+    if (CE.cache) {
+      CE.cache.clearAll();
+      console.debug("[ContentExtension.events] Legacy cache cleared");
+    }
+
+    // Trigger a fresh scan (will replace all data)
+    if (CE.main && CE.main.triggerPageScan) {
+      CE.main.triggerPageScan();
+    } else {
+      console.warn(
+        "[ContentExtension.events] CE.main.triggerPageScan not available"
+      );
     }
   }
 

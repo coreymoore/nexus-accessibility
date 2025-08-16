@@ -32,7 +32,7 @@
         (() => {});
       this.tooltip = null;
       this.connector = null;
-      this.miniMode = false;
+      this.inspectorMode = "off"; // "off", "on", or "mini"
       this._mutObserver = null;
       this._isHiding = false;
       this._margin = 32; // Spacing between tooltip and focused element
@@ -56,9 +56,40 @@
     }
 
     _loadPreferences() {
-      chrome.storage.sync.get({ miniMode: false }, (data) => {
-        this.miniMode = !!data.miniMode;
+      // Load inspector mode with migration support
+      chrome.storage.sync.get(
+        { inspectorMode: "off", miniMode: false, extensionEnabled: false },
+        (data) => {
+          // Migrate from old format if needed
+          if (!data.inspectorMode && (data.extensionEnabled || data.miniMode)) {
+            if (!data.extensionEnabled) {
+              this.inspectorMode = "off";
+            } else if (data.miniMode) {
+              this.inspectorMode = "mini";
+            } else {
+              this.inspectorMode = "on";
+            }
+          } else {
+            this.inspectorMode = data.inspectorMode || "off";
+          }
+        }
+      );
+
+      // Listen for real-time storage changes to stay synchronized
+      chrome.storage.onChanged.addListener((changes, namespace) => {
+        if (namespace === "sync" && changes.inspectorMode) {
+          this.inspectorMode = changes.inspectorMode.newValue || "off";
+        }
       });
+    }
+
+    // Helper methods
+    get miniMode() {
+      return this.inspectorMode === "mini";
+    }
+
+    get isEnabled() {
+      return this.inspectorMode === "on" || this.inspectorMode === "mini";
     }
 
     ensureStylesInjected() {
@@ -245,8 +276,18 @@
     }
 
     toggleMiniMode() {
-      this.miniMode = !this.miniMode;
-      chrome.storage.sync.set({ miniMode: this.miniMode });
+      // Smart toggle logic for Alt+M shortcut:
+      // - If currently "off" → switch to "mini"
+      // - If currently "mini" → switch to "on"
+      // - If currently "on" → switch to "mini"
+      if (this.inspectorMode === "off") {
+        this.inspectorMode = "mini";
+      } else if (this.inspectorMode === "mini") {
+        this.inspectorMode = "on";
+      } else if (this.inspectorMode === "on") {
+        this.inspectorMode = "mini";
+      }
+      chrome.storage.sync.set({ inspectorMode: this.inspectorMode });
 
       // Re-render current tooltip if visible
       if (this.tooltip && this.tooltip.style.display === "block") {

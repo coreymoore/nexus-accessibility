@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accessibility Report - Nexus</title>
+    <link rel="stylesheet" href="report.css" />
+  </head>
+  <body>
+    <div class="report-container">
+      <header class="report-header">
+        <div class="header-content">
+          <div class="logo-section">
+            <img
+              src="src/assets/nexus-logo.svg"
+              alt="Nexus"
+              class="nexus-logo"
+            />
+            <h1>Accessibility Report</h1>
+          </div>
+          <div class="header-actions">
+            <button id="save-report-btn" class="btn btn-secondary">
+              <span class="btn-icon">💾</span>
+              Save Report
+            </button>
+            <button id="export-report-btn" class="btn btn-primary">
+              <span class="btn-icon">📁</span>
+              Export Report
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="report-main">
+        <section class="report-form-section">
+          <div class="section-header">
+            <h2>Report Information</h2>
+            <p class="section-description">
+              Edit the report details and customize the output.
+            </p>
+          </div>
+
+          <form id="report-form" class="report-form">
+            <div class="form-group">
+              <label for="report-title">Report Title</label>
+              <input
+                type="text"
+                id="report-title"
+                name="title"
+                placeholder="Accessibility Audit Report"
+                required
+              />
+              <small class="form-help"
+                >A descriptive title for your accessibility report</small
+              >
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="report-date">Report Date</label>
+                <input type="date" id="report-date" name="date" required />
+              </div>
+              <div class="form-group">
+                <label for="report-version">Version</label>
+                <input
+                  type="text"
+                  id="report-version"
+                  name="version"
+                  placeholder="1.0"
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="report-description">Description</label>
+              <textarea
+                id="report-description"
+                name="description"
+                rows="4"
+                placeholder="Brief description of the accessibility audit scope and objectives..."
+              ></textarea>
+              <small class="form-help"
+                >Optional description of the audit scope, methodology, or
+                objectives</small
+              >
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="auditor-name">Auditor Name</label>
+                <input
+                  type="text"
+                  id="auditor-name"
+                  name="auditor"
+                  placeholder="Your Name"
+                />
+              </div>
+              <div class="form-group">
+                <label for="organization">Organization</label>
+                <input
+                  type="text"
+                  id="organization"
+                  name="organization"
+                  placeholder="Company/Organization"
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="guidelines">Accessibility Guidelines</label>
+              <select id="guidelines" name="guidelines" multiple>
+                <option value="WCAG2.1-A" selected>WCAG 2.1 Level A</option>
+                <option value="WCAG2.1-AA" selected>WCAG 2.1 Level AA</option>
+                <option value="WCAG2.1-AAA">WCAG 2.1 Level AAA</option>
+                <option value="Section508">Section 508</option>
+                <option value="AODA">AODA</option>
+              </select>
+              <small class="form-help"
+                >Select the accessibility standards used for this audit</small
+              >
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  id="include-passes"
+                  name="includePasses"
+                  checked
+                />
+                <span class="checkbox-custom"></span>
+                Include passing checks in report
+              </label>
+              <small class="form-help"
+                >When enabled, the report will include both violations and
+                successful accessibility checks</small
+              >
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  id="group-by-page"
+                  name="groupByPage"
+                  checked
+                />
+                <span class="checkbox-custom"></span>
+                Group results by page
+              </label>
+              <small class="form-help"
+                >Organize findings by individual pages rather than by issue
+                type</small
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="report-format">Export Format</label>
+              <select id="report-format" name="format">
+                <option value="html">HTML Report</option>
+                <option value="pdf">PDF Report</option>
+                <option value="json">JSON Data</option>
+                <option value="csv">CSV Summary</option>
+              </select>
+            </div>
+          </form>
+        </section>
+
+        <section class="report-preview-section">
+          <div class="section-header">
+            <h2>Report Preview</h2>
+            <p class="section-description">
+              Live preview of your accessibility report.
+            </p>
+          </div>
+
+          <div class="report-preview" id="report-preview">
+            <div class="preview-loading">
+              <div class="spinner"></div>
+              <span>Loading report data...</span>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="report-footer">
+        <div class="footer-content">
+          <p class="footer-text">
+            Generated by Nexus Accessibility Testing Toolkit
+          </p>
+          <div class="footer-actions">
+            <button id="reset-form-btn" class="btn btn-text">
+              Reset to Defaults
+            </button>
+            <button id="close-report-btn" class="btn btn-text">Close</button>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none">
+      <div class="loading-content">
+        <div class="spinner large"></div>
+        <h3>Generating Report...</h3>
+        <p id="loading-message">Preparing accessibility data...</p>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="utils/accessibility-database.js"></script>
+    <script src="report.js"></script>
+  </body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Reports Table Loading</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .test-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .test-step {
+        margin: 10px 0;
+        padding: 10px;
+        border-left: 4px solid #007acc;
+        background: #f8f9fa;
+      }
+      .test-result {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .info {
+        background: #d1ecf1;
+        color: #0c5460;
+      }
+      button {
+        background: #007acc;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #005a9e;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="test-container">
+      <h1>Reports Table Loading Test</h1>
+
+      <div class="test-step">
+        <h3>Test Instructions:</h3>
+        <ol>
+          <li>Open the Nexus extension popup</li>
+          <li>Click on the "Reports" tab</li>
+          <li>Check the browser console for debug messages</li>
+          <li>
+            Verify that the reports table loads (or shows "No Reports Found")
+          </li>
+        </ol>
+      </div>
+
+      <div class="test-step">
+        <h3>Expected Debug Messages:</h3>
+        <ul>
+          <li>
+            <code>[Reports Manager] Adding click listener to reports tab</code>
+          </li>
+          <li><code>[Reports Manager] Tab activated event received</code></li>
+          <li>
+            <code
+              >[Reports Manager] Reports tab activated, loading table...</code
+            >
+          </li>
+          <li><code>[Reports Manager] loadReportsTable() called</code></li>
+          <li><code>[Reports Manager] Loading reports table...</code></li>
+          <li><code>[Reports Manager] Found X reports for table</code></li>
+        </ul>
+      </div>
+
+      <div class="test-step">
+        <h3>What to Check:</h3>
+        <ul>
+          <li>✅ Create Report button appears above the table</li>
+          <li>✅ Reports table container exists and has content</li>
+          <li>✅ Either shows actual reports or "No Reports Found" message</li>
+          <li>✅ No error messages in the console</li>
+          <li>✅ Clicking the Reports tab triggers the loading</li>
+        </ul>
+      </div>
+
+      <div id="console-output" class="test-result info">
+        <h4>Console Output:</h4>
+        <p>
+          Open browser developer tools (F12) and check the console for debug
+          messages when testing.
+        </p>
+      </div>
+
+      <div class="test-step">
+        <h3>Quick Actions:</h3>
+        <button onclick="testReportsTab()">Simulate Reports Tab Click</button>
+        <button onclick="checkReportsContainer()">
+          Check Reports Container
+        </button>
+        <button onclick="clearConsole()">Clear Console</button>
+      </div>
+
+      <div id="test-results"></div>
+    </div>
+
+    <script>
+      function testReportsTab() {
+        console.log("=== TESTING REPORTS TAB ===");
+        const reportsTab = document.querySelector("#tab-reports");
+        const reportsPanel = document.querySelector("#tabpanel-reports");
+        const container = document.querySelector("#reports-table-container");
+
+        logResult(
+          "info",
+          `Reports tab element: ${reportsTab ? "Found" : "Not found"}`
+        );
+        logResult(
+          "info",
+          `Reports panel element: ${reportsPanel ? "Found" : "Not found"}`
+        );
+        logResult(
+          "info",
+          `Reports container element: ${container ? "Found" : "Not found"}`
+        );
+
+        if (reportsTab) {
+          console.log("Simulating tab click...");
+          reportsTab.click();
+        } else {
+          logResult(
+            "error",
+            "Cannot test - reports tab not found. Make sure extension popup is open."
+          );
+        }
+      }
+
+      function checkReportsContainer() {
+        const container = document.querySelector("#reports-table-container");
+        if (container) {
+          logResult(
+            "success",
+            `Container found with content: ${container.innerHTML.length} characters`
+          );
+          console.log("Container HTML:", container.innerHTML);
+        } else {
+          logResult("error", "Reports container not found");
+        }
+      }
+
+      function clearConsole() {
+        console.clear();
+        logResult("info", "Console cleared");
+      }
+
+      function logResult(type, message) {
+        const resultsDiv = document.getElementById("test-results");
+        const resultDiv = document.createElement("div");
+        resultDiv.className = `test-result ${type}`;
+        resultDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+        resultsDiv.appendChild(resultDiv);
+      }
+
+      // Log page load
+      window.addEventListener("load", () => {
+        logResult(
+          "info",
+          "Test page loaded. Open the extension popup and click Reports tab to test."
+        );
+      });
+    </script>
+  </body>
+</html>

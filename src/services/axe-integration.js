@@ -103,42 +103,8 @@
         }
 
         logger.info("[AxeIntegration] Initialized successfully");
-
-        // Try to load rule metadata for fallback alerts information
-        this.loadRuleMetadata();
       } catch (error) {
         logger.error("[AxeIntegration] Failed to initialize:", error);
-      }
-    },
-
-    /**
-     * Load rule metadata for fallback alerts information
-     */
-    async loadRuleMetadata() {
-      try {
-        // Try to load the rules metadata JSON file
-        let metadataUrl;
-        if (
-          typeof chrome !== "undefined" &&
-          chrome.runtime &&
-          chrome.runtime.getURL
-        ) {
-          metadataUrl = chrome.runtime.getURL("src/alerts/rules-metadata.json");
-        } else {
-          metadataUrl = "../alerts/rules-metadata.json";
-        }
-
-        const response = await fetch(metadataUrl);
-        if (response.ok) {
-          const metadata = await response.json();
-          window.AxeRuleMetadata = metadata;
-          logger.debug("[AxeIntegration] Rule metadata loaded successfully");
-        }
-      } catch (error) {
-        logger.debug(
-          "[AxeIntegration] Could not load rule metadata (this is optional):",
-          error
-        );
       }
     },
 
@@ -166,6 +132,27 @@
           ...AXE_CONFIG.options,
           ...options,
         });
+
+        // Ensure selector data is available for future selector generation
+        if (
+          results &&
+          !window.axe._selectorData &&
+          window.axe.utils.getSelectorData
+        ) {
+          try {
+            const domTree = window.axe.utils.getFlattenedTree(
+              document.documentElement
+            );
+            window.axe._selectorData =
+              window.axe.utils.getSelectorData(domTree);
+            logger.debug("[AxeIntegration] Initialized axe selector data");
+          } catch (selectorError) {
+            logger.warn(
+              "[AxeIntegration] Failed to initialize selector data:",
+              selectorError
+            );
+          }
+        }
 
         // Process and cache results
         let processedResults;
@@ -206,6 +193,72 @@
     },
 
     /**
+     * Smart scan for individual element - checks cache first, scans if needed
+     * @param {Element} element - Target element
+     * @returns {Promise<Object>} Element scan results
+     */
+    async smartScanElement(element) {
+      try {
+        logger.debug(
+          "[AxeIntegration] Smart scanning element:",
+          element?.tagName,
+          element?.id
+        );
+
+        // Check enhanced cache first
+        if (window.AccessibilityCache) {
+          const cachedData = window.AccessibilityCache.getElementData(element);
+          if (cachedData) {
+            logger.debug("[AxeIntegration] Using cached element data");
+            return {
+              violations: cachedData.violations || [],
+              fromCache: true,
+              cachedAt: cachedData.cachedAt,
+            };
+          }
+
+          // Check if element needs scanning based on page results
+          if (!window.AccessibilityCache.elementNeedsScanning(element)) {
+            const violations =
+              window.AccessibilityCache.getElementViolations(element);
+            logger.debug("[AxeIntegration] Element found in page scan results");
+            return {
+              violations: violations,
+              fromCache: true,
+              fromPageScan: true,
+            };
+          }
+        }
+
+        // Need to scan this element specifically
+        logger.debug("[AxeIntegration] Running individual element scan");
+        const scanResults = await this.runScan(element, {
+          resultTypes: ["violations"], // Only need violations for tooltip
+        });
+
+        // Store in cache
+        if (window.AccessibilityCache) {
+          window.AccessibilityCache.setElementData(element, {
+            violations: scanResults.violations,
+            scanTime: Date.now(),
+          });
+        }
+
+        return {
+          violations: scanResults.violations,
+          fromCache: false,
+          scannedAt: Date.now(),
+        };
+      } catch (error) {
+        logger.error("[AxeIntegration] Smart element scan failed:", error);
+        return {
+          violations: [],
+          error: error.message,
+        };
+      }
+    },
+
+    /**
      * Get violations for a specific element
      * @param {Element} element - Target element
      * @param {Object} [scanResults] - Optional pre-computed scan results
@@ -219,69 +272,39 @@
           element?.id
         );
 
-        // If no scan results provided, check for stored page scan data first
-        if (!scanResults) {
-          logger.debug(
-            "[AxeIntegration] No scan results provided, checking for stored page data"
-          );
+        // Use smart scanning approach
+        const smartResults = await this.smartScanElement(element);
 
-          // Try to use stored page scan data first
-          if (
-            window.AccessibilityPageData &&
-            window.AccessibilityPageData.scanResults
-          ) {
-            logger.debug(
-              "[AxeIntegration] Using stored page scan data from:",
-              new Date(window.AccessibilityPageData.lastScanTime)
-            );
-            scanResults = window.AccessibilityPageData.scanResults;
-          } else {
-            logger.debug(
-              "[AxeIntegration] No stored page data available, running new scan"
-            );
-            scanResults = await this.runScan();
-          }
+        if (smartResults.error) {
+          logger.error(
+            "[AxeIntegration] Smart scan failed:",
+            smartResults.error
+          );
+          return [];
         }
 
-        logger.debug(
-          "[AxeIntegration] Total violations in scan results:",
-          scanResults?.violations?.length || 0
-        );
+        logger.debug("[AxeIntegration] Smart scan results:", {
+          violationsCount: smartResults.violations?.length || 0,
+          fromCache: smartResults.fromCache,
+          fromPageScan: smartResults.fromPageScan,
+          scannedAt: smartResults.scannedAt,
+          cachedAt: smartResults.cachedAt,
+        });
 
-        // Find violations that affect this element
-        const elementViolations = [];
+        const violations = smartResults.violations || [];
 
-        for (const violation of scanResults.violations) {
-          logger.debug(
-            "[AxeIntegration] Checking violation:",
-            violation.id,
-            "with",
-            violation.nodes.length,
-            "nodes"
-          );
-
-          for (const node of violation.nodes) {
-            // Check if this node matches our target element
-            if (this.doesNodeMatchElement(node, element)) {
-              logger.debug(
-                "[AxeIntegration] Found matching violation:",
-                violation.id,
-                "for element"
-              );
-              elementViolations.push({
-                ...violation,
-                nodeInfo: node,
-                alerts: this.getAlertsInfo(violation.id),
-              });
-            }
-          }
-        }
+        // Add guidance information to violations
+        const violationsWithGuidance = violations.map((violation) => ({
+          ...violation,
+          guidance: this.getGuidanceInfo(violation.id),
+        }));
 
         logger.debug(
-          "[AxeIntegration] Element violations found:",
-          elementViolations.length
+          "[AxeIntegration] Returning violations for element:",
+          violationsWithGuidance.length
         );
-        return elementViolations;
+
+        return violationsWithGuidance;
       } catch (error) {
         logger.error(
           "[AxeIntegration] Failed to get violations for element:",
