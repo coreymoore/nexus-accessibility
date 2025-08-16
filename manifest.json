@@ -43,14 +43,14 @@
         "src/components/tooltip/tooltip-focus.js",
         "src/components/tooltip/tooltip-core.js",
         "src/components/tooltip/tooltip-main.js",
-        "src/content-utils.js",
-        "src/content-cache.js",
-        "src/content-events.js",
-        "src/content-accessibility.js",
-        "src/content-observers.js",
-        "src/content-tooltip.js",
-        "src/content-validation.js",
-        "src/content-main.js"
+  "src/content/content-utils.js",
+  "src/content/content-cache.js",
+  "src/content/content-events.js",
+  "src/content/content-accessibility.js",
+  "src/content/content-observers.js",
+  "src/content/content-tooltip.js",
+  "src/content/content-validation.js",
+  "src/content/content-main.js"
       ]
     }
   ],
