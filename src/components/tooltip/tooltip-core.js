@@ -69,6 +69,16 @@
       link.type = "text/css";
       link.href = chrome.runtime.getURL("src/components/tooltip/tooltip.css");
       document.head.appendChild(link);
+
+      // Inject shared stylesheet (focus ring, shared tokens) if not present
+      if (!document.getElementById("nexus-shared-style")) {
+        const shared = document.createElement("link");
+        shared.id = "nexus-shared-style";
+        shared.rel = "stylesheet";
+        shared.type = "text/css";
+        shared.href = chrome.runtime.getURL("src/assets/shared.css");
+        document.head.appendChild(shared);
+      }
     }
 
     showLoadingTooltip(target) {
@@ -143,10 +153,9 @@
       this.tooltip.className = "chrome-ax-tooltip";
       this.tooltip.setAttribute("role", "tooltip");
       this.tooltip.setAttribute("id", "chrome-ax-tooltip");
-      this.tooltip.setAttribute("aria-live", "polite");
-      this.tooltip.setAttribute("aria-atomic", "true");
+      // Per AI_CONTEXT_RULES: do NOT use aria-live / live regions in injected tooltip.
+      // Also avoid aria-hidden on container; expose only on explicit focus interaction.
       this.tooltip.setAttribute("tabindex", "-1");
-      this.tooltip.setAttribute("aria-hidden", "true");
 
       // Establish ARIA relationship with target element if it has an ID
       if (target && target.id) {

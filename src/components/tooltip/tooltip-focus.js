@@ -309,47 +309,12 @@
       if (accessibility && accessibility.announceToScreenReader) {
         accessibility.announceToScreenReader(message);
       } else {
-        // Fallback: create temporary live region
-        this._createTemporaryLiveRegion(message, priority);
+        // Per AI_CONTEXT_RULES: avoid creating live regions in injected page context.
+        // Intentionally no-op to prevent interfering with host page accessibility tree.
       }
     }
 
-    /**
-     * Create temporary live region for announcements
-     * @param {string} message - Message to announce
-     * @param {string} priority - Priority level
-     */
-    _createTemporaryLiveRegion(message, priority = "polite") {
-      const liveRegion = document.createElement("div");
-      liveRegion.setAttribute("aria-live", priority);
-      liveRegion.setAttribute("aria-atomic", "true");
-      liveRegion.setAttribute("class", "sr-only");
-      liveRegion.style.cssText = `
-        position: absolute !important;
-        width: 1px !important;
-        height: 1px !important;
-        padding: 0 !important;
-        margin: -1px !important;
-        overflow: hidden !important;
-        clip: rect(0, 0, 0, 0) !important;
-        white-space: nowrap !important;
-        border: 0 !important;
-      `;
-
-      document.body.appendChild(liveRegion);
-
-      // Add message after a brief delay to ensure screen reader picks it up
-      setTimeout(() => {
-        liveRegion.textContent = message;
-
-        // Remove after announcement
-        setTimeout(() => {
-          if (liveRegion.parentNode) {
-            liveRegion.parentNode.removeChild(liveRegion);
-          }
-        }, 1000);
-      }, 100);
-    }
+    // Removed _createTemporaryLiveRegion implementation per rules (no live regions in injected tooltip)
 
     /**
      * Cleanup all focus management resources

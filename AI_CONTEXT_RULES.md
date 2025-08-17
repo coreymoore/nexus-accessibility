@@ -56,21 +56,30 @@ This document provides strict rules and context for any AI agent generating code
 ### 2.2 Color Palette
 
 - **Primary brand colors:**
-  - Nexus Purple: `#7E57C2` - Used for primary actions, highlights, and branded elements
-  - Nexus Dark Purple: `#5E35B1` - Used for hover states and secondary accents
-  - Nexus Light Purple: `#B39DDB` - Used for subtle highlights and disabled states
+  - Nexus Purple: `#683ab7` - Used for primary actions, highlights, and branded elements.
+  - Nexus Dark Purple: `#2d1958` - Used for primary text and borders.
+  - Nexus Medium Purple: `#3a2956` - Used for secondary text.
 - **UI colors:**
-  - Background Dark: `#212121` - Main background for tooltips and popup
-  - Background Darker: `#121212` - Used for cards, containers, and sections
-  - Text Light: `#F5F5F5` - Primary text color
-  - Text Secondary: `#BDBDBD` - Secondary and supporting text
-  - Border Color: `#424242` - Used for dividers and borders
+  - Background Light: `#f3f0fa` - Main background for tooltips and popup.
+  - Border Color: `#d1c4e9` - Used for dividers and borders.
+  - Secondary Border Color: `#ccc`, `#ddd` - Used for less prominent borders.
+  - Text Dark: `#2d1958` - Primary text color.
+  - White: `#fff` - Used for backgrounds and inner focus ring.
 - **Semantic colors:**
+  - Success Green: `#4CAF50` - For successful validation results.
+  - Success Green Dark: `#29922d` - For hover/active states on success elements.
+  - Warning Amber: `#FFC107` - For warnings and partial validation.
+  - Error Red: `#F44336` - For errors and failed validations.
+  - Info Blue: `#2196F3` - For informational content and tooltips.
+- **Extended Semantic Colors (for Tooltip Categories):**
 
-  - Success Green: `#4CAF50` - For successful validation results
-  - Warning Amber: `#FFC107` - For warnings and partial validation
-  - Error Red: `#F44336` - For errors and failed validations
-  - Info Blue: `#2196F3` - For informational content and tooltips
+  - Indigo: `#4b0082`
+  - Dark Blue: `#005a8d`
+  - Dark Green: `#007a4d`
+  - Dark Orange: `#924400`
+  - Crimson: `#b8002f`
+  - Dark Gold: `#7c5c00`
+  - Teal: `#016060`
 
 - **Opacity standards:**
   - Interactive elements: 100% opacity in normal state
@@ -121,12 +130,13 @@ This document provides strict rules and context for any AI agent generating code
 - **Tooltip styling:**
 
   - Must match `src/components/tooltip/tooltip.css`
-  - Dark theme with purple accents
+  - Light theme with purple accents
   - Card-like appearance with 8px rounded corners
   - Subtle drop shadow: `0px 3px 8px rgba(0, 0, 0, 0.3)`
   - Arrow indicator for pointing to referenced element
   - Maximum width of 360px
-  - Fade-in animation with 180ms duration
+
+- No entrance/exit animations (tooltip must appear and disappear instantly to avoid motion distraction). Do NOT add CSS animations, transitions on opacity/transform, or keyframe-driven effects to the tooltip container without explicit human approval.
 
 - **Popup interface:**
 
@@ -191,28 +201,39 @@ This document provides strict rules and context for any AI agent generating code
   - Appearing elements: ease-out
   - Disappearing elements: ease-in
 - **Animation types:**
-  - Fade for appearing/disappearing
-  - Subtle scale (1.0 to 1.03) for hover states
+  - Tooltip: PROHIBITED (no fade, scale, or motion). Any future proposal to animate tooltip requires explicit documented approval.
+  - Other UI surfaces (popup, settings): May use subtle fade or color transitions within defined duration standards.
   - No extreme or distracting animations
-  - - **Motion accessibility:** Always detect and respect the user's "prefers-reduced-motion" system setting. If this setting is enabled, disable all non-essential animations and transitions throughout the extension UI, including tooltips, popups, buttons, and overlays. Provide instant state changes with no visual motion effects for users who prefer reduced motion.
+  - **Motion accessibility:** Always detect and respect the user's "prefers-reduced-motion" system setting. If this setting is enabled, disable all non-essential animations and transitions throughout the extension UI, including popup, buttons, and overlays (tooltip already has none). Provide instant state changes with no visual motion effects for users who prefer reduced motion.
 
 ### 2.8 Focus Indicators
 
 - **Unified focus style:** All interactive elements (buttons, inputs, tooltips, popups, etc.) must use the same focus indicator throughout the extension.
-- **Focus indicator design:** Use a dual outline—2px solid Nexus Purple (`#7E57C2`) outer ring with a 2px solid white inner ring.
-- **Implementation:** Apply this focus style using CSS for all states where elements receive keyboard focus (e.g., `:focus`, `:focus-visible`).
+- **Focus indicator design:** Use a dual outline—2px solid Nexus Purple (`#683ab7`) outer ring with a 4px solid white inner ring created using `box-shadow`.
+- **Implementation:** The canonical implementation lives in `src/assets/shared.css` and MUST be imported by every UI surface (tooltip injection, popup, options pages). Do NOT duplicate focus ring CSS in component stylesheets; instead ensure `shared.css` is loaded. Apply this focus style ONLY with `:focus-visible` (do NOT style `:focus` or `:focus-within`). Use `!important` to prevent override from host page styles.
 - **No overrides:** Do not use browser default focus rings or custom styles that differ from this standard.
 - **Accessibility:** Ensure the focus indicator is always visible and meets WCAG 2.2 AA contrast requirements against all backgrounds.
 - **Example CSS:**
   ```css
-  :focus,
-  :focus-visible {
-    outline: 2px solid #7e57c2;
+  *:focus-visible {
+    outline: 2px solid #683ab7 !important;
     outline-offset: 2px;
-    box-shadow: 0 0 0 2px #fff;
+    box-shadow: 0 0 0 4px #fff !important;
   }
   ```
-- **Consistency:** This dual purple/white focus indicator must be present on all interactive UI elements.
+- **Consistency:** This dual purple/white focus indicator must be present on all interactive UI elements. Any PR introducing new UI without importing `shared.css` must be rejected.
+
+### 2.10 Shared Stylesheet Enforcement
+
+- **File:** `src/assets/shared.css` is the single source of truth for:
+  - Unified focus ring implementation (Section 2.8)
+  - Shared keyboard shortcut key styling (`kbd` tokens)
+  - Reduced motion defaults for common surfaces
+- **Injection Rules:**
+  - Tooltip: Inject via `ensureStylesInjected()` in `tooltip-core.js` if not already present.
+  - Popup & options: Reference directly in HTML `<head>` after component-specific stylesheet.
+- **No Duplication:** Component stylesheets (`tooltip.css`, `popup.css`, etc.) must not redefine focus ring styles unless extending with additional, non-conflicting selectors. If an extension is needed, update `shared.css` instead.
+- **Change Workflow:** Any modification to focus ring or shared tokens must update `shared.css` and (if substantive) add a brief note in AI_CONTEXT_RULES.md summarizing rationale and date.
 
 ### 2.9 Component States & Style Robustness
 

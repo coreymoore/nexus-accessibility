@@ -90,7 +90,7 @@
     createLoadingContent() {
       return `
         <div class="chrome-ax-tooltip-body" inert>
-          <div role="status" aria-live="polite" aria-atomic="true" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
+          <div class="chrome-ax-loading" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
             ${Templates.LOADING_SPINNER}
             <span>Loading Nexus Accessibility Info</span>
           </div>
@@ -282,7 +282,7 @@
     createErrorContent(message) {
       return `
         <div class="chrome-ax-tooltip-body" inert>
-          <div role="alert" aria-live="assertive" style="display: flex; align-items: center; gap: 8px; color: #d73a49;">
+          <div class="chrome-ax-error" style="display: flex; align-items: center; gap: 8px; color: #d73a49;">
             ${Templates.ERROR_ICON}
             <span>${utils.escapeHtml(message || "An error occurred")}</span>
           </div>

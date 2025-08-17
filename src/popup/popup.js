@@ -1,75 +1,69 @@
+import { chromeAsync } from "../utils/chromeAsync.js";
+
 const popup = document.getElementById("popup");
-const accessibilityDataContainer =
-  document.getElementById("accessibility-data");
 
-function fetchAccessibilityData() {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    chrome.tabs.sendMessage(
-      tabs[0].id,
-      { action: "getAccessibilityData" },
-      (response) => {
-        if (response && response.data) {
-          displayAccessibilityData(response.data);
-        } else {
-          accessibilityDataContainer.textContent =
-            "No accessibility data found.";
-        }
-      }
-    );
-  });
+async function safeSendMessage(tabId, message) {
+  try {
+    return await chromeAsync.tabs.sendMessage(tabId, message);
+  } catch (e) {
+    return { error: e.message };
+  }
 }
 
-function displayAccessibilityData(data) {
-  accessibilityDataContainer.textContent = JSON.stringify(data, null, 2);
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  fetchAccessibilityData();
-
+document.addEventListener("DOMContentLoaded", async () => {
   const toggleInput = document.getElementById("toggle-extension");
   const toggleLabel = document.getElementById("toggle-label");
   const miniModeInput = document.getElementById("toggle-mini-mode");
   const miniModeLabel = document.getElementById("mini-mode-label");
 
-  // Get initial state
-  chrome.storage.sync.get(
-    { extensionEnabled: true, miniMode: false },
-    (data) => {
-      toggleInput.checked = data.extensionEnabled;
-      updateToggleLabel(data.extensionEnabled);
-      miniModeInput.checked = data.miniMode;
-      updateMiniModeLabel(data.miniMode);
-    }
-  );
+  // Get initial state via promise wrappers
+  try {
+    const data = await chromeAsync.storage.sync.get({
+      extensionEnabled: true,
+      miniMode: false,
+    });
+    toggleInput.checked = data.extensionEnabled;
+    updateToggleLabel(data.extensionEnabled);
+    miniModeInput.checked = data.miniMode;
+    updateMiniModeLabel(data.miniMode);
+  } catch {}
 
-  // Handle toggle changes
-  toggleInput.addEventListener("change", (e) => {
+  // Handle enabled toggle
+  toggleInput.addEventListener("change", async (e) => {
     const isEnabled = e.target.checked;
-    chrome.storage.sync.set({ extensionEnabled: isEnabled });
+    try {
+      await chromeAsync.storage.sync.set({ extensionEnabled: isEnabled });
+    } catch {}
     updateToggleLabel(isEnabled);
-
-    // Send message to content script
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    try {
+      const tabs = await chromeAsync.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
       if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, {
+        await safeSendMessage(tabs[0].id, {
           type: isEnabled ? "ENABLE_EXTENSION" : "DISABLE_EXTENSION",
         });
       }
-    });
+    } catch {}
   });
 
-  miniModeInput.addEventListener("change", (e) => {
+  // Handle mini mode toggle
+  miniModeInput.addEventListener("change", async (e) => {
     const miniMode = e.target.checked;
-    chrome.storage.sync.set({ miniMode });
+    try {
+      await chromeAsync.storage.sync.set({ miniMode });
+    } catch {}
     updateMiniModeLabel(miniMode);
-    // Send message to content script to update mini mode
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    try {
+      const tabs = await chromeAsync.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
       if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, {
-          miniMode,
-        });
+        await safeSendMessage(tabs[0].id, { miniMode });
       }
-    });
+    } catch {}
   });
 
   function updateToggleLabel(isEnabled) {
@@ -82,17 +76,21 @@ document.addEventListener("DOMContentLoaded", () => {
     miniModeLabel.textContent = miniMode ? "Mini Mode (On)" : "Mini Mode (Off)";
   }
 
-  // Update page info
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+  // Page info
+  try {
+    const tabs = await chromeAsync.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
     if (tabs[0]) {
       const title = document.getElementById("page-title");
       const lang = document.getElementById("page-lang");
       title.textContent = tabs[0].title || "No title";
       lang.textContent = document.documentElement?.lang || "Not specified";
     }
-  });
+  } catch {}
 
-  // Accessible Tabs Logic (WAI-ARIA APG)
+  // Accessible Tabs (WAI-ARIA APG pattern)
   const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
   const panels = Array.from(document.querySelectorAll('[role="tabpanel"]'));
   function activateTab(tab, persist = true) {
@@ -104,13 +102,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     tab.focus();
     if (persist) {
-      chrome.storage.sync.set({ nexusSelectedTab: tabs.indexOf(tab) });
+      chromeAsync.storage.sync.set({ nexusSelectedTab: tabs.indexOf(tab) });
     }
   }
-  tabs.forEach((tab, i) => {
+  tabs.forEach((tab) => {
     tab.addEventListener("click", () => activateTab(tab));
     tab.addEventListener("keydown", (e) => {
-      let idx = tabs.indexOf(tab);
+      const idx = tabs.indexOf(tab);
       if (e.key === "ArrowRight" || e.key === "Right") {
         e.preventDefault();
         activateTab(tabs[(idx + 1) % tabs.length]);
@@ -126,9 +124,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   });
-  // Restore selected tab from storage, default to first tab
-  chrome.storage.sync.get({ nexusSelectedTab: 0 }, (data) => {
+
+  // Restore selected tab
+  try {
+    const data = await chromeAsync.storage.sync.get({ nexusSelectedTab: 0 });
     const idx = Math.max(0, Math.min(tabs.length - 1, data.nexusSelectedTab));
     activateTab(tabs[idx], false);
-  });
+  } catch {}
 });

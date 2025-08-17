@@ -5,10 +5,6 @@ import {
   markUsed,
 } from "./background/attachManager.js";
 import { initRouter } from "./background/router.js";
-import {
-  docRoots as __axDocRoots,
-  nodeCache as __axNodeCache,
-} from "./background/caches.js";
 import { getCdpFrameId, getOrCreateIsolatedWorld } from "./background/cdp.js";
 import { chromeAsync } from "./utils/chromeAsync.js";
 import { errorRecovery } from "./utils/errorRecovery.js";
@@ -18,6 +14,7 @@ import { contentInjector } from "./utils/contentInjector.js";
 import { logger } from "./utils/logger.js";
 import { DebuggerConnectionManager } from "./background/connectionManager.js";
 import { getAccessibilityInfoForElement } from "./background/accessibilityInfo.js";
+import { MessageValidator } from "./background/message-validator.js";
 import "./utils/contentInjector.js"; // Initialize content script injection
 import "./utils/testUtils.js"; // Load testing utilities
 
@@ -32,28 +29,7 @@ chrome.runtime.onInstalled.addListener(() => {
 initDetachHandlers();
 initRouter();
 
-// Caches are now shared via module to persist across SW runs when possible
-
-// Cache policy
-const AX_DOCROOT_TTL_MS = 30000; // 30s per-frame document root TTL
-const AX_NODECACHE_TTL_MS = 10000; // 10s per selector->nodeId cache entry
-const AX_NODECACHE_MAX_ENTRIES = 500; // cap total entries to bound memory
-
-/**
- * Evicts the oldest entry from the node cache to prevent unbounded growth
- */
-function evictOldestNodeCacheEntry() {
-  let oldestKey = null;
-  let oldestT = Infinity;
-  for (const [k, v] of __axNodeCache) {
-    const t = v && v.t ? v.t : 0;
-    if (t < oldestT) {
-      oldestT = t;
-      oldestKey = k;
-    }
-  }
-  if (oldestKey) __axNodeCache.delete(oldestKey);
-}
+// Caches handled via SmartCache in background/caches.js where needed
 
 /**
  * Helper function to get the full accessibility tree for a tab
@@ -84,6 +60,14 @@ async function getAccessibilityTree(tabId) {
  * Handles requests for accessibility tree data and element inspection
  */
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  try {
+    if (msg) {
+      MessageValidator.validate(msg, sender);
+    }
+  } catch (e) {
+    sendResponse && sendResponse({ error: e.message });
+    return false;
+  }
   // Relay tooltip-coordination messages across all frames in the tab
   if (msg && msg.type === "AX_TOOLTIP_SHOWN") {
     (async () => {

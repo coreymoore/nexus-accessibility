@@ -1,0 +1,47 @@
+/* Shared Nexus UI Styles
+ * Centralized focus indicators & reusable small components.
+ * This file MUST be referenced by all UI surfaces (tooltip, popup, future options pages)
+ * to enforce consistency per AI_CONTEXT_RULES Section 2.8.
+ */
+
+/* Unified Focus Ring (only :focus-visible per updated rule) */
+.chrome-ax-tooltip *:focus-visible,
+.popup :focus-visible {
+  outline: 2px solid #683ab7 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px #fff !important;
+}
+
+/* Focus-visible ring for custom switches (hidden checkbox + visual slider) */
+.popup input[type="checkbox"]:focus-visible + .slider {
+  outline: 2px solid #683ab7 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px #fff !important;
+}
+
+/* Keyboard shortcut key styling shared */
+.chrome-ax-tooltip-keys kbd,
+.popup .chrome-ax-tooltip-keys kbd {
+  display: inline-block;
+  font-family: inherit;
+  font-size: 11px;
+  background: #f3f0fa;
+  border: 1px solid #d1c4e9;
+  border-radius: 4px;
+  box-shadow: 0 1px 1px rgba(104, 58, 183, 0.07);
+  padding: 1px 5px 1px 5px;
+  margin: 0 1px 0 0;
+  color: #683ab7;
+  font-weight: 600;
+  line-height: 1.1;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome-ax-tooltip *,
+  .popup * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
