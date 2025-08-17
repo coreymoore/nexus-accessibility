@@ -194,7 +194,7 @@ This document provides strict rules and context for any AI agent generating code
 
 - **Duration standards:**
   - Fast interactions (hover, focus): 100ms
-  - Normal transitions (tooltip appear/disappear): 180ms
+  - Normal transitions: 180ms
   - Complex animations: 220-300ms
 - **Easing:**
   - Default: ease-in-out
