@@ -56,9 +56,21 @@
     }
 
     _loadPreferences() {
-      chrome.storage.sync.get({ miniMode: false }, (data) => {
-        this.miniMode = !!data.miniMode;
-      });
+      // Use both new and legacy storage for compatibility during transition
+      chrome.storage.sync.get(
+        {
+          inspectorState: null,
+          miniMode: false, // fallback for legacy
+        },
+        (data) => {
+          if (data.inspectorState) {
+            this.miniMode = data.inspectorState === "mini";
+          } else {
+            // Legacy fallback
+            this.miniMode = !!data.miniMode;
+          }
+        }
+      );
     }
 
     ensureStylesInjected() {
@@ -232,7 +244,10 @@
 
     toggleMiniMode() {
       this.miniMode = !this.miniMode;
-      chrome.storage.sync.set({ miniMode: this.miniMode });
+
+      // Update the unified state
+      const newState = this.miniMode ? "mini" : "on";
+      chrome.storage.sync.set({ inspectorState: newState });
 
       // Re-render current inspector if visible
       if (this.inspector && this.inspector.style.display === "block") {

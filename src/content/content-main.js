@@ -28,12 +28,13 @@
 
   // Extension state
   let extensionEnabled = true;
+  let currentInspectorState = "on"; // "off", "on", or "mini"
   let initialized = false;
 
   /**
    * Initialize the content script extension
    */
-  function initialize() {
+  async function initialize() {
     if (initialized) {
       console.warn("[ContentExtension] Already initialized");
       return;
@@ -70,7 +71,7 @@
       CE.inspector.initialize();
 
       // Set up extension state management
-      setupExtensionState();
+      await setupExtensionState();
 
       // Set up cleanup handlers
       setupCleanup();
@@ -87,24 +88,33 @@
   /**
    * Set up extension state management
    */
-  function setupExtensionState() {
-    // Get initial state from storage
-    chrome.storage.sync.get({ extensionEnabled: true }, (data) => {
-      extensionEnabled = !!data.extensionEnabled;
-      updateExtensionState(extensionEnabled);
-    });
+  async function setupExtensionState() {
+    // Get initial state directly from storage (migration should be complete)
+    try {
+      const data = await new Promise((resolve) => {
+        chrome.storage.sync.get({ inspectorState: "on" }, resolve);
+      });
+      updateInspectorState(data.inspectorState);
+    } catch (error) {
+      console.error("[ContentExtension] Error loading state:", error);
+      // Fallback to default state
+      updateInspectorState("on");
+    }
 
     // Listen for state change messages from popup
     chrome.runtime.onMessage.addListener((msg) => {
       try {
         switch (msg.type) {
+          case "INSPECTOR_STATE_CHANGE":
+            updateInspectorState(msg.inspectorState);
+            break;
           case "ENABLE_EXTENSION":
-            extensionEnabled = true;
-            updateExtensionState(true);
+            // Legacy support - map to "on" state
+            updateInspectorState("on");
             break;
           case "DISABLE_EXTENSION":
-            extensionEnabled = false;
-            updateExtensionState(false);
+            // Legacy support - map to "off" state
+            updateInspectorState("off");
             break;
           case "AX_INSPECTOR_SHOWN":
             // Handle inspector coordination between frames
@@ -113,7 +123,19 @@
             }
             break;
           default:
-            console.warn("[ContentExtension] Unknown message type:", msg.type);
+            // Handle legacy miniMode messages
+            if (msg && typeof msg.miniMode === "boolean") {
+              // Convert legacy miniMode to new state format
+              const currentState = getInspectorState();
+              if (currentState !== "off") {
+                updateInspectorState(msg.miniMode ? "mini" : "on");
+              }
+            } else {
+              console.warn(
+                "[ContentExtension] Unknown message type:",
+                msg.type
+              );
+            }
         }
       } catch (error) {
         console.error("[ContentExtension] Error handling message:", error);
@@ -122,16 +144,33 @@
   }
 
   /**
-   * Update extension state across all modules
+   * Update inspector state across all modules
    */
-  function updateExtensionState(enabled) {
-    extensionEnabled = enabled;
+  function updateInspectorState(state) {
+    // Validate state
+    const validStates = ["off", "on", "mini"];
+    if (!validStates.includes(state)) {
+      console.warn("[ContentExtension] Invalid inspector state:", state);
+      state = "on"; // Default to "on"
+    }
 
-    if (enabled) {
-      CE.events.enableEventListeners();
-    } else {
+    // Store current state
+    currentInspectorState = state;
+
+    // Update legacy extensionEnabled for backward compatibility
+    extensionEnabled = state !== "off";
+
+    // Update mini mode in inspector
+    if (window.nexusAccessibilityUiInspector) {
+      window.nexusAccessibilityUiInspector.miniMode = state === "mini";
+    }
+
+    // Enable/disable event listeners based on state
+    if (state === "off") {
       CE.events.disableEventListeners();
       CE.inspector.hideInspector();
+    } else {
+      CE.events.enableEventListeners();
     }
 
     // Notify all modules of state change
@@ -139,7 +178,8 @@
       const module = CE[moduleName];
       if (module && typeof module.onStateChange === "function") {
         try {
-          module.onStateChange(enabled);
+          // Pass both new state and legacy enabled flag
+          module.onStateChange(extensionEnabled, state);
         } catch (error) {
           console.error(
             `[ContentExtension] Error updating ${moduleName} state:`,
@@ -148,6 +188,22 @@
         }
       }
     });
+  }
+
+  /**
+   * Get current inspector state
+   */
+  function getInspectorState() {
+    return currentInspectorState || "on";
+  }
+
+  /**
+   * Update extension state across all modules (legacy function)
+   */
+  function updateExtensionState(enabled) {
+    // Convert legacy enabled flag to new state format
+    const newState = enabled ? "on" : "off";
+    updateInspectorState(newState);
   }
 
   /**
@@ -233,9 +289,19 @@
 
   // Auto-initialize when DOM is ready
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initialize);
+    document.addEventListener("DOMContentLoaded", () => {
+      initialize().catch((error) => {
+        console.error("[ContentExtension] Initialization failed:", error);
+        fallbackInitialization();
+      });
+    });
   } else {
     // DOM is already ready
-    setTimeout(initialize, 0);
+    setTimeout(() => {
+      initialize().catch((error) => {
+        console.error("[ContentExtension] Initialization failed:", error);
+        fallbackInitialization();
+      });
+    }, 0);
   }
 })();

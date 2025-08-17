@@ -11,70 +11,63 @@ async function safeSendMessage(tabId, message) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const toggleInput = document.getElementById("toggle-extension");
-  const toggleLabel = document.getElementById("toggle-label");
-  const miniModeInput = document.getElementById("toggle-mini-mode");
-  const miniModeLabel = document.getElementById("mini-mode-label");
+  const stateRadios = document.querySelectorAll(
+    'input[name="inspector-state"]'
+  );
 
-  // Get initial state via promise wrappers
+  // Get initial state from storage (migration should be complete)
   try {
     const data = await chromeAsync.storage.sync.get({
-      extensionEnabled: true,
-      miniMode: false,
+      inspectorState: "on", // Default to "on" if not set
     });
-    toggleInput.checked = data.extensionEnabled;
-    updateToggleLabel(data.extensionEnabled);
-    miniModeInput.checked = data.miniMode;
-    updateMiniModeLabel(data.miniMode);
-  } catch {}
+    const currentState = data.inspectorState;
 
-  // Handle enabled toggle
-  toggleInput.addEventListener("change", async (e) => {
-    const isEnabled = e.target.checked;
-    try {
-      await chromeAsync.storage.sync.set({ extensionEnabled: isEnabled });
-    } catch {}
-    updateToggleLabel(isEnabled);
-    try {
-      const tabs = await chromeAsync.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (tabs[0]) {
-        await safeSendMessage(tabs[0].id, {
-          type: isEnabled ? "ENABLE_EXTENSION" : "DISABLE_EXTENSION",
+    // Set the appropriate radio button
+    const stateRadio = document.querySelector(
+      `input[name="inspector-state"][value="${currentState}"]`
+    );
+    if (stateRadio) {
+      stateRadio.checked = true;
+    }
+  } catch (error) {
+    console.error("Error loading inspector state:", error);
+    // Default to "on" if there's an error
+    const defaultRadio = document.querySelector(
+      'input[name="inspector-state"][value="on"]'
+    );
+    if (defaultRadio) {
+      defaultRadio.checked = true;
+    }
+  }
+
+  // Handle state change
+  stateRadios.forEach((radio) => {
+    radio.addEventListener("change", async (e) => {
+      const newState = e.target.value;
+
+      try {
+        await chromeAsync.storage.sync.set({ inspectorState: newState });
+      } catch (error) {
+        console.error("Error saving inspector state:", error);
+        return;
+      }
+
+      try {
+        const tabs = await chromeAsync.tabs.query({
+          active: true,
+          currentWindow: true,
         });
+        if (tabs[0]) {
+          await safeSendMessage(tabs[0].id, {
+            type: "INSPECTOR_STATE_CHANGE",
+            inspectorState: newState,
+          });
+        }
+      } catch (error) {
+        console.error("Error sending state change message:", error);
       }
-    } catch {}
+    });
   });
-
-  // Handle mini mode toggle
-  miniModeInput.addEventListener("change", async (e) => {
-    const miniMode = e.target.checked;
-    try {
-      await chromeAsync.storage.sync.set({ miniMode });
-    } catch {}
-    updateMiniModeLabel(miniMode);
-    try {
-      const tabs = await chromeAsync.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (tabs[0]) {
-        await safeSendMessage(tabs[0].id, { miniMode });
-      }
-    } catch {}
-  });
-
-  function updateToggleLabel(isEnabled) {
-    toggleLabel.textContent = isEnabled
-      ? "Nexus Inspector Enabled"
-      : "Nexus Inspector Disabled";
-  }
-
-  function updateMiniModeLabel(miniMode) {
-    miniModeLabel.textContent = miniMode ? "Mini Mode (On)" : "Mini Mode (Off)";
-  }
 
   // Page info
   try {

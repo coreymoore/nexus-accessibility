@@ -1,10 +1,6 @@
 /* Import Inter font */
 @import url("../assets/fonts/inter.css");
 
-/* Add spacing below the toggle-container for mini mode */
-.toggle-container {
-  margin-bottom: 20px;
-}
 /* Keyboard shortcut styles copied from inspector */
 .nexus-accessibility-ui-inspector-keys kbd {
   display: inline-block;
@@ -23,10 +19,9 @@
   white-space: nowrap;
 }
 .nexus-logo {
-  height: 20px;
+  height: 24px;
   width: auto;
   display: block;
-  margin: 0 auto 2px auto;
 }
 body {
   width: 100%;
@@ -34,7 +29,7 @@ body {
 }
 
 .popup {
-  padding: 10px;
+  padding: 0;
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.99),
@@ -44,6 +39,100 @@ body {
   min-width: 320px;
   min-height: 320px;
   margin: 0 auto;
+}
+
+/* Header Layout */
+.popup-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #683ab7 0%, #3a2956 100%);
+  margin: 0;
+  border: none;
+}
+
+/* Logo in header */
+.popup-header .nexus-logo {
+  height: 24px;
+  width: auto;
+  filter: brightness(0) invert(1); /* Make logo white */
+  margin: 0;
+}
+
+/* Inspector control in header */
+.popup-header .inspector-state-control {
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+}
+
+.popup-header .inspector-state-control legend {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0 0 6px 0;
+  padding: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Header segmented control styling */
+.popup-header .segmented-control {
+  display: flex;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.popup-header .segmented-control input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.popup-header .segmented-control label {
+  flex: 1;
+  padding: 6px 12px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  background: transparent;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.1s ease-in-out;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.popup-header .segmented-control label:last-child {
+  border-right: none;
+}
+
+.popup-header .segmented-control input[type="radio"]:checked + label {
+  background: rgba(255, 255, 255, 0.95);
+  color: #683ab7;
+  font-weight: 700;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.popup-header .segmented-control label:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.popup-header .segmented-control input[type="radio"]:checked + label:hover {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* Main content */
+.popup-main {
+  padding: 16px;
+  margin-top: 8px;
 }
 
 h2 {
@@ -103,10 +192,6 @@ button {
   box-shadow: 0 1px 2px rgba(104, 58, 183, 0.15);
 }
 
-button:hover:not([disabled]) {
-  background: #5d33a3;
-}
-
 button:disabled {
   opacity: 0.38;
   cursor: not-allowed;
@@ -134,6 +219,76 @@ ul {
 li {
   padding: 5px 0;
   border-bottom: 1px solid #ddd;
+}
+
+/* Inspector State Control - Segmented Radio Button Style */
+.inspector-state-control {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.inspector-state-control legend {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d1958;
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.segmented-control {
+  display: flex;
+  border: 1px solid #d1c4e9;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.segmented-control input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.segmented-control label {
+  flex: 1;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: #3a2956;
+  background: #fff;
+  border-right: 1px solid #d1c4e9;
+  cursor: pointer;
+  transition: all 0.1s ease-in-out;
+  user-select: none;
+}
+
+.segmented-control label:last-child {
+  border-right: none;
+}
+
+.segmented-control input[type="radio"]:checked + label {
+  background: #683ab7;
+  color: #fff;
+  font-weight: 600;
+}
+
+.segmented-control label:hover {
+  background: rgba(104, 58, 183, 0.1);
+}
+
+.segmented-control input[type="radio"]:checked + label:hover {
+  background: #683ab7;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .segmented-control label,
+  .popup-header .segmented-control label {
+    transition: none;
+  }
 }
 
 .switch {

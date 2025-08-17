@@ -38,6 +38,31 @@
       if (this._messageListener) return; // Prevent duplicate listeners
 
       this._messageListener = (msg, sender, sendResponse) => {
+        // Handle new unified state format
+        if (msg && msg.type === "INSPECTOR_STATE_CHANGE") {
+          const state = msg.inspectorState;
+          if (["off", "on", "mini"].includes(state)) {
+            this.core.miniMode = state === "mini";
+
+            // Hide inspector if state is "off"
+            if (state === "off") {
+              this.core.hideInspector();
+            } else if (
+              this.core.inspector &&
+              this.core.inspector.style.display === "block"
+            ) {
+              // Re-render if currently visible and state changed
+              this.core.showInspector(
+                this.core._lastInfo,
+                this.core._lastTarget,
+                this.core._lastOptions
+              );
+            }
+          }
+          return;
+        }
+
+        // Legacy support for miniMode messages
         if (msg && typeof msg.miniMode === "boolean") {
           this.core.miniMode = msg.miniMode;
           if (

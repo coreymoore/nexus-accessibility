@@ -3,6 +3,7 @@ export class MessageValidator {
     "getAccessibilityTree",
     "getBackendNodeIdAndAccessibleInfo",
     "AX_INSPECTOR_SHOWN",
+    "INSPECTOR_STATE_CHANGE",
     "keepAlive",
     "detachDebugger",
   ];
@@ -26,6 +27,14 @@ export class MessageValidator {
 
     // Validate specific fields based on action
     switch (action) {
+      case "INSPECTOR_STATE_CHANGE":
+        if (!msg.inspectorState || typeof msg.inspectorState !== "string") {
+          throw new Error("Invalid inspectorState");
+        }
+        if (!["off", "on", "mini"].includes(msg.inspectorState)) {
+          throw new Error("Invalid inspectorState value");
+        }
+        break;
       case "getBackendNodeIdAndAccessibleInfo":
         // Support both new direct reference approach and legacy selector approach
         if (msg.useDirectReference === true) {
