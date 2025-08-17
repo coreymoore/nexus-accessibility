@@ -1,5 +1,6 @@
 import { MessageValidator } from "./message-validator.js";
 import { getAccessibilityInfoForElement } from "./accessibilityInfo.js";
+import { nodeCache as __axNodeCache } from "./caches.js";
 
 export class MessageHandler {
   constructor(cacheManager, debuggerManager) {
@@ -29,6 +30,9 @@ export class MessageHandler {
 
         case "keepAlive":
           return { status: "alive" };
+
+        case "invalidateAccessibilityCache":
+          return await this.handleInvalidateCache(msg, sender);
 
         default:
           throw new Error(`Unhandled action: ${action}`);
@@ -192,6 +196,63 @@ export class MessageHandler {
       return { status: "no_tab_id" };
     } catch (error) {
       throw new Error(`Failed to detach debugger: ${error.message}`);
+    }
+  }
+
+  async handleInvalidateCache(msg, sender) {
+    try {
+      const tabId = sender.tab?.id || msg.tabId;
+      const frameId = msg.frameId || 0;
+      const elementSelector = msg.elementSelector;
+      const reason = msg.reason;
+
+      if (!elementSelector) {
+        console.warn(
+          "[MessageHandler] No element selector provided for cache invalidation"
+        );
+        return { status: "no_selector" };
+      }
+
+      // Construct the cache key format used in accessibilityInfo.js
+      const cacheKey = `${tabId}:cdp:${frameId}`;
+      const cacheSelKey = `${cacheKey}::${elementSelector}`;
+
+      console.log(
+        `[MessageHandler] Invalidating CDP cache for key: ${cacheSelKey}, reason: ${
+          reason || "general"
+        }`
+      );
+
+      // Clear the CDP node cache entry
+      __axNodeCache.delete(cacheSelKey);
+
+      // For combobox changes, also clear related element cache and general cache
+      if (reason === "combobox-expanded-change") {
+        console.log(
+          "[MessageHandler] Combobox change detected - enhanced cache clearing"
+        );
+
+        // Clear the general cache entry for this element as well
+        const generalCacheKey = `element-${tabId}-${frameId}-${elementSelector}`;
+        this.cache.delete(generalCacheKey);
+
+        // Also clear direct reference cache for this tab/frame
+        const directCacheKey = `element-direct-${tabId}-${frameId}`;
+        this.cache.delete(directCacheKey);
+
+        console.log(
+          "[MessageHandler] Enhanced cache clearing complete for combobox"
+        );
+      }
+
+      return {
+        status: "invalidated",
+        cacheKey: cacheSelKey,
+        enhanced: reason === "combobox-expanded-change",
+      };
+    } catch (error) {
+      console.error("[MessageHandler] Failed to invalidate cache:", error);
+      throw new Error(`Failed to invalidate cache: ${error.message}`);
     }
   }
 }

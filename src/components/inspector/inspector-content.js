@@ -254,10 +254,46 @@
 
       // Compose: base joined by space; if extras exist, add a comma, then extras joined by ", "
       const baseStr = base.join(" ");
+      let result = "";
+
       if (extras.length > 0) {
-        return (baseStr ? baseStr + ", " : "") + extras.join(", ");
+        result = (baseStr ? baseStr + ", " : "") + extras.join(", ");
+      } else {
+        result = baseStr;
       }
-      return baseStr;
+
+      // Add active descendant information if available (with different styling)
+      if (info.activeDescendant) {
+        const activeDesc = info.activeDescendant;
+        let activeDescText = "";
+
+        if (activeDesc.role) {
+          activeDescText += activeDesc.role;
+        }
+
+        if (activeDesc.name) {
+          const name = utils.deepUnwrap(activeDesc.name);
+          activeDescText += activeDescText ? ` "${name}"` : `"${name}"`;
+        }
+
+        if (
+          activeDesc.states &&
+          Array.isArray(activeDesc.states) &&
+          activeDesc.states.length > 0
+        ) {
+          const states = activeDesc.states.join(", ");
+          activeDescText += activeDescText ? ` (${states})` : states;
+        }
+
+        if (activeDescText) {
+          const activeDescSpan = `<span class="sr-active-descendant">${activeDescText}</span>`;
+          result += result
+            ? `, active descendant: ${activeDescSpan}`
+            : `active descendant: ${activeDescSpan}`;
+        }
+      }
+
+      return result;
     },
 
     /**
@@ -293,52 +329,83 @@
     /**
      * Get properties list for accessibility information
      * @param {Object} accessibilityInfo - Accessibility information object
-     * @returns {Array|string} Properties list or formatted HTML string
+     * @returns {Array|string} Properties list or custom HTML string
      */
     getPropertiesList(accessibilityInfo) {
-      if (!window.formatAccessibilityInfo) {
-        const pairs = [
-          { label: "Role", value: accessibilityInfo.role },
-          { label: "Name", value: accessibilityInfo.name },
-        ];
-
-        // Add description if it exists and is meaningful
-        const hasDesc =
-          accessibilityInfo.description !== "(no description)" &&
-          !String(accessibilityInfo.description).includes(
-            "Screen Reader Output"
-          );
-        if (hasDesc) {
-          pairs.push({
-            label: "Description",
-            value: accessibilityInfo.description,
-          });
-        }
-
-        // Place Group immediately after Description (or at this position if no description)
-        if (accessibilityInfo.group && accessibilityInfo.group.role) {
-          let groupText = accessibilityInfo.group.role;
-          if (accessibilityInfo.group.label) {
-            groupText += ` (${accessibilityInfo.group.label})`;
-          }
-          pairs.push({ label: "Group", value: groupText });
-        }
-
-        // Value appears after Group
-        if (
-          accessibilityInfo.value &&
-          accessibilityInfo.value !== "(no value)"
-        ) {
-          const v = utils.deepUnwrap(accessibilityInfo.value);
-          pairs.push({ label: "Value", value: v });
-        }
-
-        return pairs;
+      // Use custom formatter if it exists
+      if (typeof window.formatAccessibilityInfo === "function") {
+        return window.formatAccessibilityInfo(accessibilityInfo);
       }
 
-      // If custom formatter exists, use it but append Group if present
-      let html = window.formatAccessibilityInfo(accessibilityInfo);
-      return html;
+      const pairs = [];
+
+      // Add basic properties
+      if (accessibilityInfo.role) {
+        pairs.push({ label: "Role", value: accessibilityInfo.role });
+      }
+
+      if (accessibilityInfo.name) {
+        const n = utils.deepUnwrap(accessibilityInfo.name);
+        pairs.push({ label: "Name", value: n });
+      }
+
+      if (accessibilityInfo.description) {
+        const d = utils.deepUnwrap(accessibilityInfo.description);
+        pairs.push({ label: "Description", value: d });
+      }
+
+      // Add active descendant information if available (before States)
+      if (accessibilityInfo.activeDescendant) {
+        const activeDesc = accessibilityInfo.activeDescendant;
+        let activeDescValue = "";
+
+        if (activeDesc.role) {
+          activeDescValue += activeDesc.role;
+        }
+
+        if (activeDesc.name) {
+          const name = utils.deepUnwrap(activeDesc.name);
+          activeDescValue += activeDescValue ? ` "${name}"` : `"${name}"`;
+        }
+
+        if (
+          activeDesc.states &&
+          Array.isArray(activeDesc.states) &&
+          activeDesc.states.length > 0
+        ) {
+          const states = activeDesc.states.join(", ");
+          activeDescValue += activeDescValue ? ` (${states})` : states;
+        }
+
+        if (activeDescValue) {
+          pairs.push({ label: "Active Descendant", value: activeDescValue });
+        }
+      }
+
+      if (
+        accessibilityInfo.states &&
+        Array.isArray(accessibilityInfo.states) &&
+        accessibilityInfo.states.length > 0
+      ) {
+        const statesValue = accessibilityInfo.states.join(", ");
+        pairs.push({ label: "States", value: statesValue });
+      }
+
+      if (accessibilityInfo.group && accessibilityInfo.group !== "(no group)") {
+        const g = utils.deepUnwrap(accessibilityInfo.group);
+        pairs.push({ label: "Group", value: g });
+      }
+
+      if (
+        accessibilityInfo.value &&
+        accessibilityInfo.value !== null &&
+        accessibilityInfo.value !== "(no value)"
+      ) {
+        const v = utils.deepUnwrap(accessibilityInfo.value);
+        pairs.push({ label: "Value", value: v });
+      }
+
+      return pairs;
     },
 
     /**
@@ -353,12 +420,15 @@
         return (
           `<dl>` +
           propertiesList
-            .map(
-              ({ label, value }) =>
-                `<dt>${utils.escapeHtml(label)}</dt><dd>${utils.escapeHtml(
-                  value
-                )}</dd>`
-            )
+            .map(({ label, value }) => {
+              const isActiveDescendant = label === "Active Descendant";
+              const ddClass = isActiveDescendant
+                ? ' class="active-descendant"'
+                : "";
+              return `<dt>${utils.escapeHtml(
+                label
+              )}</dt><dd${ddClass}>${utils.escapeHtml(value)}</dd>`;
+            })
             .join("") +
           `</dl>`
         );

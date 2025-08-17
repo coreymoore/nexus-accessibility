@@ -25,6 +25,10 @@
 .sr-group {
   color: #016060; /* teal */
 }
+.sr-active-descendant {
+  color: #6f42c1; /* purple - for active descendant highlighting */
+  font-weight: 500; /* slightly bolder to make it stand out */
+}
 /* Inspector container */
 .nexus-accessibility-ui-inspector {
   position: absolute;
@@ -192,6 +196,14 @@
   float: none !important;
   display: block !important;
   grid-column: 2 !important;
+}
+
+/* Special styling for Active Descendant entries */
+.nexus-accessibility-ui-inspector dl dd.active-descendant {
+  background: rgba(111, 66, 193, 0.15) !important;
+  color: #6f42c1 !important;
+  font-weight: 500 !important;
+  box-shadow: inset 0 0 0 1px rgba(111, 66, 193, 0.25) !important;
 }
 
 .nexus-accessibility-ui-inspector dd:after {

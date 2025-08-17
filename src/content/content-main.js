@@ -231,9 +231,88 @@
       initialized = false;
     };
 
+    // Handler for page visibility and focus restoration
+    const restoreObservers = () => {
+      if (!initialized) return;
+
+      console.log(
+        "[ContentExtension] Page became visible/focused, restoring observers"
+      );
+
+      // Reconnect observers if needed
+      if (CE.observers && CE.observers.reconnectObserver) {
+        CE.observers.reconnectObserver();
+      }
+
+      // Re-establish observation for currently focused element
+      if (CE.events && CE.events.getFocusState) {
+        const focusState = CE.events.getFocusState();
+        const { lastFocusedElement, inspectedElement } = focusState;
+
+        const elementToReobserve = inspectedElement || lastFocusedElement;
+        if (elementToReobserve && document.contains(elementToReobserve)) {
+          console.log(
+            "[ContentExtension] Restarting observation for element:",
+            {
+              tagName: elementToReobserve.tagName,
+              id: elementToReobserve.id || "(no id)",
+              role: elementToReobserve.getAttribute("role"),
+            }
+          );
+
+          if (CE.observers && CE.observers.startObserving) {
+            CE.observers.startObserving(elementToReobserve);
+
+            // Verify observation started
+            if (
+              CE.observers.isObserving &&
+              CE.observers.isObserving(elementToReobserve)
+            ) {
+              console.log("[ContentExtension] ✓ Element observation confirmed");
+            } else {
+              console.warn(
+                "[ContentExtension] ✗ Element observation failed to start"
+              );
+            }
+          }
+        } else {
+          console.log("[ContentExtension] No valid element to reobserve");
+        }
+      }
+
+      // Log observer stats for debugging
+      if (CE.observers && CE.observers.getObserverStats) {
+        const stats = CE.observers.getObserverStats();
+        console.log("[ContentExtension] Observer stats after restore:", stats);
+      }
+    };
+
     // Set up cleanup listeners
     window.addEventListener("pagehide", cleanup, { once: true });
     window.addEventListener("beforeunload", cleanup, { once: true });
+
+    // Set up restoration listeners
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        // Page became visible again
+        setTimeout(restoreObservers, 100); // Small delay to ensure everything is ready
+      }
+    });
+
+    window.addEventListener("focus", () => {
+      // Window regained focus
+      setTimeout(restoreObservers, 100); // Small delay to ensure everything is ready
+    });
+
+    window.addEventListener("pageshow", (event) => {
+      // Page was restored from cache (back/forward navigation)
+      if (event.persisted) {
+        console.log(
+          "[ContentExtension] Page restored from cache, restoring observers"
+        );
+        setTimeout(restoreObservers, 100);
+      }
+    });
   }
 
   /**

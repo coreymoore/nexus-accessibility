@@ -6,6 +6,7 @@ export class MessageValidator {
     "INSPECTOR_STATE_CHANGE",
     "keepAlive",
     "detachDebugger",
+    "invalidateAccessibilityCache",
   ];
 
   static validate(msg, sender) {
@@ -59,6 +60,14 @@ export class MessageValidator {
       case "getAccessibilityTree":
         if (msg.tabId && typeof msg.tabId !== "number") {
           throw new Error("Invalid tabId");
+        }
+        break;
+      case "invalidateAccessibilityCache":
+        if (typeof msg.elementSelector !== "string") {
+          throw new Error("Invalid elementSelector for cache invalidation");
+        }
+        if (msg.frameId !== undefined && typeof msg.frameId !== "number") {
+          throw new Error("Invalid frameId for cache invalidation");
         }
         break;
     }

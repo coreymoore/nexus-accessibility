@@ -639,6 +639,37 @@ When in doubt about whether to propose an update to this file, err on the side o
 
 ---
 
+## 16. Task Completion and Cleanup
+
+### 16.1 No Summary Documents
+
+- **Do not create summary documents:** Never create files like `DEBUG_FIX_SUMMARY.md`, `CHANGES.md`, `IMPLEMENTATION_NOTES.md`, or similar documentation files when completing tasks
+- **Use console output only:** Provide task summaries and implementation details through console output/responses, not as files
+- **Exception:** Only create documentation files if explicitly requested by the user
+
+### 16.2 Debug File Cleanup
+
+- **Delete temporary debug files:** After completing debugging tasks, remove any temporary test files created during the debugging process
+- **Preserve official test files:** Never delete `test-validation.html` or files in the `tests/` directory - these are permanent test infrastructure
+- **Examples of files to clean up:**
+  - `debug-*.html` files created for testing
+  - Temporary `.test.js` files
+  - `temp-*.json` configuration files
+  - Any files with `debug`, `temp`, or `scratch` in the filename
+- **Clean up immediately:** Remove debug files as the final step of task completion, before providing the final response to the user
+
+### 16.3 File Naming Guidelines for Temporary Files
+
+When creating temporary debug files during development (that will be deleted), use clear naming conventions:
+
+- `debug-[feature]-test.html` for test pages
+- `temp-[purpose].js` for temporary scripts
+- `scratch-[description].*` for experimental files
+
+This makes it clear which files are temporary and should be cleaned up.
+
+---
+
 ## Enforcement
 
 ### Critical Rules (MUST NOT VIOLATE)
