@@ -46,25 +46,45 @@
         window.initializeLogger();
       }
 
-      // Verify all required modules are loaded
+      // Verify all required modules are loaded via dependency system
+      const depSystem = window.ContentExtension?.deps;
+      if (!depSystem) {
+        throw new Error("Dependency system not available");
+      }
+
       const requiredModules = [
-        "utils",
         "cache",
         "events",
         "accessibility",
         "observers",
         "inspector",
       ];
+      const missingModules = requiredModules.filter((module) => {
+        const mod = depSystem.getModule?.(module);
+        return !mod;
+      });
 
-      const missingModules = requiredModules.filter((module) => !CE[module]);
       if (missingModules.length > 0) {
-        throw new Error(
-          `Missing required modules: ${missingModules.join(", ")}`
-        );
+        console.warn("Missing dependency modules:", missingModules);
+        // Try legacy CE check as fallback
+        const legacyMissing = [
+          "utils",
+          "events",
+          "accessibility",
+          "observers",
+          "inspector",
+        ].filter((module) => !CE[module]);
+        if (legacyMissing.length > 0) {
+          throw new Error(
+            `Missing required modules: ${legacyMissing.join(", ")}`
+          );
+        }
       }
 
-      // Initialize modules in order
-      CE.cache.initialize();
+      // Initialize modules - cache is auto-initialized, others via CE
+      if (depSystem.callModuleMethod) {
+        depSystem.callModuleMethod("cache", "initialize");
+      }
       CE.events.initialize();
       CE.accessibility.initialize();
       CE.observers.initialize();

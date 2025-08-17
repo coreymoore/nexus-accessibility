@@ -54,6 +54,20 @@
             this.core.inspector.style.display === "block" &&
             this.core.inspector.contains(e.target)
           ) {
+            // Allow focus for text content elements to enable text selection
+            const isTextContent =
+              e.target.tagName &&
+              ["SPAN", "DIV", "P", "DD", "DT", "CODE", "PRE"].includes(
+                e.target.tagName
+              ) &&
+              !e.target.classList.contains(
+                "nexus-accessibility-ui-inspector-close"
+              );
+
+            if (isTextContent) {
+              return;
+            }
+
             e.stopPropagation();
 
             // Return focus to the inspected element if possible
@@ -261,17 +275,8 @@
     enableFocusAcceptance() {
       this._acceptingFocus = true;
 
-      // Remove inert attribute from inspector body
+      // Make inspector visible to assistive technology
       if (this.core.inspector) {
-        const body = this.core.inspector.querySelector(
-          ".nexus-accessibility-ui-inspector-body"
-        );
-        if (body) {
-          body.removeAttribute("inert");
-          body.style.pointerEvents = "";
-        }
-
-        // Make inspector visible to assistive technology
         this.core.inspector.removeAttribute("aria-hidden");
       }
     }
@@ -282,17 +287,8 @@
     disableFocusAcceptance() {
       this._acceptingFocus = false;
 
-      // Add inert attribute to inspector body
+      // Hide inspector from assistive technology
       if (this.core.inspector) {
-        const body = this.core.inspector.querySelector(
-          ".chrome-ax-inspector-body"
-        );
-        if (body) {
-          body.setAttribute("inert", "");
-          body.style.pointerEvents = "none";
-        }
-
-        // Hide inspector from assistive technology
         this.core.inspector.setAttribute("aria-hidden", "true");
       }
     }

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Extension Module Test</title>
+  </head>
+  <body>
+    <h1>Module Test Page</h1>
+    <p>This page is for testing the modularized content-events system.</p>
+
+    <button id="testButton">Test Button</button>
+    <input type="text" id="testInput" placeholder="Test input" />
+    <select id="testSelect">
+      <option value="1">Option 1</option>
+      <option value="2">Option 2</option>
+    </select>
+
+    <div
+      role="combobox"
+      aria-expanded="false"
+      aria-haspopup="listbox"
+      id="testCombobox"
+      tabindex="0"
+    >
+      Custom Combobox
+    </div>
+
+    <details id="testDetails">
+      <summary>Details Summary</summary>
+      <p>Details content</p>
+    </details>
+
+    <script>
+      // Simple test to verify modules are loading
+      console.log("Test page loaded");
+
+      // Check if ContentExtension namespace exists after modules load
+      setTimeout(() => {
+        const CE = window.ContentExtension;
+        if (CE) {
+          console.log("ContentExtension namespace found:", Object.keys(CE));
+          if (CE.events) {
+            console.log("CE.events module found:", Object.keys(CE.events));
+          }
+          if (CE.eventsFocus) {
+            console.log(
+              "CE.eventsFocus module found:",
+              Object.keys(CE.eventsFocus)
+            );
+          }
+          if (CE.eventsState) {
+            console.log(
+              "CE.eventsState module found:",
+              Object.keys(CE.eventsState)
+            );
+          }
+          if (CE.eventsShadow) {
+            console.log(
+              "CE.eventsShadow module found:",
+              Object.keys(CE.eventsShadow)
+            );
+          }
+        } else {
+          console.log("ContentExtension namespace not found");
+        }
+      }, 1000);
+    </script>
+  </body>
+</html>

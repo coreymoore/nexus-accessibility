@@ -9,7 +9,13 @@
   <body>
     <div class="popup" id="popup">
       <header class="popup-header">
-        <img src="../assets/nexus-logo.svg" alt="Nexus" class="nexus-logo" />
+        <h1>
+          <img
+            src="../assets/nexus-logo.svg"
+            alt="Nexus Accessibility Testing Toolkit"
+            class="nexus-logo"
+          />
+        </h1>
         <fieldset class="inspector-state-control">
           <legend>INSPECTOR</legend>
           <div class="segmented-control">
@@ -38,7 +44,7 @@
         </fieldset>
       </header>
       <main class="popup-main">
-        <div role="tablist" aria-label="Nexus Popup Tabs" class="tabs">
+        <div role="tablist" aria-label="Nexus Tabs" class="tabs">
           <button
             role="tab"
             aria-selected="true"
@@ -59,6 +65,16 @@
           >
             Shortcuts
           </button>
+          <button
+            role="tab"
+            aria-selected="false"
+            aria-controls="tabpanel-settings"
+            id="tab-settings"
+            tabindex="-1"
+            class="tab"
+          >
+            Settings
+          </button>
         </div>
         <div
           id="tabpanel-main"
@@ -75,6 +91,31 @@
               <dt>Language</dt>
               <dd id="page-lang">Loading…</dd>
             </dl>
+          </div>
+
+          <div id="state-info-section" class="info-container">
+            <h2>Extension Status</h2>
+            <dl id="extension-info">
+              <dt>Current Element</dt>
+              <dd id="currentElement">No element selected</dd>
+              <dt>Validation Status</dt>
+              <dd id="validationStatus" class="validation-status inactive">
+                No validation results
+              </dd>
+              <dt>Extension Status</dt>
+              <dd id="extensionStatus" class="extension-status active">
+                Active
+              </dd>
+            </dl>
+
+            <div class="action-buttons">
+              <button id="inspectElement" class="primary-button">
+                Inspect Element
+              </button>
+              <button id="clearState" class="secondary-button" disabled>
+                Clear State
+              </button>
+            </div>
           </div>
         </div>
         <div
@@ -99,6 +140,114 @@
               <dt><kbd>Alt</kbd>+<kbd>M</kbd></dt>
               <dd>Toggle Mini Mode</dd>
             </dl>
+          </div>
+        </div>
+        <div
+          id="tabpanel-settings"
+          role="tabpanel"
+          aria-labelledby="tab-settings"
+          tabindex="0"
+          class="tabpanel"
+          hidden
+        >
+          <div class="info-container">
+            <h2>Validation Settings</h2>
+            <form id="validation-settings">
+              <div class="setting-group">
+                <input type="checkbox" id="enableCDP" checked />
+                <label for="enableCDP"
+                  >Enable CDP (Chrome DevTools Protocol)</label
+                >
+              </div>
+              <div class="setting-group">
+                <input type="checkbox" id="enableLibraryFallback" checked />
+                <label for="enableLibraryFallback"
+                  >Enable library fallback</label
+                >
+              </div>
+              <div class="setting-group">
+                <input type="checkbox" id="verboseLogging" />
+                <label for="verboseLogging">Verbose logging</label>
+              </div>
+              <div class="setting-group">
+                <input type="checkbox" id="highlightValidationErrors" checked />
+                <label for="highlightValidationErrors"
+                  >Highlight validation errors</label
+                >
+              </div>
+            </form>
+          </div>
+
+          <div class="info-container">
+            <h2>UI Settings</h2>
+            <form id="ui-settings">
+              <div class="setting-group">
+                <label for="theme">Theme</label>
+                <select id="theme">
+                  <option value="auto">Auto</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </div>
+              <div class="setting-group">
+                <input type="checkbox" id="reducedMotion" />
+                <label for="reducedMotion">Reduce motion</label>
+              </div>
+              <div class="setting-group">
+                <label for="fontSize">Font size</label>
+                <select id="fontSize">
+                  <option value="small">Small</option>
+                  <option value="medium">Medium</option>
+                  <option value="large">Large</option>
+                </select>
+              </div>
+              <div class="setting-group">
+                <label for="contrast">Contrast</label>
+                <select id="contrast">
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+            </form>
+          </div>
+
+          <div class="info-container">
+            <h2>Accessibility Settings</h2>
+            <form id="accessibility-settings">
+              <div class="setting-group">
+                <input type="checkbox" id="announceInspectorChanges" />
+                <label for="announceInspectorChanges"
+                  >Announce inspector changes</label
+                >
+              </div>
+              <div class="setting-group">
+                <label for="keyboardNavigationMode">Keyboard navigation</label>
+                <select id="keyboardNavigationMode">
+                  <option value="standard">Standard</option>
+                  <option value="enhanced">Enhanced</option>
+                </select>
+              </div>
+              <div class="setting-group">
+                <label for="focusIndicatorStyle">Focus indicator style</label>
+                <select id="focusIndicatorStyle">
+                  <option value="dual-ring">Dual ring</option>
+                  <option value="solid">Solid</option>
+                  <option value="dotted">Dotted</option>
+                </select>
+              </div>
+            </form>
+          </div>
+
+          <div class="info-container">
+            <h2>Settings Management</h2>
+            <div class="action-buttons">
+              <button id="exportSettings" class="secondary-button">
+                Export Settings
+              </button>
+              <button id="importSettings" class="secondary-button">
+                Import Settings
+              </button>
+            </div>
           </div>
         </div>
       </main>

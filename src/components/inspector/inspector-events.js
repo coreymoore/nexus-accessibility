@@ -160,10 +160,7 @@
       const body = this.core.inspector.querySelector(
         ".nexus-accessibility-ui-inspector-body"
       );
-      if (body) {
-        body.removeAttribute("inert");
-        body.style.pointerEvents = "";
-      }
+      // Body is now always interactive - no need to modify pointer events
 
       const srNode = this.core.inspector.querySelector(
         ".nexus-accessibility-ui-inspector-sr"

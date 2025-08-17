@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Combobox State Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+        line-height: 1.6;
+      }
+
+      .combobox-container {
+        margin: 20px 0;
+      }
+
+      #combobox1 {
+        width: 200px;
+        padding: 8px;
+        border: 2px solid #ccc;
+        border-radius: 4px;
+      }
+
+      #listbox1 {
+        width: 200px;
+        border: 2px solid #ccc;
+        border-radius: 4px;
+        background: white;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      #listbox1 li {
+        padding: 8px;
+        cursor: pointer;
+      }
+
+      #listbox1 li:hover {
+        background: #f0f0f0;
+      }
+
+      #listbox1 li[aria-selected="true"] {
+        background: #007acc;
+        color: white;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Combobox State Change Test</h1>
+
+    <p>
+      This page tests aria-expanded state changes on comboboxes to verify that
+      the Nexus Inspector properly updates when the state changes.
+    </p>
+
+    <div class="combobox-container">
+      <label for="combobox1">Choose a fruit:</label>
+      <input
+        type="text"
+        id="combobox1"
+        role="combobox"
+        aria-expanded="false"
+        aria-haspopup="listbox"
+        aria-controls="listbox1"
+        aria-autocomplete="list"
+        placeholder="Type or select a fruit"
+      />
+
+      <ul
+        id="listbox1"
+        role="listbox"
+        aria-labelledby="combobox1-label"
+        class="hidden"
+      >
+        <li role="option" id="option1" aria-selected="false">Apple</li>
+        <li role="option" id="option2" aria-selected="false">Banana</li>
+        <li role="option" id="option3" aria-selected="false">Cherry</li>
+        <li role="option" id="option4" aria-selected="false">Date</li>
+        <li role="option" id="option5" aria-selected="false">Elderberry</li>
+      </ul>
+    </div>
+
+    <div class="combobox-container">
+      <h3>Instructions:</h3>
+      <ol>
+        <li>Focus on the combobox above</li>
+        <li>Check that the Nexus Inspector shows "collapsed" state</li>
+        <li>Click on the combobox or press Alt+Down to expand it</li>
+        <li>Verify that the Inspector updates to show "expanded" state</li>
+        <li>Click outside or press Escape to collapse</li>
+        <li>
+          Verify that the Inspector updates to show "collapsed" state again
+        </li>
+      </ol>
+    </div>
+
+    <script>
+      const combobox = document.getElementById("combobox1");
+      const listbox = document.getElementById("listbox1");
+      const options = listbox.querySelectorAll('li[role="option"]');
+
+      let isExpanded = false;
+      let selectedIndex = -1;
+
+      function updateAriaExpanded(expanded) {
+        isExpanded = expanded;
+        combobox.setAttribute("aria-expanded", expanded.toString());
+
+        if (expanded) {
+          listbox.classList.remove("hidden");
+        } else {
+          listbox.classList.add("hidden");
+        }
+
+        console.log("Combobox aria-expanded changed to:", expanded);
+      }
+
+      function selectOption(index) {
+        // Clear previous selection
+        options.forEach((option) =>
+          option.setAttribute("aria-selected", "false")
+        );
+
+        if (index >= 0 && index < options.length) {
+          selectedIndex = index;
+          options[index].setAttribute("aria-selected", "true");
+          combobox.value = options[index].textContent;
+          combobox.setAttribute("aria-activedescendant", options[index].id);
+        } else {
+          selectedIndex = -1;
+          combobox.removeAttribute("aria-activedescendant");
+        }
+      }
+
+      // Event listeners
+      combobox.addEventListener("click", () => {
+        updateAriaExpanded(!isExpanded);
+      });
+
+      combobox.addEventListener("keydown", (e) => {
+        switch (e.key) {
+          case "ArrowDown":
+            e.preventDefault();
+            if (!isExpanded) {
+              updateAriaExpanded(true);
+            } else {
+              selectedIndex = Math.min(selectedIndex + 1, options.length - 1);
+              selectOption(selectedIndex);
+            }
+            break;
+
+          case "ArrowUp":
+            e.preventDefault();
+            if (isExpanded) {
+              selectedIndex = Math.max(selectedIndex - 1, 0);
+              selectOption(selectedIndex);
+            }
+            break;
+
+          case "Enter":
+            if (isExpanded && selectedIndex >= 0) {
+              e.preventDefault();
+              updateAriaExpanded(false);
+            }
+            break;
+
+          case "Escape":
+            if (isExpanded) {
+              e.preventDefault();
+              updateAriaExpanded(false);
+              selectedIndex = -1;
+              selectOption(-1);
+            }
+            break;
+        }
+      });
+
+      // Click on options
+      options.forEach((option, index) => {
+        option.addEventListener("click", () => {
+          selectOption(index);
+          updateAriaExpanded(false);
+        });
+      });
+
+      // Click outside to close
+      document.addEventListener("click", (e) => {
+        if (!combobox.contains(e.target) && !listbox.contains(e.target)) {
+          if (isExpanded) {
+            updateAriaExpanded(false);
+          }
+        }
+      });
+
+      // Initial state
+      console.log(
+        "Initial combobox state - aria-expanded:",
+        combobox.getAttribute("aria-expanded")
+      );
+    </script>
+  </body>
+</html>

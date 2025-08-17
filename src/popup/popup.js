@@ -1,6 +1,8 @@
 import { chromeAsync } from "../utils/chromeAsync.js";
+import { popupStateManager } from "./nexus-popup-state.js";
 
 const popup = document.getElementById("popup");
+let activeTabId = null;
 
 async function safeSendMessage(tabId, message) {
   try {
@@ -10,118 +12,195 @@ async function safeSendMessage(tabId, message) {
   }
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+// Tab management for popup
+function setupTabs() {
+  const tabs = document.querySelectorAll('[role="tab"]');
+  const tabpanels = document.querySelectorAll('[role="tabpanel"]');
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => {
+      // Update tab states
+      tabs.forEach((t, i) => {
+        const isSelected = i === index;
+        t.setAttribute("aria-selected", isSelected);
+        t.tabIndex = isSelected ? 0 : -1;
+      });
+
+      // Update tabpanel states
+      tabpanels.forEach((panel, i) => {
+        panel.hidden = i !== index;
+      });
+
+      // Persist selected tab
+      chromeAsync.storage.sync
+        .set({ nexusSelectedTab: index })
+        .catch((error) => {
+          console.error("Error saving selected tab:", error);
+        });
+    });
+
+    // Keyboard navigation
+    tab.addEventListener("keydown", (e) => {
+      let nextIndex = -1;
+
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        nextIndex = (index + 1) % tabs.length;
+        e.preventDefault();
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        nextIndex = (index - 1 + tabs.length) % tabs.length;
+        e.preventDefault();
+      } else if (e.key === "Home") {
+        nextIndex = 0;
+        e.preventDefault();
+      } else if (e.key === "End") {
+        nextIndex = tabs.length - 1;
+        e.preventDefault();
+      }
+
+      if (nextIndex >= 0) {
+        tabs[nextIndex].click();
+        tabs[nextIndex].focus();
+      }
+    });
+  });
+
+  // Restore selected tab
+  chromeAsync.storage.sync
+    .get({ nexusSelectedTab: 0 })
+    .then((data) => {
+      const index = Math.max(
+        0,
+        Math.min(tabs.length - 1, data.nexusSelectedTab)
+      );
+      if (tabs[index]) {
+        tabs[index].click();
+      }
+    })
+    .catch((error) => {
+      console.error("Error restoring selected tab:", error);
+    });
+}
+
+// Legacy inspector state control (maintain backward compatibility)
+function setupLegacyInspectorControls() {
   const stateRadios = document.querySelectorAll(
     'input[name="inspector-state"]'
   );
 
-  // Get initial state from storage (migration should be complete)
-  try {
-    const data = await chromeAsync.storage.sync.get({
-      inspectorState: "on", // Default to "on" if not set
+  // Get initial state from storage
+  chromeAsync.storage.sync
+    .get({ inspectorState: "on" })
+    .then((data) => {
+      const currentState = data.inspectorState;
+      const stateRadio = document.querySelector(
+        `input[name="inspector-state"][value="${currentState}"]`
+      );
+      if (stateRadio) {
+        stateRadio.checked = true;
+      }
+    })
+    .catch((error) => {
+      console.error("Error loading inspector state:", error);
+      const defaultRadio = document.querySelector(
+        'input[name="inspector-state"][value="on"]'
+      );
+      if (defaultRadio) {
+        defaultRadio.checked = true;
+      }
     });
-    const currentState = data.inspectorState;
 
-    // Set the appropriate radio button
-    const stateRadio = document.querySelector(
-      `input[name="inspector-state"][value="${currentState}"]`
-    );
-    if (stateRadio) {
-      stateRadio.checked = true;
-    }
-  } catch (error) {
-    console.error("Error loading inspector state:", error);
-    // Default to "on" if there's an error
-    const defaultRadio = document.querySelector(
-      'input[name="inspector-state"][value="on"]'
-    );
-    if (defaultRadio) {
-      defaultRadio.checked = true;
-    }
-  }
-
-  // Handle state change
+  // Handle state changes
   stateRadios.forEach((radio) => {
     radio.addEventListener("change", async (e) => {
       const newState = e.target.value;
 
       try {
         await chromeAsync.storage.sync.set({ inspectorState: newState });
-      } catch (error) {
-        console.error("Error saving inspector state:", error);
-        return;
-      }
 
-      try {
-        const tabs = await chromeAsync.tabs.query({
-          active: true,
-          currentWindow: true,
-        });
-        if (tabs[0]) {
-          await safeSendMessage(tabs[0].id, {
-            type: "INSPECTOR_STATE_CHANGE",
-            inspectorState: newState,
+        if (activeTabId) {
+          await safeSendMessage(activeTabId, {
+            action: "updateInspectorState",
+            state: newState,
           });
         }
       } catch (error) {
-        console.error("Error sending state change message:", error);
+        console.error("Error updating inspector state:", error);
       }
     });
   });
+}
 
-  // Page info
+// Load page information
+async function loadPageInfo() {
   try {
     const tabs = await chromeAsync.tabs.query({
       active: true,
       currentWindow: true,
     });
+
     if (tabs[0]) {
-      const title = document.getElementById("page-title");
-      const lang = document.getElementById("page-lang");
-      title.textContent = tabs[0].title || "No title";
-      lang.textContent = document.documentElement?.lang || "Not specified";
-    }
-  } catch {}
+      activeTabId = tabs[0].id;
 
-  // Accessible Tabs (WAI-ARIA APG pattern)
-  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
-  const panels = Array.from(document.querySelectorAll('[role="tabpanel"]'));
-  function activateTab(tab, persist = true) {
-    tabs.forEach((t, i) => {
-      const selected = t === tab;
-      t.setAttribute("aria-selected", selected ? "true" : "false");
-      t.tabIndex = selected ? 0 : -1;
-      panels[i].hidden = !selected;
-    });
-    tab.focus();
-    if (persist) {
-      chromeAsync.storage.sync.set({ nexusSelectedTab: tabs.indexOf(tab) });
-    }
-  }
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => activateTab(tab));
-    tab.addEventListener("keydown", (e) => {
-      const idx = tabs.indexOf(tab);
-      if (e.key === "ArrowRight" || e.key === "Right") {
-        e.preventDefault();
-        activateTab(tabs[(idx + 1) % tabs.length]);
-      } else if (e.key === "ArrowLeft" || e.key === "Left") {
-        e.preventDefault();
-        activateTab(tabs[(idx - 1 + tabs.length) % tabs.length]);
-      } else if (e.key === "Home") {
-        e.preventDefault();
-        activateTab(tabs[0]);
-      } else if (e.key === "End") {
-        e.preventDefault();
-        activateTab(tabs[tabs.length - 1]);
+      // Update page info
+      const titleElement = document.getElementById("page-title");
+      const langElement = document.getElementById("page-lang");
+
+      if (titleElement) {
+        titleElement.textContent = tabs[0].title || "Unknown";
       }
-    });
-  });
 
-  // Restore selected tab
+      // Try to get language from content script
+      try {
+        const response = await safeSendMessage(activeTabId, {
+          action: "getPageInfo",
+        });
+
+        if (response && !response.error && langElement) {
+          langElement.textContent = response.language || "Not specified";
+        }
+      } catch (error) {
+        if (langElement) {
+          langElement.textContent = "Unable to detect";
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error loading page info:", error);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
   try {
-    const data = await chromeAsync.storage.sync.get({ nexusSelectedTab: 0 });
-    const idx = Math.max(0, Math.min(tabs.length - 1, data.nexusSelectedTab));
-    activateTab(tabs[idx], false);
-  } catch {}
+    // Initialize state manager
+    await popupStateManager.initialize();
+
+    console.log("Popup state manager initialized");
+
+    // Set up UI components
+    setupTabs();
+    setupLegacyInspectorControls();
+
+    // Load page information
+    await loadPageInfo();
+
+    // State manager should handle the rest of the UI updates
+    console.log("Popup initialization complete");
+  } catch (error) {
+    console.error("Popup initialization error:", error);
+
+    // Fallback: still set up basic functionality
+    setupTabs();
+    setupLegacyInspectorControls();
+    await loadPageInfo();
+  }
 });
+
+// Handle popup close
+window.addEventListener("beforeunload", () => {
+  if (popupStateManager.isInitialized) {
+    popupStateManager.cleanup();
+  }
+});
+
+// Export for debugging
+window.popupStateManager = popupStateManager;

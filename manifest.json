@@ -44,12 +44,17 @@
         "src/components/inspector/inspector-focus.js",
         "src/components/inspector/inspector-core.js",
         "src/components/inspector/inspector-main.js",
+        "src/content/content-deps.js",
+        "src/content/nexus-content-state.js",
         "src/content/content-utils.js",
         "src/content/content-cache.js",
-        "src/content/content-events.js",
+        "src/content/content-inspector.js",
+        "src/content/content-events-shadow.js",
+        "src/content/content-events-state.js",
+        "src/content/content-events-focus.js",
+        "src/content/content-events-core.js",
         "src/content/content-accessibility.js",
         "src/content/content-observers.js",
-        "src/content/content-inspector.js",
         "src/content/content-validation.js",
         "src/content/content-main.js"
       ]
@@ -91,7 +96,7 @@
       "suggested_key": {
         "default": "Alt+X"
       },
-      "description": "Open the Access Nexus popup"
+      "description": "Open the Nexus popup"
     }
   }
 }

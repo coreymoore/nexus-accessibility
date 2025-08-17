@@ -476,10 +476,65 @@ async function validateElement(element) {
 - **Single responsibility:** Each module should have one clear purpose
 - **DRY principle:** Reuse existing utilities and patterns
 - **Consistent patterns:** Follow existing error handling and async patterns
+- **File size limits:** Keep individual JavaScript files under 250 lines whenever possible
+- **Modularization strategy:** When files exceed ~250 lines, split them into focused sub-modules:
+  - Group related functions by responsibility (e.g., event handling, state management, DOM operations)
+  - Create separate modules for distinct feature sets
+  - Maintain clear public APIs and dependencies between modules
+  - Use descriptive filenames that indicate module purpose
+- **Module naming convention:** Use descriptive names that reflect the module's primary responsibility
 - **Separate validation modules:** Maintain distinct validation implementations in their respective modules, each serving different contexts:
   - Core validation (utils/validation/core.js)
   - Content validation (content/content-validation.js)
   - Utility validation (utils/validation-utils.js)
+
+### 9.3 IIFE Module System (Chrome Extension Required)
+
+Due to Chrome extension content script isolation requirements, the extension uses IIFE (Immediately Invoked Function Expression) modules instead of ES6 modules. All content scripts must follow this enhanced dependency pattern:
+
+- **Dependency Management System:** Use the ModuleRegistry class from `content/content-deps.js`
+- **Module Definition Pattern:** Use `defineModule(name, dependencies, moduleFunction)` for all modules
+- **Safe Method Calling:** Use `utils.callModuleMethod(moduleName, methodName, ...args)` for cross-module calls
+- **Dependency Declaration:** Explicitly declare all module dependencies in the defineModule call
+- **Loading Order:** Ensure `content-deps.js` loads first in manifest.json
+
+#### IIFE Module Template:
+
+```javascript
+window.nexusDependencies.defineModule(
+  "moduleName",
+  ["dep1", "dep2"],
+  function (deps, utils) {
+    "use strict";
+
+    // Module implementation
+    const moduleAPI = {
+      publicMethod: function () {
+        // Use utils.callModuleMethod for cross-module calls
+        return utils.callModuleMethod("otherModule", "method", args);
+      },
+    };
+
+    return moduleAPI;
+  }
+);
+```
+
+#### Key Requirements:
+
+- **No ES6 imports/exports:** Content scripts cannot use ES6 module syntax
+- **Global namespace isolation:** Use ModuleRegistry to prevent pollution
+- **Dependency validation:** System validates dependencies before module initialization
+- **Error resilience:** Safe method calling prevents cascading failures
+- **Load order management:** Dependencies must be declared and managed explicitly
+
+#### Module Loading Best Practices:
+
+- Load `content-deps.js` first in manifest.json content_scripts
+- Group related functionality into focused modules under 250 lines
+- Use descriptive module names that reflect their primary responsibility
+- Implement robust error handling within each module
+- Provide debugging methods (e.g., getStatus()) for troubleshooting
 
 ---
 
@@ -636,6 +691,156 @@ Rationale: [explain why this update is necessary]
 ### 15.4 Default Approach
 
 When in doubt about whether to propose an update to this file, err on the side of proposing the update rather than assuming the existing rules are sufficient.
+
+---
+
+## 16. Debugging & Problem Resolution Philosophy
+
+### 16.1 Root Cause Analysis First
+
+- **No premature fallbacks:** When a feature isn't working, identify and fix the root cause rather than implementing workaround fallbacks
+- **Debug systematically:** Use logging, console output, and systematic investigation to understand exactly why something is failing
+- **Fix the source:** Address the underlying issue in the affected module rather than routing around it
+- **Test the fix:** Verify that the root cause fix resolves the issue completely
+
+### 16.2 When Fallbacks Are Appropriate
+
+Fallbacks should only be implemented in these specific cases:
+
+- **Browser compatibility:** When different browsers require different approaches
+- **Graceful degradation:** When a primary feature isn't available but a simpler version can work
+- **Migration scenarios:** During planned deprecation of old systems
+- **External dependency failures:** When third-party services are unavailable
+
+### 16.3 Debugging Methodology
+
+When encountering issues:
+
+1. **Investigate before implementing:** Use console.log, debugging tools, and systematic testing
+2. **Trace the execution path:** Follow the code flow to identify exactly where things break
+3. **Check assumptions:** Verify that modules, methods, and data are in the expected state
+4. **Fix at the source:** Modify the failing component rather than working around it
+5. **Remove debugging code:** Clean up temporary logging once the issue is resolved
+
+### 16.4 Anti-Patterns to Avoid
+
+- **Fallback-first approach:** Don't implement workarounds without understanding the root issue
+- **Layered workarounds:** Don't add fallbacks on top of other fallbacks
+- **Assumption-based fixes:** Don't guess at solutions without proper investigation
+- **Debugging code in production:** Remove temporary debugging statements after issues are resolved
+
+### 16.5 Example Approach
+
+❌ **Wrong Approach:**
+
+```javascript
+const result = utils.callModuleMethod("inspector", "showInspector", data);
+if (!result) {
+  // Fallback to legacy system
+  CE.inspector.showInspector(data);
+}
+```
+
+✅ **Right Approach:**
+
+```javascript
+// First, debug why callModuleMethod is failing:
+console.log("Module registry:", utils.registry.modules.keys());
+console.log("Inspector module state:", utils.getModule("inspector"));
+// Then fix the root cause in the module system
+```
+
+---
+
+## 17. Systematic Reference Updating After Architectural Changes
+
+### 17.1 Mandatory Reference Update Process
+
+When making architectural changes that affect module interfaces or reference patterns (such as converting from CE.\* patterns to dependency system calls), AI agents MUST systematically update ALL references across the entire codebase. This is not optional and must be completed in the same session as the architectural change.
+
+### 17.2 Required Search and Replace Operations
+
+After any module system changes, AI agents must:
+
+1. **Search comprehensively** for ALL instances of deprecated patterns using `grep_search` with appropriate regex patterns
+2. **Update every reference systematically** - do not leave any files partially converted
+3. **Convert module definitions** from old IIFE patterns to new dependency system patterns where applicable
+4. **Update inter-module communication** from direct references to `utils.callModuleMethod()` calls
+5. **Verify manifest.json** to ensure only actively loaded files are being updated
+
+### 17.3 Common Pattern Conversions
+
+When converting modules to the enhanced dependency system:
+
+#### Old Pattern (Legacy IIFE):
+
+```javascript
+(function () {
+  "use strict";
+  window.ContentExtension = window.ContentExtension || {};
+  const CE = window.ContentExtension;
+
+  // Direct module calls
+  if (CE.inspector) {
+    CE.inspector.showInspector(data);
+  }
+
+  CE.moduleName = { ... };
+})();
+```
+
+#### New Pattern (Enhanced Dependency System):
+
+```javascript
+window.ContentExtension.deps.defineModule(
+  'moduleName',
+  ['inspector', 'accessibility'],
+  function(deps, utils) {
+    "use strict";
+
+    // Backwards compatibility setup
+    window.ContentExtension = window.ContentExtension || {};
+    const CE = window.ContentExtension;
+
+    // Safe module calls through dependency system
+    const result = utils.callModuleMethod('inspector', 'showInspector', data);
+
+    return { ... };
+  }
+);
+```
+
+### 17.4 File Priority for Updates
+
+Update files in this priority order:
+
+1. **Active content scripts** listed in manifest.json (highest priority)
+2. **Background scripts** and service workers
+3. **Popup and options scripts**
+4. **Utility modules** that are imported
+5. **Unused/legacy files** (lowest priority, but still update for consistency)
+
+### 17.5 Verification Requirements
+
+After completing systematic updates:
+
+1. **Run error checking** using `get_errors` on all modified files
+2. **Search for remaining instances** of deprecated patterns to ensure complete conversion
+3. **Test basic functionality** by opening the extension's test page
+4. **Document the changes** made in the response summary
+
+### 17.6 Post-Change Self-Assessment Requirement
+
+After completing ANY prompt, AI agents MUST perform a self-assessment against these rules and include it in their response. The assessment must cover:
+
+1. **Reference Update Completeness**: Did I systematically find and update all instances of deprecated patterns?
+2. **Architecture Consistency**: Are all modules using the same communication patterns?
+3. **Error Handling**: Did I follow the established error handling patterns?
+4. **Testing**: Did I verify the changes work correctly?
+5. **Documentation**: Did I update relevant documentation if needed?
+6. **Rule Compliance**: Did I follow all the rules in this document?
+
+The assessment should be included as a final section titled "## Copilot Instructions Compliance Report" in every response.
 
 ---
 

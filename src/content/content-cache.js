@@ -7,10 +7,11 @@
  * Dependencies: content-utils.js
  */
 
-(function () {
+// Converted to dependency module (no external deps)
+window.ContentExtension.deps.defineModule("cache", [], function (deps, utils) {
   "use strict";
 
-  // Ensure our namespace exists
+  // Ensure namespace exists for legacy access
   window.ContentExtension = window.ContentExtension || {};
   const CE = window.ContentExtension;
 
@@ -87,10 +88,12 @@
   /**
    * Remove cached accessibility information for an element
    * @param {Element} element - The element to remove from cache
+   * @returns {boolean} True to indicate cache operation completed
    */
   function deleteCached(element) {
     accessibilityCache.delete(element);
     accessibilityCacheMeta.delete(element);
+    return true; // Indicate success
   }
 
   /**
@@ -204,6 +207,14 @@
   }
 
   /**
+   * Clear accessibility cache for an element (alias for deleteCached)
+   * @param {Element} element - The element to clear cache for
+   */
+  function clearAccessibilityCache(element) {
+    deleteCached(element);
+  }
+
+  /**
    * Create a debounced cache update function
    * @param {Function} updateFunction - The function to execute
    * @param {number} delay - Debounce delay in milliseconds
@@ -292,37 +303,29 @@
   }
 
   // Export the cache module
-  CE.cache = {
+  const cacheAPI = {
     initialize,
     cleanup,
     onStateChange,
-
-    // Cache operations
     getCached,
     setCached,
     deleteCached,
     hasCached,
-
-    // In-flight request management
+    clearAccessibilityCache,
     getInflightRequest,
     deleteInflightRequest,
-
-    // Timer management
     setRefetchTimer,
     getRefetchTimer,
     clearRefetchTimer,
     clearAllRefetchTimers,
-
-    // Pending request management
     setPendingRequest,
     getPendingRequest,
     clearPendingRequest,
-
-    // Utilities
     createDebouncedUpdate,
     invalidateWhere,
     getStats,
   };
 
-  console.log("[ContentExtension.cache] Module loaded");
-})();
+  console.log("[ContentExtension.cache] Module loaded (dependency system)");
+  return cacheAPI;
+});

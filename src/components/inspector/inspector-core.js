@@ -156,6 +156,9 @@
       this._setupInitialPosition();
       document.body.appendChild(this.inspector);
 
+      // Enable text selection
+      this._enableTextSelection();
+
       // Setup event handlers for this inspector instance
       this._setupInspectorEventHandlers(onClose, enabled);
 
@@ -296,6 +299,46 @@
       ) {
         document.body.appendChild(this.connector);
       }
+    }
+
+    /**
+     * Enable text selection for the inspector
+     */
+    _enableTextSelection() {
+      if (!this.inspector) return;
+
+      console.log("[Inspector] Enabling text selection");
+
+      // Apply CSS styles directly to override any conflicting rules
+      const style = this.inspector.style;
+      style.userSelect = "text";
+      style.webkitUserSelect = "text";
+      style.mozUserSelect = "text";
+      style.msUserSelect = "text";
+
+      // Apply to all child elements except close button
+      const allElements = this.inspector.querySelectorAll(
+        "*:not(.nexus-accessibility-ui-inspector-close)"
+      );
+      allElements.forEach((el) => {
+        el.style.userSelect = "text";
+        el.style.webkitUserSelect = "text";
+        el.style.mozUserSelect = "text";
+        el.style.msUserSelect = "text";
+      });
+
+      // Ensure close button remains non-selectable
+      const closeButton = this.inspector.querySelector(
+        ".nexus-accessibility-ui-inspector-close"
+      );
+      if (closeButton) {
+        closeButton.style.userSelect = "none";
+        closeButton.style.webkitUserSelect = "none";
+        closeButton.style.mozUserSelect = "none";
+        closeButton.style.msUserSelect = "none";
+      }
+
+      console.log("[Inspector] Text selection enabled");
     }
 
     destroy() {

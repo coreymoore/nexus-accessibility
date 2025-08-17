@@ -89,7 +89,7 @@
      */
     createLoadingContent() {
       return `
-  <div class="nexus-accessibility-ui-inspector-body" inert>
+  <div class="nexus-accessibility-ui-inspector-body">
           <div class="nexus-accessibility-ui-loading" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
             ${Templates.LOADING_SPINNER}
             <span>Loading Nexus Accessibility Info</span>
@@ -165,6 +165,7 @@
           info.normalizedExpanded !== undefined
         ) {
           expandedValue = info.normalizedExpanded;
+          console.log("[INSPECTOR] Using normalizedExpanded:", expandedValue);
         }
         // Fallback to aria-expanded from ariaProperties
         else if (
@@ -174,18 +175,38 @@
           expandedValue = utils.deepUnwrap(
             info.ariaProperties["aria-expanded"]
           );
+          console.log(
+            "[INSPECTOR] Using aria-expanded fallback:",
+            expandedValue
+          );
         }
         // Fallback to expanded from states
         else if (info.states && "expanded" in info.states) {
           expandedValue = utils.deepUnwrap(info.states.expanded);
+          console.log(
+            "[INSPECTOR] Using states.expanded fallback:",
+            expandedValue
+          );
         }
 
         // Normalize and add expanded/collapsed state
         const normalizedExpanded = this.normalizeBooleanValue(expandedValue);
+        console.log(
+          "[INSPECTOR] Final normalized value:",
+          normalizedExpanded,
+          "from expandedValue:",
+          expandedValue
+        );
         if (normalizedExpanded === true) {
           extras.push(`<span class="sr-state">expanded</span>`);
+          console.log("[INSPECTOR] Added expanded state to display");
         } else if (normalizedExpanded === false) {
           extras.push(`<span class="sr-state">collapsed</span>`);
+          console.log("[INSPECTOR] Added collapsed state to display");
+        } else {
+          console.log(
+            "[INSPECTOR] No expanded/collapsed state added (normalized value was neither true nor false)"
+          );
         }
 
         // Handle aria-pressed
@@ -279,12 +300,14 @@
      * @param {string} message - Error message to display
      * @returns {string} Error content HTML
      */
-    createErrorContent(message) {
+    createErrorContent(
+      message = "Failed to retrieve accessibility information"
+    ) {
       return `
-  <div class="nexus-accessibility-ui-inspector-body" inert>
-          <div class="nexus-accessibility-ui-error" style="display: flex; align-items: center; gap: 8px; color: #d73a49;">
+  <div class="nexus-accessibility-ui-inspector-body">
+          <div class="nexus-accessibility-ui-error" style="display: flex; align-items: center; gap: 8px; color: #F44336;">
             ${Templates.ERROR_ICON}
-            <span>${utils.escapeHtml(message || "An error occurred")}</span>
+            <span>${utils.escapeHtml(message)}</span>
           </div>
         </div>
       `;
@@ -387,7 +410,7 @@
         const screenReaderSection = this.createScreenReaderSection(info);
 
         // Create inspector body wrapper
-        const bodyOpen = `<div class="nexus-accessibility-ui-inspector-body" inert style="pointer-events: none;">`;
+        const bodyOpen = `<div class="nexus-accessibility-ui-inspector-body">`;
         const bodyClose = `</div>`;
 
         let inspectorContent;
