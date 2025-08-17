@@ -1,41 +1,41 @@
 /**
- * Tooltip Core Module
+ * Inspector Core Module
  *
- * Main tooltip class that orchestrates all tooltip functionality.
- * This is the primary module that initializes and manages the tooltip system.
+ * Main inspector class that orchestrates all inspector functionality.
+ * This is the primary module that initializes and manages the inspector system.
  *
  * Dependencies:
- * - tooltip-utils.js (for data processing utilities)
- * - tooltip-content.js (for content generation)
- * - tooltip-positioning.js (for positioning logic)
- * - tooltip-events.js (for event handling)
- * - tooltip-focus.js (for focus management)
+ * - inspector-utils.js (for data processing utilities)
+ * - inspector-content.js (for content generation)
+ * - inspector-positioning.js (for positioning logic)
+ * - inspector-events.js (for event handling)
+ * - inspector-focus.js (for focus management)
  *
- * Global API: window.NexusTooltip.Core
+ * Global API: window.NexusInspector.Core
  */
 
 (function () {
   "use strict";
 
   // Access global dependencies
-  const utils = window.NexusTooltip.Utils;
-  const content = window.NexusTooltip.Content;
-  const positioning = window.NexusTooltip.Positioning;
-  const events = window.NexusTooltip.Events;
-  const focus = window.NexusTooltip.Focus;
+  const utils = window.NexusInspector.Utils;
+  const content = window.NexusInspector.Content;
+  const positioning = window.NexusInspector.Positioning;
+  const events = window.NexusInspector.Events;
+  const focus = window.NexusInspector.Focus;
 
-  class TooltipCore {
+  class InspectorCore {
     constructor() {
       this.logger =
         (window.axLogger &&
-          window.axLogger.log.bind(window.axLogger, "tooltip")) ||
+          window.axLogger.log.bind(window.axLogger, "inspector")) ||
         (() => {});
-      this.tooltip = null;
+      this.inspector = null;
       this.connector = null;
       this.miniMode = false;
       this._mutObserver = null;
       this._isHiding = false;
-      this._margin = 32; // Spacing between tooltip and focused element
+      this._margin = 32; // Spacing between inspector and focused element
       this._scrollHandler = null;
 
       // Store last info for mini mode toggle
@@ -62,12 +62,15 @@
     }
 
     ensureStylesInjected() {
-      if (document.getElementById("chrome-ax-tooltip-style")) return;
+      if (document.getElementById("nexus-accessibility-ui-inspector-style"))
+        return;
       const link = document.createElement("link");
-      link.id = "chrome-ax-tooltip-style";
+      link.id = "nexus-accessibility-ui-inspector-style";
       link.rel = "stylesheet";
       link.type = "text/css";
-      link.href = chrome.runtime.getURL("src/components/tooltip/tooltip.css");
+      link.href = chrome.runtime.getURL(
+        "src/components/inspector/inspector.css"
+      );
       document.head.appendChild(link);
 
       // Inject shared stylesheet (focus ring, shared tokens) if not present
@@ -81,31 +84,35 @@
       }
     }
 
-    showLoadingTooltip(target) {
+    showLoadingInspector(target) {
       this.ensureStylesInjected();
-      if (this.tooltip) this.tooltip.remove();
+      if (this.inspector) this.inspector.remove();
 
-      this.tooltip = document.createElement("div");
-      this.tooltip.className = "chrome-ax-tooltip";
-      this.tooltip.setAttribute("role", "tooltip");
-      this.tooltip.setAttribute("id", "chrome-ax-tooltip");
+      this.inspector = document.createElement("div");
+      this.inspector.className = "nexus-accessibility-ui-inspector";
+      this.inspector.setAttribute("role", "group");
+      this.inspector.setAttribute(
+        "aria-label",
+        "Nexus Accessibility Inspector"
+      );
+      this.inspector.setAttribute("id", "nexus-accessibility-ui-inspector");
 
       // Create safe loading content
       const loadingHtml = content.createLoadingContent();
-      this.tooltip.innerHTML = loadingHtml;
-      document.body.appendChild(this.tooltip);
-      this.tooltip.style.display = "block";
+      this.inspector.innerHTML = loadingHtml;
+      document.body.appendChild(this.inspector);
+      this.inspector.style.display = "block";
 
-      // Position the loading tooltip
-      this.positioning.positionTooltip(target);
+      // Position the loading inspector
+      this.positioning.positionInspector(target);
     }
 
-    showTooltip(info, target, options = {}) {
+    showInspector(info, target, options = {}) {
       const { onClose, enabled } = options;
 
       // Debug logging
       try {
-        console.debug("[AX Tooltip] group info:", info && info.group);
+        console.debug("[AX Inspector] group info:", info && info.group);
       } catch {}
 
       // Store state for mode toggles
@@ -116,84 +123,84 @@
       this.ensureStylesInjected();
       if (!info) return;
 
-      // Clean up existing tooltip
-      if (this.tooltip) {
+      // Clean up existing inspector
+      if (this.inspector) {
         this.focus.cleanup();
-        this.tooltip.remove();
+        this.inspector.remove();
       }
 
-      // Create new tooltip element
-      this._createTooltipElement(target);
+      // Create new inspector element
+      this._createInspectorElement(target);
 
       // Generate and set content
-      const tooltipContent = content.generateTooltipContent(
+      const inspectorContent = content.generateInspectorContent(
         info,
         this.miniMode,
         { onClose, enabled }
       );
-      this.tooltip.innerHTML = tooltipContent;
+      this.inspector.innerHTML = inspectorContent;
 
       // Setup initial positioning (offscreen for measurement)
       this._setupInitialPosition();
-      document.body.appendChild(this.tooltip);
+      document.body.appendChild(this.inspector);
 
-      // Setup event handlers for this tooltip instance
-      this._setupTooltipEventHandlers(onClose, enabled);
+      // Setup event handlers for this inspector instance
+      this._setupInspectorEventHandlers(onClose, enabled);
 
-      // Position tooltip and create connector
-      this.positioning.positionTooltipWithConnector(target);
+      // Position inspector and create connector
+      this.positioning.positionInspectorWithConnector(target);
 
       // Setup focus management and observers
       this.focus.setupFocusManagement({ onClose, enabled });
       this._ensureObserver();
     }
 
-    _createTooltipElement(target) {
-      this.tooltip = document.createElement("div");
-      this.tooltip.className = "chrome-ax-tooltip";
-      this.tooltip.setAttribute("role", "tooltip");
-      this.tooltip.setAttribute("id", "chrome-ax-tooltip");
-      // Per AI_CONTEXT_RULES: do NOT use aria-live / live regions in injected tooltip.
+    _createInspectorElement(target) {
+      this.inspector = document.createElement("div");
+      this.inspector.className = "nexus-accessibility-ui-inspector";
+      this.inspector.setAttribute("role", "inspector");
+      this.inspector.setAttribute("id", "nexus-accessibility-ui-inspector");
+      // Per AI_CONTEXT_RULES: do NOT use aria-live / live regions in injected inspector.
       // Also avoid aria-hidden on container; expose only on explicit focus interaction.
-      this.tooltip.setAttribute("tabindex", "-1");
+      this.inspector.setAttribute("tabindex", "-1");
 
       // Establish ARIA relationship with target element if it has an ID
       if (target && target.id) {
-        this.tooltip.setAttribute("aria-controls", target.id);
+        this.inspector.setAttribute("aria-controls", target.id);
       }
     }
 
     _setupInitialPosition() {
-      this.tooltip.style.position = "fixed";
-      this.tooltip.style.left = "-9999px";
-      this.tooltip.style.top = "-9999px";
-      this.tooltip.style.setProperty("z-index", "2147483648", "important");
-      this.tooltip.style.setProperty("display", "block", "important");
+      this.inspector.style.position = "fixed";
+      this.inspector.style.left = "-9999px";
+      this.inspector.style.top = "-9999px";
+      this.inspector.style.setProperty("z-index", "2147483648", "important");
+      this.inspector.style.setProperty("display", "block", "important");
     }
 
-    _setupTooltipEventHandlers(onClose, enabled) {
+    _setupInspectorEventHandlers(onClose, enabled) {
       // Setup scroll handler for repositioning
       this._scrollHandler = () => {
         if (
-          this.tooltip &&
-          this.tooltip.style.display === "block" &&
+          this.inspector &&
+          this.inspector.style.display === "block" &&
           this._lastTarget
         ) {
-          this.positioning.repositionTooltipAndConnector(this._lastTarget);
+          this.positioning.repositionInspectorAndConnector(this._lastTarget);
         }
       };
       window.addEventListener("scroll", this._scrollHandler, true);
 
       // Setup close button functionality
-      const closeButton = this.tooltip.querySelector(
-        ".chrome-ax-tooltip-close"
+      const closeButton = this.inspector.querySelector(
+        ".nexus-accessibility-ui-inspector-close"
       );
       if (closeButton) {
         this.events.setupCloseButton(closeButton, onClose, enabled);
       }
     }
 
-    hideTooltip(options = {}) {
+    hideInspector(options = {}) {
       const { onRefocus } = options;
       this._isHiding = true;
 
@@ -207,10 +214,10 @@
         // Clean up focus management
         this.focus.cleanup();
 
-        // Remove tooltip and connector elements
-        if (this.tooltip && this.tooltip.parentNode) {
-          this.tooltip.parentNode.removeChild(this.tooltip);
-          this.tooltip = null;
+        // Remove inspector and connector elements
+        if (this.inspector && this.inspector.parentNode) {
+          this.inspector.parentNode.removeChild(this.inspector);
+          this.inspector = null;
         }
         if (this.connector && this.connector.parentNode) {
           this.connector.parentNode.removeChild(this.connector);
@@ -227,10 +234,14 @@
       this.miniMode = !this.miniMode;
       chrome.storage.sync.set({ miniMode: this.miniMode });
 
-      // Re-render current tooltip if visible
-      if (this.tooltip && this.tooltip.style.display === "block") {
+      // Re-render current inspector if visible
+      if (this.inspector && this.inspector.style.display === "block") {
         if (this._lastInfo && this._lastTarget && this._lastOptions) {
-          this.showTooltip(this._lastInfo, this._lastTarget, this._lastOptions);
+          this.showInspector(
+            this._lastInfo,
+            this._lastTarget,
+            this._lastOptions
+          );
         }
       }
     }
@@ -252,10 +263,13 @@
     }
 
     _restoreIfDetached() {
-      if (this.tooltip && !document.documentElement.contains(this.tooltip)) {
-        document.body.appendChild(this.tooltip);
-        this.tooltip.style.setProperty("display", "block", "important");
-        this.tooltip.style.zIndex = "2147483648";
+      if (
+        this.inspector &&
+        !document.documentElement.contains(this.inspector)
+      ) {
+        document.body.appendChild(this.inspector);
+        this.inspector.style.setProperty("display", "block", "important");
+        this.inspector.style.zIndex = "2147483648";
       }
       if (
         this.connector &&
@@ -270,10 +284,10 @@
       this.events.cleanup();
       this.focus.cleanup();
 
-      // Clean up tooltip elements
-      if (this.tooltip) {
-        this.tooltip.remove();
-        this.tooltip = null;
+      // Clean up inspector elements
+      if (this.inspector) {
+        this.inspector.remove();
+        this.inspector = null;
       }
       if (this.connector) {
         this.connector.remove();
@@ -295,10 +309,10 @@
   }
 
   // Initialize global namespace
-  if (!window.NexusTooltip) {
-    window.NexusTooltip = {};
+  if (!window.NexusInspector) {
+    window.NexusInspector = {};
   }
 
-  // Export the TooltipCore class
-  window.NexusTooltip.Core = TooltipCore;
+  // Export the InspectorCore class
+  window.NexusInspector.Core = InspectorCore;
 })();

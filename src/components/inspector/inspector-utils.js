@@ -1,12 +1,12 @@
 /**
- * Tooltip Utilities Module
+ * Inspector Utilities Module
  *
  * Provides utility functions for data processing, DOM manipulation,
- * and accessibility helpers used throughout the tooltip system.
+ * and accessibility helpers used throughout the inspector system.
  *
  * Dependencies: None (base module)
  *
- * Global API: window.NexusTooltip.Utils
+ * Global API: window.NexusInspector.Utils
  */
 
 (function () {
@@ -56,9 +56,9 @@
   };
 
   /**
-   * Utility functions for tooltip data processing and DOM manipulation
+   * Utility functions for inspector data processing and DOM manipulation
    */
-  const TooltipUtils = {
+  const InspectorUtils = {
     /**
      * Safely escape HTML content
      * @param {string} text - Text to escape
@@ -75,11 +75,11 @@
     },
 
     /**
-     * Create safe tooltip content using DOMSanitizer
+     * Create safe inspector content using DOMSanitizer
      * @param {string} content - Content to sanitize
      * @returns {string} Sanitized content
      */
-    createSafeTooltipContent(content) {
+    createSafeInspectorContent(content) {
       if (!DOMSanitizer) {
         // Fallback: use textContent to prevent XSS
         const div = document.createElement("div");
@@ -320,13 +320,13 @@
   };
 
   // Initialize global namespace
-  if (!window.NexusTooltip) {
-    window.NexusTooltip = {};
+  if (!window.NexusInspector) {
+    window.NexusInspector = {};
   }
 
   // Export utilities
-  window.NexusTooltip.Utils = TooltipUtils;
+  window.NexusInspector.Utils = InspectorUtils;
 
   // Also expose getClosestEdgePoint globally for backward compatibility
-  window.getClosestEdgePoint = TooltipUtils.getClosestEdgePoint;
+  window.getClosestEdgePoint = InspectorUtils.getClosestEdgePoint;
 })();

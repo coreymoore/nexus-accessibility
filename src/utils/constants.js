@@ -29,7 +29,7 @@
 
     // Performance thresholds (in milliseconds)
     PERFORMANCE_THRESHOLDS: {
-      TOOLTIP_DISPLAY: 100,
+      INSPECTOR_DISPLAY: 100,
       DEBUGGER_ATTACH: 2000,
       AX_TREE_RETRIEVAL: 1000,
       NODE_QUERY: 500,

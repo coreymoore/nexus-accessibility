@@ -21,8 +21,8 @@ export class MessageHandler {
         case "getBackendNodeIdAndAccessibleInfo":
           return await this.handleGetElementInfo(msg, sender);
 
-        case "AX_TOOLTIP_SHOWN":
-          return await this.handleTooltipShown(msg, sender);
+        case "AX_INSPECTOR_SHOWN":
+          return await this.handleInspectorShown(msg, sender);
 
         case "detachDebugger":
           return await this.handleDetachDebugger(msg, sender);
@@ -159,8 +159,8 @@ export class MessageHandler {
     }
   }
 
-  async handleTooltipShown(msg, sender) {
-    // Relay tooltip-coordination messages across all frames in the tab
+  async handleInspectorShown(msg, sender) {
+    // Relay inspector-coordination messages across all frames in the tab
     try {
       if (!sender || !sender.tab || !sender.tab.id) return;
       const tabId = sender.tab.id;
@@ -178,7 +178,7 @@ export class MessageHandler {
       }
       return { status: "broadcasted" };
     } catch (error) {
-      throw new Error(`Failed to handle tooltip shown: ${error.message}`);
+      throw new Error(`Failed to handle inspector shown: ${error.message}`);
     }
   }
 

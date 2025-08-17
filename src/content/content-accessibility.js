@@ -71,7 +71,7 @@
     const ALLOWED_ACTIONS = new Set([
       "getAccessibilityTree",
       "getBackendNodeIdAndAccessibleInfo",
-      "AX_TOOLTIP_SHOWN",
+      "AX_INSPECTOR_SHOWN",
       "keepAlive",
       "detachDebugger",
     ]);
@@ -286,8 +286,8 @@
           frameDepth: CE.utils.getFrameDepth(),
         });
         const localInfo = getLocalAccessibleInfo(target);
-        if (CE.tooltip) {
-          CE.tooltip.showTooltip(localInfo, target);
+        if (CE.inspector) {
+          CE.inspector.showInspector(localInfo, target);
         }
         return localInfo;
       }
@@ -315,8 +315,8 @@
             "Detected iframe presentational issue, falling back to local computation"
           );
           const localInfo = getLocalAccessibleInfo(target);
-          if (CE.tooltip) {
-            CE.tooltip.showTooltip(localInfo, target);
+          if (CE.inspector) {
+            CE.inspector.showInspector(localInfo, target);
           }
           return localInfo;
         }
@@ -353,8 +353,8 @@
               "Using local fallback for shadow DOM element:",
               localInfo
             );
-            if (CE.tooltip) {
-              CE.tooltip.showTooltip(localInfo, target);
+            if (CE.inspector) {
+              CE.inspector.showInspector(localInfo, target);
             }
             return localInfo;
           }

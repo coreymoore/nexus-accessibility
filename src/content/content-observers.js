@@ -143,13 +143,13 @@
 
             const isCurrentlyFocused =
               lastFocusedElement === element || inspectedElement === element;
-            if (isCurrentlyFocused && CE.tooltip) {
-              CE.tooltip.showTooltip(info, element);
+            if (isCurrentlyFocused && CE.inspector) {
+              CE.inspector.showInspector(info, element);
             }
           })
           .catch((error) => {
             console.error(
-              "[ContentExtension.observers] Error updating tooltip:",
+              "[ContentExtension.observers] Error updating inspector:",
               error
             );
           });

@@ -2,7 +2,7 @@ export class MessageValidator {
   static ALLOWED_ACTIONS = [
     "getAccessibilityTree",
     "getBackendNodeIdAndAccessibleInfo",
-    "AX_TOOLTIP_SHOWN",
+    "AX_INSPECTOR_SHOWN",
     "keepAlive",
     "detachDebugger",
   ];

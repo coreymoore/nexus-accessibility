@@ -10,26 +10,26 @@ This document provides strict rules and context for any AI agent generating code
 
 ### 1.1 Critical Features - DO NOT BREAK
 
-- **Accessibility validation pipeline:** The chain from content script → background service worker → CDP commands → tooltip display
+- **Accessibility validation pipeline:** The chain from content script → background service worker → CDP commands → inspector display
 - **CDP-first approach with fallbacks:** Primary validation through Chrome DevTools Protocol with dom-accessibility-api and aria-query as fallbacks
 - **Library fallback system:** When CDP fails, use dom-accessibility-api and aria-query for validation
 - **Debugger lifecycle:** Attach/detach cycles managed by `DebuggerConnectionManager` with serialized operations
 - **Direct element reference system:** The `useDirectReference` flag and element marking with `data-nexus-element-id`
-- **Tooltip positioning and display:** Absolute positioning calculations relative to viewport
+- **Inspector positioning and display:** Absolute positioning calculations relative to viewport
 - **Cache invalidation:** TTL-based LRU caching with automatic cleanup
 - **Message validation:** All extension messages must pass `MessageValidator.validate()`
-- **Inspector Tooltip Accessibility Isolation:**  
-  When injecting the inspector tooltip into a page, ensure that it does not interfere with the accessibility tree, ARIA attributes, or screen reader experience of the host page.
+- **Inspector Accessibility Isolation:**  
+  When injecting the inspector into a page, ensure that it does not interfere with the accessibility tree, ARIA attributes, or screen reader experience of the host page.
 - Do not modify, override, or obscure any existing accessibility properties, roles, or labels of page elements.
-- Do not use ARIA live regions, landmark roles, or other global ARIA attributes in the tooltip.
-- The tooltip must be accessible to screen readers, but should not be announced automatically or interfere with the page's accessibility tree. Do not use `aria-hidden="true"` on the tooltip container. Instead, ensure the tooltip is only exposed to assistive technology when the user explicitly moves keyboard focus into it (e.g., via tabbing or programmatic focus). The tooltip should not capture focus by default and must never override or mask the accessibility of the page.
+- Do not use ARIA live regions, landmark roles, or other global ARIA attributes in the inspector.
+- The inspector must be accessible to screen readers, but should not be announced automatically or interfere with the page's accessibility tree. Do not use `aria-hidden="true"` on the inspector container. Instead, ensure the inspector is only exposed to assistive technology when the user explicitly moves keyboard focus into it (e.g., via tabbing or programmatic focus). The inspector should not capture focus by default and must never override or mask the accessibility of the page.
 - Do not capture or redirect keyboard focus away from the user's content unless explicitly required for extension functionality.
-- Tooltip interactions must not block, mask, or alter the accessibility of any underlying page content.
-- Always test the tooltip in pages with complex accessibility structures to ensure no negative impact.
+- Inspector interactions must not block, mask, or alter the accessibility of any underlying page content.
+- Always test the inspector in pages with complex accessibility structures to ensure no negative impact.
 
 ### 1.2 Data Flow Integrity
 
-- **Preserve the message flow:** Content → Background → CDP → Content → Tooltip
+- **Preserve the message flow:** Content → Background → CDP → Content → Inspector
 - **Maintain element identification:** Both selector-based (legacy) and direct reference approaches must work
 - **Validation result structures:** Maintain both formats used in the codebase:
   - Core validation: `ComparisonResult` with `match`, `library`, and `fallback` properties
@@ -60,7 +60,7 @@ This document provides strict rules and context for any AI agent generating code
   - Nexus Dark Purple: `#2d1958` - Used for primary text and borders.
   - Nexus Medium Purple: `#3a2956` - Used for secondary text.
 - **UI colors:**
-  - Background Light: `#f3f0fa` - Main background for tooltips and popup.
+  - Background Light: `#f3f0fa` - Main background for inspectors and popup.
   - Border Color: `#d1c4e9` - Used for dividers and borders.
   - Secondary Border Color: `#ccc`, `#ddd` - Used for less prominent borders.
   - Text Dark: `#2d1958` - Primary text color.
@@ -70,8 +70,8 @@ This document provides strict rules and context for any AI agent generating code
   - Success Green Dark: `#29922d` - For hover/active states on success elements.
   - Warning Amber: `#FFC107` - For warnings and partial validation.
   - Error Red: `#F44336` - For errors and failed validations.
-  - Info Blue: `#2196F3` - For informational content and tooltips.
-- **Extended Semantic Colors (for Tooltip Categories):**
+  - Info Blue: `#2196F3` - For informational content and inspectors.
+- **Extended Semantic Colors (for Inspector Categories):**
 
   - Indigo: `#4b0082`
   - Dark Blue: `#005a8d`
@@ -114,7 +114,7 @@ This document provides strict rules and context for any AI agent generating code
   - Primary text: 14px
   - Secondary text: 12px
   - Headings: 16px (h3), 18px (h2), 20px (h1)
-  - Tooltip content: 13px
+  - Inspector content: 13px
   - Button text: 14px
   - Small text/captions: 11px
   - Screen reader output (JetBrains Mono): 13px
@@ -127,16 +127,16 @@ This document provides strict rules and context for any AI agent generating code
 
 ### 2.4 UI Components
 
-- **Tooltip styling:**
+- **Inspector styling:**
 
-  - Must match `src/components/tooltip/tooltip.css`
+  - Must match `src/components/inspector/inspector.css`
   - Light theme with purple accents
   - Card-like appearance with 8px rounded corners
   - Subtle drop shadow: `0px 3px 8px rgba(0, 0, 0, 0.3)`
   - Arrow indicator for pointing to referenced element
   - Maximum width of 360px
 
-- No entrance/exit animations (tooltip must appear and disappear instantly to avoid motion distraction). Do NOT add CSS animations, transitions on opacity/transform, or keyframe-driven effects to the tooltip container without explicit human approval.
+- No entrance/exit animations (inspector must appear and disappear instantly to avoid motion distraction). Do NOT add CSS animations, transitions on opacity/transform, or keyframe-driven effects to the inspector container without explicit human approval.
 
 - **Popup interface:**
 
@@ -174,7 +174,7 @@ This document provides strict rules and context for any AI agent generating code
 - **Padding standards:**
   - Container padding: 16px
   - Button padding: 8px 16px
-  - Tooltip padding: 12px
+  - Inspector padding: 12px
   - Between related elements: 8px
   - Between sections: 24px
 - **Margins:**
@@ -201,16 +201,16 @@ This document provides strict rules and context for any AI agent generating code
   - Appearing elements: ease-out
   - Disappearing elements: ease-in
 - **Animation types:**
-  - Tooltip: PROHIBITED (no fade, scale, or motion). Any future proposal to animate tooltip requires explicit documented approval.
+  - Inspector: PROHIBITED (no fade, scale, or motion). Any future proposal to animate inspector requires explicit documented approval.
   - Other UI surfaces (popup, settings): May use subtle fade or color transitions within defined duration standards.
   - No extreme or distracting animations
-  - **Motion accessibility:** Always detect and respect the user's "prefers-reduced-motion" system setting. If this setting is enabled, disable all non-essential animations and transitions throughout the extension UI, including popup, buttons, and overlays (tooltip already has none). Provide instant state changes with no visual motion effects for users who prefer reduced motion.
+  - **Motion accessibility:** Always detect and respect the user's "prefers-reduced-motion" system setting. If this setting is enabled, disable all non-essential animations and transitions throughout the extension UI, including popup, buttons, and overlays (inspector already has none). Provide instant state changes with no visual motion effects for users who prefer reduced motion.
 
 ### 2.8 Focus Indicators
 
-- **Unified focus style:** All interactive elements (buttons, inputs, tooltips, popups, etc.) must use the same focus indicator throughout the extension.
+- **Unified focus style:** All interactive elements (buttons, inputs, inspectors, popups, etc.) must use the same focus indicator throughout the extension.
 - **Focus indicator design:** Use a dual outline—2px solid Nexus Purple (`#683ab7`) outer ring with a 4px solid white inner ring created using `box-shadow`.
-- **Implementation:** The canonical implementation lives in `src/assets/shared.css` and MUST be imported by every UI surface (tooltip injection, popup, options pages). Do NOT duplicate focus ring CSS in component stylesheets; instead ensure `shared.css` is loaded. Apply this focus style ONLY with `:focus-visible` (do NOT style `:focus` or `:focus-within`). Use `!important` to prevent override from host page styles.
+- **Implementation:** The canonical implementation lives in `src/assets/shared.css` and MUST be imported by every UI surface (inspector injection, popup, options pages). Do NOT duplicate focus ring CSS in component stylesheets; instead ensure `shared.css` is loaded. Apply this focus style ONLY with `:focus-visible` (do NOT style `:focus` or `:focus-within`). Use `!important` to prevent override from host page styles.
 - **No overrides:** Do not use browser default focus rings or custom styles that differ from this standard.
 - **Accessibility:** Ensure the focus indicator is always visible and meets WCAG 2.2 AA contrast requirements against all backgrounds.
 - **Example CSS:**
@@ -230,14 +230,14 @@ This document provides strict rules and context for any AI agent generating code
   - Shared keyboard shortcut key styling (`kbd` tokens)
   - Reduced motion defaults for common surfaces
 - **Injection Rules:**
-  - Tooltip: Inject via `ensureStylesInjected()` in `tooltip-core.js` if not already present.
+  - Inspector: Inject via `ensureStylesInjected()` in `inspector-core.js` if not already present.
   - Popup & options: Reference directly in HTML `<head>` after component-specific stylesheet.
-- **No Duplication:** Component stylesheets (`tooltip.css`, `popup.css`, etc.) must not redefine focus ring styles unless extending with additional, non-conflicting selectors. If an extension is needed, update `shared.css` instead.
+- **No Duplication:** Component stylesheets (`inspector.css`, `popup.css`, etc.) must not redefine focus ring styles unless extending with additional, non-conflicting selectors. If an extension is needed, update `shared.css` instead.
 - **Change Workflow:** Any modification to focus ring or shared tokens must update `shared.css` and (if substantive) add a brief note in AI_CONTEXT_RULES.md summarizing rationale and date.
 
 ### 2.9 Component States & Style Robustness
 
-- **State coverage:** All interactive components (buttons, inputs, tooltips, overlays, etc.) must have explicit styles for every state, including default, hover, active, focus, disabled, and visited (where applicable).
+- **State coverage:** All interactive components (buttons, inputs, inspectors, overlays, etc.) must have explicit styles for every state, including default, hover, active, focus, disabled, and visited (where applicable).
 - **Style isolation:** Use strong CSS selectors, encapsulation techniques (such as Shadow DOM or unique class names), and `!important` declarations where necessary to prevent host webpage styles from overriding extension component styles.
 - **Contrast compliance:** Every component state (including hover, focus, active, disabled, and error) must meet WCAG 2.2 AA contrast requirements for both text and UI elements (borders, backgrounds, icons).
 - **Testing:** When adding or updating styles, verify that all states remain visually distinct and accessible, even when injected into pages with aggressive or conflicting CSS.
@@ -249,7 +249,7 @@ This document provides strict rules and context for any AI agent generating code
 
 ### 3.1 UI Accessibility
 
-- **Extension UI must be fully accessible:** All components in popups, tooltips, and options pages
+- **Extension UI must be fully accessible:** All components in popups, inspectors, and options pages
 - **Keyboard navigation:** All UI controls must be focusable and operable with keyboard
 - **Screen reader compatibility:** UI components must have proper ARIA attributes and roles
 - **Color contrast:** Maintain WCAG AA-compliant contrast ratios in all UI elements
@@ -260,7 +260,7 @@ This document provides strict rules and context for any AI agent generating code
 
 - **All interactive elements must be keyboard accessible**
 - **Proper focus management:** Use `tabindex` appropriately
-- **Live regions:** Do not use ARIA live regions (e.g., `aria-live`, `aria-atomic`, `aria-relevant`) in tooltips injected into inspected pages, as this can disrupt or override the accessibility tree and interfere with the host page's screen reader experience. Live regions are only permitted in extension-controlled UI surfaces such as the popup, options page, or other overlays that are not injected into the inspected page. Always ensure live regions are scoped to extension UI and never modify or compete with the accessibility semantics of the page that is being inspected.
+- **Live regions:** Do not use ARIA live regions (e.g., `aria-live`, `aria-atomic`, `aria-relevant`) in inspectors injected into inspected pages, as this can disrupt or override the accessibility tree and interfere with the host page's screen reader experience. Live regions are only permitted in extension-controlled UI surfaces such as the popup, options page, or other overlays that are not injected into the inspected page. Always ensure live regions are scoped to extension UI and never modify or compete with the accessibility semantics of the page that is being inspected.
 
 ### 3.3 Testing Functions
 
@@ -320,7 +320,7 @@ When implementing new validation features:
 ```
 src/
 ├── background/     # Service worker modules (cache, debugger, state, messaging)
-├── components/     # UI components (tooltip system)
+├── components/     # UI components (inspector system)
 ├── content/        # Content scripts (validation, DOM interaction)
 ├── libs/           # Third-party libraries (aria-query, dom-accessibility-api)
 ├── popup/          # Extension popup interface
@@ -404,7 +404,7 @@ const elementCache = new CacheManager({
 
 - **Use ErrorRecovery class:** Implement exponential backoff for retries
 - **Graceful degradation:** Fall back to selector-based approach if direct reference fails
-- **User feedback:** Show clear error messages in tooltips/popup
+- **User feedback:** Show clear error messages in inspectors/popup
 
 ### 7.2 Logging
 
@@ -647,7 +647,7 @@ When in doubt about whether to propose an update to this file, err on the side o
 2. Do not modify message validation logic without updating validator
 3. Do not introduce NEW build dependencies or expand build process beyond library bundling
 4. Do not add external network requests
-5. Do not change the tooltip positioning system under any circumstances unless you receive explicit, direct instructions from a human developer. If you are instructed to make changes, you must first ask clarifying questions to fully understand the intent, requirements, and expected outcomes before proceeding with any modifications.
+5. Do not change the inspector positioning system under any circumstances unless you receive explicit, direct instructions from a human developer. If you are instructed to make changes, you must first ask clarifying questions to fully understand the intent, requirements, and expected outcomes before proceeding with any modifications.
 6. Do not break the dual validation approach (direct reference + selector)
 
 ### Review Checklist

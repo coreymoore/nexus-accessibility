@@ -57,7 +57,7 @@
       const temp = document.createElement("div");
       temp.innerHTML = html;
 
-      // Allowed tags for accessibility tooltip content
+      // Allowed tags for accessibility inspector content
       const allowedTags = [
         "div",
         "span",

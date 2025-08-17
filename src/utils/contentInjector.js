@@ -46,7 +46,7 @@ export class ContentScriptInjector {
       const scripts = [
         "src/utils/logger.js",
         "src/utils/formatter.js",
-        "src/components/tooltip/tooltip.js",
+        "src/components/inspector/inspector-main.js",
         "src/content.js",
       ];
 

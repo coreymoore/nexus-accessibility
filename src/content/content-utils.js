@@ -36,7 +36,7 @@
     DebouncedRequest: null,
   };
 
-  // Unique token for this frame to coordinate tooltips across frames
+  // Unique token for this frame to coordinate inspectors across frames
   const frameToken = Math.random().toString(36).substr(2, 9);
 
   /**
@@ -237,11 +237,11 @@
   }
 
   /**
-   * Get the tooltip element created by the tooltip module
-   * @returns {Element|null} The tooltip element or null
+   * Get the inspector element created by the inspector module
+   * @returns {Element|null} The inspector element or null
    */
-  function getTooltipElement() {
-    return document.querySelector(".chrome-ax-tooltip");
+  function getInspectorElement() {
+    return document.querySelector(".nexus-accessibility-ui-inspector");
   }
 
   /**
@@ -361,7 +361,7 @@
     isInIframe,
     getFrameDepth,
     shouldUseLocalFallback,
-    getTooltipElement,
+    getInspectorElement,
     safeFocus,
     safeGetAttribute,
     safeContains,
@@ -380,7 +380,7 @@
       const ALLOWED_ACTIONS = new Set([
         "getAccessibilityTree",
         "getBackendNodeIdAndAccessibleInfo",
-        "AX_TOOLTIP_SHOWN",
+        "AX_INSPECTOR_SHOWN",
         "keepAlive",
         "detachDebugger",
       ]);

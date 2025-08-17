@@ -68,8 +68,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse && sendResponse({ error: e.message });
     return false;
   }
-  // Relay tooltip-coordination messages across all frames in the tab
-  if (msg && msg.type === "AX_TOOLTIP_SHOWN") {
+  // Relay inspector-coordination messages across all frames in the tab
+  if (msg && msg.type === "AX_INSPECTOR_SHOWN") {
     (async () => {
       try {
         if (!sender || !sender.tab || !sender.tab.id) return;
@@ -86,7 +86,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
         }
       } catch (e) {
-        console.warn("Failed to relay AX_TOOLTIP_SHOWN:", e);
+        console.warn("Failed to relay AX_INSPECTOR_SHOWN:", e);
       }
     })();
     return false;

@@ -102,7 +102,7 @@ class Logger {
 const loggers = {
   background: new Logger("background"),
   content: new Logger("content"),
-  tooltip: new Logger("tooltip"),
+  inspector: new Logger("inspector"),
   popup: new Logger("popup"),
   debugger: new Logger("debugger"),
   cache: new Logger("cache"),

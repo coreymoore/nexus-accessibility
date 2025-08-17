@@ -30,7 +30,7 @@
 
     // Performance thresholds (in milliseconds)
     PERFORMANCE_THRESHOLDS: {
-      TOOLTIP_DISPLAY: 100,
+      INSPECTOR_DISPLAY: 100,
       DEBUGGER_ATTACH: 2000,
       AX_TREE_RETRIEVAL: 1000,
       NODE_QUERY: 500,
@@ -109,9 +109,9 @@
       },
 
       PERFORMANCE_THRESHOLDS: {
-        TOOLTIP_DISPLAY:
-          config.performanceThresholds?.tooltipDisplay ||
-          FALLBACK_CONSTANTS.PERFORMANCE_THRESHOLDS.TOOLTIP_DISPLAY,
+        INSPECTOR_DISPLAY:
+          config.performanceThresholds?.inspectorDisplay ||
+          FALLBACK_CONSTANTS.PERFORMANCE_THRESHOLDS.INSPECTOR_DISPLAY,
         DEBUGGER_ATTACH:
           config.performanceThresholds?.debuggerAttach ||
           FALLBACK_CONSTANTS.PERFORMANCE_THRESHOLDS.DEBUGGER_ATTACH,

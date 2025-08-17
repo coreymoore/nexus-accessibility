@@ -1,27 +1,27 @@
 /**
- * Tooltip Focus Management Module
+ * Inspector Focus Management Module
  *
  * Handles focus trapping, accessibility features, and keyboard navigation
- * within tooltips to ensure proper screen reader and keyboard interaction.
+ * within inspectors to ensure proper screen reader and keyboard interaction.
  *
  * Dependencies:
- * - tooltip-utils.js (for getting focusable elements)
+ * - inspector-utils.js (for getting focusable elements)
  *
- * Global API: window.NexusTooltip.Focus
+ * Global API: window.NexusInspector.Focus
  */
 
 (function () {
   "use strict";
 
   // Access utilities
-  const utils = window.NexusTooltip.Utils;
+  const utils = window.NexusInspector.Utils;
 
   /**
-   * Focus manager for tooltip accessibility
+   * Focus manager for inspector accessibility
    */
   class FocusManager {
-    constructor(tooltipCore) {
-      this.core = tooltipCore;
+    constructor(inspectorCore) {
+      this.core = inspectorCore;
       this._acceptingFocus = false;
       this._onFocusInCapture = null;
       this._focusTrapKeydown = null;
@@ -29,7 +29,7 @@
     }
 
     /**
-     * Setup focus management for the current tooltip
+     * Setup focus management for the current inspector
      * @param {Object} options - Options including onClose and enabled callbacks
      */
     setupFocusManagement(options = {}) {
@@ -50,9 +50,9 @@
         try {
           if (
             !this._acceptingFocus &&
-            this.core.tooltip &&
-            this.core.tooltip.style.display === "block" &&
-            this.core.tooltip.contains(e.target)
+            this.core.inspector &&
+            this.core.inspector.style.display === "block" &&
+            this.core.inspector.contains(e.target)
           ) {
             e.stopPropagation();
 
@@ -68,12 +68,12 @@
               }
             }
 
-            // Blur the node inside tooltip to avoid sticky focus
+            // Blur the node inside inspector to avoid sticky focus
             if (e.target && typeof e.target.blur === "function") {
               try {
                 e.target.blur();
               } catch (error) {
-                console.warn("Failed to blur tooltip element:", error);
+                console.warn("Failed to blur inspector element:", error);
               }
             }
           }
@@ -96,11 +96,11 @@
       this._removeFocusTrap();
 
       this._focusTrapKeydown = (e) => {
-        if (!this.core.tooltip) return;
+        if (!this.core.inspector) return;
 
-        // Only trap when focus is within the tooltip
+        // Only trap when focus is within the inspector
         const active = document.activeElement;
-        const isInside = active && this.core.tooltip.contains(active);
+        const isInside = active && this.core.inspector.contains(active);
         if (!isInside) return;
 
         // Handle Escape to close
@@ -110,7 +110,7 @@
           return;
         }
 
-        // Trap Tab navigation inside the tooltip
+        // Trap Tab navigation inside the inspector
         if (this._isTabKey(e)) {
           this._handleTabNavigation(e);
         }
@@ -154,14 +154,14 @@
     }
 
     /**
-     * Handle tab navigation within tooltip
+     * Handle tab navigation within inspector
      * @param {KeyboardEvent} e - Keyboard event
      */
     _handleTabNavigation(e) {
-      const focusables = utils.getFocusableElements(this.core.tooltip);
+      const focusables = utils.getFocusableElements(this.core.inspector);
 
       if (focusables.length === 0) {
-        // If nothing is focusable, do nothing (do not make tooltip itself focusable)
+        // If nothing is focusable, do nothing (do not make inspector itself focusable)
         return;
       }
 
@@ -218,12 +218,12 @@
     }
 
     /**
-     * Focus the first focusable element in tooltip
+     * Focus the first focusable element in inspector
      */
     focusFirstElement() {
-      if (!this.core.tooltip) return false;
+      if (!this.core.inspector) return false;
 
-      const focusables = utils.getFocusableElements(this.core.tooltip);
+      const focusables = utils.getFocusableElements(this.core.inspector);
       if (focusables.length > 0) {
         try {
           focusables[0].focus({ preventScroll: true });
@@ -236,12 +236,14 @@
     }
 
     /**
-     * Focus the tooltip's screen reader section
+     * Focus the inspector's screen reader section
      */
     focusScreenReaderSection() {
-      if (!this.core.tooltip) return false;
+      if (!this.core.inspector) return false;
 
-      const srNode = this.core.tooltip.querySelector(".chrome-ax-tooltip-sr");
+      const srNode = this.core.inspector.querySelector(
+        ".nexus-accessibility-ui-inspector-sr"
+      );
       if (srNode) {
         try {
           srNode.focus({ preventScroll: true });
@@ -259,16 +261,18 @@
     enableFocusAcceptance() {
       this._acceptingFocus = true;
 
-      // Remove inert attribute from tooltip body
-      if (this.core.tooltip) {
-        const body = this.core.tooltip.querySelector(".chrome-ax-tooltip-body");
+      // Remove inert attribute from inspector body
+      if (this.core.inspector) {
+        const body = this.core.inspector.querySelector(
+          ".nexus-accessibility-ui-inspector-body"
+        );
         if (body) {
           body.removeAttribute("inert");
           body.style.pointerEvents = "";
         }
 
-        // Make tooltip visible to assistive technology
-        this.core.tooltip.removeAttribute("aria-hidden");
+        // Make inspector visible to assistive technology
+        this.core.inspector.removeAttribute("aria-hidden");
       }
     }
 
@@ -278,16 +282,18 @@
     disableFocusAcceptance() {
       this._acceptingFocus = false;
 
-      // Add inert attribute to tooltip body
-      if (this.core.tooltip) {
-        const body = this.core.tooltip.querySelector(".chrome-ax-tooltip-body");
+      // Add inert attribute to inspector body
+      if (this.core.inspector) {
+        const body = this.core.inspector.querySelector(
+          ".chrome-ax-inspector-body"
+        );
         if (body) {
           body.setAttribute("inert", "");
           body.style.pointerEvents = "none";
         }
 
-        // Hide tooltip from assistive technology
-        this.core.tooltip.setAttribute("aria-hidden", "true");
+        // Hide inspector from assistive technology
+        this.core.inspector.setAttribute("aria-hidden", "true");
       }
     }
 
@@ -314,7 +320,7 @@
       }
     }
 
-    // Removed _createTemporaryLiveRegion implementation per rules (no live regions in injected tooltip)
+    // Removed _createTemporaryLiveRegion implementation per rules (no live regions in injected inspector)
 
     /**
      * Cleanup all focus management resources
@@ -342,12 +348,12 @@
   }
 
   // Initialize global namespace
-  if (!window.NexusTooltip) {
-    window.NexusTooltip = {};
+  if (!window.NexusInspector) {
+    window.NexusInspector = {};
   }
 
   // Export focus manager
-  window.NexusTooltip.Focus = {
+  window.NexusInspector.Focus = {
     FocusManager: FocusManager,
   };
 })();

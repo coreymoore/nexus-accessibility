@@ -1,13 +1,13 @@
 /**
- * Tooltip Main Module (Backward Compatibility Layer)
+ * Inspector Main Module (Backward Compatibility Layer)
  *
  * This file provides the main initialization and backward compatibility
- * for the refactored tooltip system. It maintains the original API
+ * for the refactored inspector system. It maintains the original API
  * while using the new modular architecture underneath.
  *
- * Dependencies: All other tooltip modules
+ * Dependencies: All other inspector modules
  *
- * Global API: window.chromeAxTooltip (maintains original interface)
+ * Global API: window.nexusAccessibilityUiInspector (maintains original interface)
  */
 
 (function () {
@@ -15,32 +15,32 @@
 
   // Ensure all required modules are loaded
   if (
-    !window.NexusTooltip ||
-    !window.NexusTooltip.Utils ||
-    !window.NexusTooltip.Content ||
-    !window.NexusTooltip.Positioning ||
-    !window.NexusTooltip.Events ||
-    !window.NexusTooltip.Focus ||
-    !window.NexusTooltip.Core
+    !window.NexusInspector ||
+    !window.NexusInspector.Utils ||
+    !window.NexusInspector.Content ||
+    !window.NexusInspector.Positioning ||
+    !window.NexusInspector.Events ||
+    !window.NexusInspector.Focus ||
+    !window.NexusInspector.Core
   ) {
     console.error(
-      "Tooltip modules not properly loaded. Check script loading order."
+      "Inspector modules not properly loaded. Check script loading order."
     );
     return;
   }
 
   /**
-   * Legacy Tooltip class for backward compatibility
+   * Legacy Inspector class for backward compatibility
    * Wraps the new modular system to maintain the original API
    */
-  class LegacyTooltip {
+  class LegacyInspector {
     constructor() {
-      // Create the new modular tooltip core
-      this.core = new window.NexusTooltip.Core();
+      // Create the new modular inspector core
+      this.core = new window.NexusInspector.Core();
 
       // Expose core properties for backward compatibility
       this.logger = this.core.logger;
-      this.tooltip = null;
+      this.inspector = null;
       this.connector = null;
       this.miniMode = false;
       this._mutObserver = null;
@@ -61,10 +61,10 @@
      */
     _syncWithCore() {
       // Create property getters/setters to keep in sync
-      Object.defineProperty(this, "tooltip", {
-        get: () => this.core.tooltip,
+      Object.defineProperty(this, "inspector", {
+        get: () => this.core.inspector,
         set: (value) => {
-          this.core.tooltip = value;
+          this.core.inspector = value;
         },
       });
 
@@ -112,7 +112,7 @@
 
     // Legacy method: Get focusable elements
     _getFocusableElements(root) {
-      return window.NexusTooltip.Utils.getFocusableElements(root);
+      return window.NexusInspector.Utils.getFocusableElements(root);
     }
 
     // Legacy method: Setup focus trap
@@ -132,42 +132,42 @@
 
     // Legacy method: Deep unwrap
     _deepUnwrap(v) {
-      return window.NexusTooltip.Utils.deepUnwrap(v);
+      return window.NexusInspector.Utils.deepUnwrap(v);
     }
 
     // Legacy method: Is true
     _isTrue(v) {
-      return window.NexusTooltip.Utils.isTrue(v);
+      return window.NexusInspector.Utils.isTrue(v);
     }
 
     // Legacy method: Get screen reader output
     getScreenReaderOutput(info) {
-      return window.NexusTooltip.Content.getScreenReaderOutput(info);
+      return window.NexusInspector.Content.getScreenReaderOutput(info);
     }
 
     // Legacy method: Get properties list
     getPropertiesList(accessibilityInfo) {
-      return window.NexusTooltip.Content.getPropertiesList(accessibilityInfo);
+      return window.NexusInspector.Content.getPropertiesList(accessibilityInfo);
     }
 
-    // Legacy method: Create safe tooltip content
-    createSafeTooltipContent(content) {
-      return window.NexusTooltip.Content.createSafeTooltipContent(content);
+    // Legacy method: Create safe inspector content
+    createSafeInspectorContent(content) {
+      return window.NexusInspector.Content.createSafeInspectorContent(content);
     }
 
-    // Legacy method: Show loading tooltip
-    showLoadingTooltip(target) {
-      return this.core.showLoadingTooltip(target);
+    // Legacy method: Show loading inspector
+    showLoadingInspector(target) {
+      return this.core.showLoadingInspector(target);
     }
 
-    // Legacy method: Show tooltip
-    showTooltip(info, target, options) {
-      return this.core.showTooltip(info, target, options);
+    // Legacy method: Show inspector
+    showInspector(info, target, options) {
+      return this.core.showInspector(info, target, options);
     }
 
-    // Legacy method: Hide tooltip
-    hideTooltip(options) {
-      return this.core.hideTooltip(options);
+    // Legacy method: Hide inspector
+    hideInspector(options) {
+      return this.core.hideInspector(options);
     }
 
     // Legacy method: Register shortcut
@@ -190,43 +190,47 @@
   }
 
   // Prevent multiple initializations with a more robust check
-  if (window.chromeAxTooltip && window.chromeAxTooltip._initialized) {
+  if (
+    window.nexusAccessibilityUiInspector &&
+    window.nexusAccessibilityUiInspector._initialized
+  ) {
     // Already initialized, skip re-initialization but update the instance reference
-    if (!window.NexusTooltip.instance) {
-      window.NexusTooltip.instance = window.chromeAxTooltip.core;
+    if (!window.NexusInspector.instance) {
+      window.NexusInspector.instance =
+        window.nexusAccessibilityUiInspector.core;
     }
     return;
   }
 
   // Check if we should destroy existing instance
   if (
-    window.chromeAxTooltip &&
-    typeof window.chromeAxTooltip.destroy === "function"
+    window.nexusAccessibilityUiInspector &&
+    typeof window.nexusAccessibilityUiInspector.destroy === "function"
   ) {
     console.warn(
-      "Tooltip instance already exists. Destroying previous instance."
+      "Inspector instance already exists. Destroying previous instance."
     );
-    window.chromeAxTooltip.destroy();
+    window.nexusAccessibilityUiInspector.destroy();
   }
 
-  // Create and expose the legacy tooltip instance
-  const legacyTooltip = new LegacyTooltip();
-  legacyTooltip._initialized = true; // Mark as initialized
-  legacyTooltip._initTime = Date.now(); // Track when initialized
-  window.chromeAxTooltip = legacyTooltip;
+  // Create and expose the legacy inspector instance
+  const legacyInspector = new LegacyInspector();
+  legacyInspector._initialized = true; // Mark as initialized
+  legacyInspector._initTime = Date.now(); // Track when initialized
+  window.nexusAccessibilityUiInspector = legacyInspector;
 
   // Also expose the new modular API for those who want to use it directly
-  if (!window.NexusTooltip.instance) {
-    window.NexusTooltip.instance = window.chromeAxTooltip.core;
+  if (!window.NexusInspector.instance) {
+    window.NexusInspector.instance = window.nexusAccessibilityUiInspector.core;
   }
 
   // Expose utility functions globally for backward compatibility
-  window.createSafeTooltipContent =
-    window.NexusTooltip.Content.createSafeTooltipContent;
+  window.createSafeInspectorContent =
+    window.NexusInspector.Content.createSafeInspectorContent;
 
   // Only log once when truly initializing, with frame info for debugging
   const frameInfo = window.self === window.top ? "main frame" : "iframe";
   console.log(
-    `Nexus Tooltip System initialized with modular architecture (${frameInfo})`
+    `Nexus Inspector System initialized with modular architecture (${frameInfo})`
   );
 })();

@@ -131,12 +131,12 @@
       try {
         if (
           msg &&
-          msg.type === "AX_TOOLTIP_SHOWN" &&
+          msg.type === "AX_INSPECTOR_SHOWN" &&
           msg.frameToken !== CE.utils.getFrameToken()
         ) {
-          // Hide our tooltip if visible when another frame shows one
-          if (CE.tooltip && CE.tooltip.hideTooltip) {
-            CE.tooltip.hideTooltip();
+          // Hide our inspector if visible when another frame shows one
+          if (CE.inspector && CE.inspector.hideInspector) {
+            CE.inspector.hideInspector();
           }
         }
       } catch (error) {
@@ -248,7 +248,7 @@
 
     if (!CE.main || !CE.main.isEnabled()) {
       utils.logger.content.log("onFocusIn", "extension disabled");
-      if (CE.tooltip) CE.tooltip.hideTooltip();
+      if (CE.inspector) CE.inspector.hideInspector();
       return;
     }
 
@@ -257,9 +257,9 @@
       return;
     }
 
-    // Don't inspect the close button or anything inside the tooltip
-    const tooltipEl = utils.getTooltipElement();
-    if (tooltipEl && utils.safeContains(tooltipEl, e.target)) {
+    // Don't inspect the close button or anything inside the inspector
+    const inspectorEl = utils.getInspectorElement();
+    if (inspectorEl && utils.safeContains(inspectorEl, e.target)) {
       return;
     }
 
@@ -271,7 +271,7 @@
       element &&
       (element.tagName === "IFRAME" || element.tagName === "FRAME")
     ) {
-      if (CE.tooltip) CE.tooltip.hideTooltip();
+      if (CE.inspector) CE.inspector.hideInspector();
       return;
     }
 
@@ -386,8 +386,8 @@
 
     // Show loading after 300ms
     loadingTimeout = setTimeout(() => {
-      if (lastFocusedElement === targetElement && CE.tooltip) {
-        CE.tooltip.showLoadingTooltip(targetForInspect);
+      if (lastFocusedElement === targetElement && CE.inspector) {
+        CE.inspector.showLoadingInspector(targetForInspect);
       }
     }, 300);
 
@@ -403,18 +403,18 @@
           .getAccessibleInfo(targetForInspect, true)
           .then((info) => {
             clearTimeout(loadingTimeout);
-            if (lastFocusedElement === targetElement && CE.tooltip) {
-              CE.tooltip.showTooltip(info, targetForInspect);
+            if (lastFocusedElement === targetElement && CE.inspector) {
+              CE.inspector.showInspector(info, targetForInspect);
             }
           })
           .catch((error) => {
             clearTimeout(loadingTimeout);
             console.error(
-              "[ContentExtension.events] Error showing tooltip:",
+              "[ContentExtension.events] Error showing inspector:",
               error
             );
-            if (CE.tooltip) {
-              CE.tooltip.hideTooltip();
+            if (CE.inspector) {
+              CE.inspector.hideInspector();
             }
           });
       }
@@ -517,29 +517,29 @@
    */
   function onKeyDown(e) {
     if (!CE.main || !CE.main.isEnabled()) {
-      if (CE.tooltip) CE.tooltip.hideTooltip();
+      if (CE.inspector) CE.inspector.hideInspector();
       return;
     }
 
-    const tooltipEl = CE.utils.getTooltipElement();
+    const inspectorEl = CE.utils.getInspectorElement();
 
     if (e.key === "Escape" && !e.shiftKey) {
-      // If Escape is pressed from within the tooltip, let the tooltip handle it
-      if (tooltipEl && CE.utils.safeContains(tooltipEl, e.target)) {
+      // If Escape is pressed from within the inspector, let the inspector handle it
+      if (inspectorEl && CE.utils.safeContains(inspectorEl, e.target)) {
         return;
       }
 
-      // Close tooltip and clear state
-      if (CE.tooltip) CE.tooltip.hideTooltip();
+      // Close inspector and clear state
+      if (CE.inspector) CE.inspector.hideInspector();
       inspectedElement = null;
       lastFocusedElement = null;
     } else if (e.key === "Escape" && e.shiftKey) {
-      // If pressed from within tooltip, defer to tooltip handler
-      if (tooltipEl && CE.utils.safeContains(tooltipEl, e.target)) {
+      // If pressed from within inspector, defer to inspector handler
+      if (inspectorEl && CE.utils.safeContains(inspectorEl, e.target)) {
         return;
       }
 
-      // Reopen tooltip for currently focused element
+      // Reopen inspector for currently focused element
       let target = lastFocusedElement || document.activeElement;
       if (target && target !== document.body) {
         lastFocusedElement = target;
@@ -553,13 +553,13 @@
           CE.accessibility
             .getAccessibleInfo(target, true)
             .then((info) => {
-              if (CE.tooltip) {
-                CE.tooltip.showTooltip(info, target);
+              if (CE.inspector) {
+                CE.inspector.showInspector(info, target);
               }
             })
             .catch((error) => {
               console.error(
-                "[ContentExtension.events] Error showing tooltip on Shift+Escape:",
+                "[ContentExtension.events] Error showing inspector on Shift+Escape:",
                 error
               );
             });
@@ -580,18 +580,18 @@
     }
 
     // Create debounced update function
-    const updateTooltip = () => {
+    const updateInspector = () => {
       if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
         CE.accessibility
           .getAccessibleInfo(el, true)
           .then((info) => {
-            if (lastFocusedElement === el && CE.tooltip) {
-              CE.tooltip.showTooltip(info, el);
+            if (lastFocusedElement === el && CE.inspector) {
+              CE.inspector.showInspector(info, el);
             }
           })
           .catch((err) => {
             console.error(
-              "[ContentExtension.events] Error updating tooltip on value change:",
+              "[ContentExtension.events] Error updating inspector on value change:",
               err
             );
           });
@@ -600,13 +600,13 @@
 
     if (CE.cache && CE.cache.createDebouncedUpdate) {
       const debouncedUpdate = CE.cache.createDebouncedUpdate(
-        updateTooltip,
+        updateInspector,
         100
       );
       debouncedUpdate(el);
     } else {
       // Fallback without debouncing
-      updateTooltip();
+      updateInspector();
     }
   }
 
@@ -625,13 +625,13 @@
       CE.accessibility
         .getAccessibleInfo(el, true)
         .then((info) => {
-          if (lastFocusedElement === el && CE.tooltip) {
-            CE.tooltip.showTooltip(info, el);
+          if (lastFocusedElement === el && CE.inspector) {
+            CE.inspector.showInspector(info, el);
           }
         })
         .catch((error) => {
           console.error(
-            "[ContentExtension.events] Error updating tooltip for native checkbox:",
+            "[ContentExtension.events] Error updating inspector for native checkbox:",
             error
           );
         });

@@ -10,7 +10,7 @@
  * 3. content-events.js - Event handling and listeners
  * 4. content-accessibility.js - Accessibility data fetching
  * 5. content-observers.js - DOM mutation observers
- * 6. content-tooltip.js - Tooltip management
+ * 6. content-inspector.js - Inspector management
  * 7. content-validation.js - Testing and validation (optional)
  * 8. content-main.js - This file (initialization and coordination)
  */
@@ -52,7 +52,7 @@
         "events",
         "accessibility",
         "observers",
-        "tooltip",
+        "inspector",
       ];
 
       const missingModules = requiredModules.filter((module) => !CE[module]);
@@ -67,7 +67,7 @@
       CE.events.initialize();
       CE.accessibility.initialize();
       CE.observers.initialize();
-      CE.tooltip.initialize();
+      CE.inspector.initialize();
 
       // Set up extension state management
       setupExtensionState();
@@ -106,10 +106,10 @@
             extensionEnabled = false;
             updateExtensionState(false);
             break;
-          case "AX_TOOLTIP_SHOWN":
-            // Handle tooltip coordination between frames
-            if (CE.tooltip && CE.tooltip.handleCrossFrameTooltip) {
-              CE.tooltip.handleCrossFrameTooltip(msg);
+          case "AX_INSPECTOR_SHOWN":
+            // Handle inspector coordination between frames
+            if (CE.inspector && CE.inspector.handleCrossFrameInspector) {
+              CE.inspector.handleCrossFrameInspector(msg);
             }
             break;
           default:
@@ -131,7 +131,7 @@
       CE.events.enableEventListeners();
     } else {
       CE.events.disableEventListeners();
-      CE.tooltip.hideTooltip();
+      CE.inspector.hideInspector();
     }
 
     // Notify all modules of state change
@@ -186,13 +186,15 @@
   function fallbackInitialization() {
     console.warn("[ContentExtension] Using fallback initialization");
 
-    // Basic tooltip functionality
-    if (!CE.tooltip) {
-      CE.tooltip = {
-        hideTooltip: () => {
-          const tooltip = document.querySelector(".chrome-ax-tooltip");
-          if (tooltip) {
-            tooltip.remove();
+    // Basic inspector functionality
+    if (!CE.inspector) {
+      CE.inspector = {
+        hideInspector: () => {
+          const inspector = document.querySelector(
+            ".nexus-accessibility-ui-inspector"
+          );
+          if (inspector) {
+            inspector.remove();
           }
         },
       };

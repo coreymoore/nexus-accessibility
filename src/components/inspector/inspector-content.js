@@ -1,20 +1,20 @@
 /**
- * Tooltip Content Generation Module
+ * Inspector Content Generation Module
  *
- * Handles the creation and formatting of tooltip content including
+ * Handles the creation and formatting of inspector content including
  * screen reader output, properties lists, and loading states.
  *
  * Dependencies:
- * - tooltip-utils.js (for data processing utilities)
+ * - inspector-utils.js (for data processing utilities)
  *
- * Global API: window.NexusTooltip.Content
+ * Global API: window.NexusInspector.Content
  */
 
 (function () {
   "use strict";
 
   // Access utilities
-  const utils = window.NexusTooltip.Utils;
+  const utils = window.NexusInspector.Utils;
 
   // HTML Templates for consistency and maintainability
   const Templates = {
@@ -51,13 +51,13 @@
   };
 
   /**
-   * Content generation functions for tooltips
+   * Content generation functions for inspectors
    */
 
   /**
-   * Content generation functions for tooltips
+   * Content generation functions for inspectors
    */
-  const TooltipContent = {
+  const InspectorContent = {
     /**
      * Normalize boolean values from different sources
      * @param {*} value - Value to normalize
@@ -89,8 +89,8 @@
      */
     createLoadingContent() {
       return `
-        <div class="chrome-ax-tooltip-body" inert>
-          <div class="chrome-ax-loading" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
+  <div class="nexus-accessibility-ui-inspector-body" inert>
+          <div class="nexus-accessibility-ui-loading" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
             ${Templates.LOADING_SPINNER}
             <span>Loading Nexus Accessibility Info</span>
           </div>
@@ -104,7 +104,7 @@
      */
     createCloseButton() {
       return `
-        <button class="chrome-ax-tooltip-close" 
+  <button class="nexus-accessibility-ui-inspector-close" 
                 aria-label="Close Nexus Inspector" 
                 type="button"
                 tabindex="0">
@@ -122,13 +122,13 @@
       // Input validation
       if (!info || typeof info !== "object") {
         console.warn(
-          "[Tooltip] Invalid info object provided to getScreenReaderOutput"
+          "[Inspector] Invalid info object provided to getScreenReaderOutput"
         );
         return '<span class="sr-error">Unable to generate screen reader output</span>';
       }
 
       // Debug logging to understand the data structure
-      console.debug("[Tooltip] Accessibility info received:", {
+      console.debug("[Inspector] Accessibility info received:", {
         role: info.role,
         name: info.name,
         ariaProperties: info.ariaProperties,
@@ -267,7 +267,7 @@
      */
     createScreenReaderSection(info) {
       return `
-        <div class="chrome-ax-tooltip-sr" tabindex="-1">
+  <div class="nexus-accessibility-ui-inspector-sr" tabindex="-1">
           ${Templates.SCREEN_READER_ICON}
           ${this.getScreenReaderOutput(info)}
         </div>
@@ -281,8 +281,8 @@
      */
     createErrorContent(message) {
       return `
-        <div class="chrome-ax-tooltip-body" inert>
-          <div class="chrome-ax-error" style="display: flex; align-items: center; gap: 8px; color: #d73a49;">
+  <div class="nexus-accessibility-ui-inspector-body" inert>
+          <div class="nexus-accessibility-ui-error" style="display: flex; align-items: center; gap: 8px; color: #d73a49;">
             ${Templates.ERROR_ICON}
             <span>${utils.escapeHtml(message || "An error occurred")}</span>
           </div>
@@ -364,21 +364,21 @@
         );
       } else {
         // SECURITY FIX: Sanitize custom formatter output to prevent XSS
-        return utils.createSafeTooltipContent(propertiesList);
+        return utils.createSafeInspectorContent(propertiesList);
       }
     },
 
     /**
-     * Generate complete tooltip content
+     * Generate complete inspector content
      * @param {Object} info - Accessibility information object
      * @param {boolean} miniMode - Whether to show mini version
      * @param {Object} options - Options including onClose and enabled callbacks
-     * @returns {string} Complete tooltip HTML content
+     * @returns {string} Complete inspector HTML content
      */
-    generateTooltipContent(info, miniMode, options = {}) {
+    generateInspectorContent(info, miniMode, options = {}) {
       // Input validation
       if (!info || typeof info !== "object") {
-        console.error("[Tooltip] Invalid accessibility info provided:", info);
+        console.error("[Inspector] Invalid accessibility info provided:", info);
         return this.createErrorContent("Invalid accessibility information");
       }
 
@@ -386,14 +386,14 @@
         const closeButtonHtml = this.createCloseButton();
         const screenReaderSection = this.createScreenReaderSection(info);
 
-        // Create tooltip body wrapper
-        const bodyOpen = `<div class="chrome-ax-tooltip-body" inert style="pointer-events: none;">`;
+        // Create inspector body wrapper
+        const bodyOpen = `<div class="nexus-accessibility-ui-inspector-body" inert style="pointer-events: none;">`;
         const bodyClose = `</div>`;
 
-        let tooltipContent;
+        let inspectorContent;
         if (miniMode) {
           // Mini mode: only screen reader output
-          tooltipContent = `
+          inspectorContent = `
             ${closeButtonHtml}
             ${bodyOpen}
               ${screenReaderSection}
@@ -402,7 +402,7 @@
         } else {
           // Full mode: screen reader output + properties
           const propertiesSection = this.createPropertiesSection(info);
-          tooltipContent = `
+          inspectorContent = `
             ${closeButtonHtml}
             ${bodyOpen}
               ${screenReaderSection}
@@ -411,28 +411,28 @@
           `;
         }
 
-        return tooltipContent;
+        return inspectorContent;
       } catch (error) {
-        console.error("[Tooltip] Content generation failed:", error);
-        return this.createErrorContent("Unable to generate tooltip content");
+        console.error("[Inspector] Content generation failed:", error);
+        return this.createErrorContent("Unable to generate inspector content");
       }
     },
 
     /**
-     * Safely create tooltip content (legacy method for backward compatibility)
+     * Safely create inspector content (legacy method for backward compatibility)
      * @param {string} content - Content to make safe
      * @returns {string} Safe content
      */
-    createSafeTooltipContent(content) {
-      return utils.createSafeTooltipContent(content);
+    createSafeInspectorContent(content) {
+      return utils.createSafeInspectorContent(content);
     },
   };
 
   // Initialize global namespace
-  if (!window.NexusTooltip) {
-    window.NexusTooltip = {};
+  if (!window.NexusInspector) {
+    window.NexusInspector = {};
   }
 
   // Export content functions
-  window.NexusTooltip.Content = TooltipContent;
+  window.NexusInspector.Content = InspectorContent;
 })();

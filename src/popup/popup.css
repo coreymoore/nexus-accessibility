@@ -5,8 +5,8 @@
 .toggle-container {
   margin-bottom: 20px;
 }
-/* Keyboard shortcut styles copied from tooltip */
-.chrome-ax-tooltip-keys kbd {
+/* Keyboard shortcut styles copied from inspector */
+.nexus-accessibility-ui-inspector-keys kbd {
   display: inline-block;
   font-family: inherit;
   font-size: 11px;

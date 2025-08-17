@@ -17,7 +17,7 @@ This is an early release and not feature complete.
 - ✅ Improved MV3 compatibility with service worker scheduler
 - ✅ Added proper cleanup on page unload
 - ✅ Enhanced logging and debugging capabilities
-- ✅ Improved tooltip accessibility with ARIA attributes and focus management
+- ✅ Improved inspector accessibility with ARIA attributes and focus management
 - ✅ Added programmatic content script injection for better security
 - ✅ Enhanced frame context management for cross-origin support
 - ✅ Added comprehensive testing utilities for validation
@@ -26,7 +26,7 @@ This is an early release and not feature complete.
 These will be resolved in upcoming releases.
 
 - Some accessibility properties do not properly display.
-- Potential access barriers on the tooltip or extension menu, as full accessibility testing has not yet been completed. I did try to minimize as many barriers as possible during development but I used a very quick iterative process and may have missed some.
+- Potential access barriers on the inspector or extension menu, as full accessibility testing has not yet been completed. I did try to minimize as many barriers as possible during development but I used a very quick iterative process and may have missed some.
 - Cross-origin iframe support needs further testing.
 
 ## Features
@@ -137,7 +137,7 @@ To keep the inspector responsive on complex pages and sites that use frames/ifra
 **Modular Structure:**
 
 - `src/background/` - Service worker modules for debugger management, caching, and CDP communication
-- `src/components/` - UI components including the accessibility tooltip
+- `src/components/` - UI components including the accessibility inspector
 - `src/utils/` - Shared utilities for logging, Chrome API wrappers, and scheduling
 
 **Key Components:**
@@ -151,7 +151,7 @@ To keep the inspector responsive on complex pages and sites that use frames/ifra
 
 - Automatic cleanup of event listeners on page unload
 - Bounded caches with TTL and size limits
-- Proper tooltip lifecycle management
+- Proper inspector lifecycle management
 
 ## Testing and Validation
 

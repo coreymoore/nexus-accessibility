@@ -1,11 +1,11 @@
 /* Shared Nexus UI Styles
  * Centralized focus indicators & reusable small components.
- * This file MUST be referenced by all UI surfaces (tooltip, popup, future options pages)
+ * This file MUST be referenced by all UI surfaces (inspector, popup, future options pages)
  * to enforce consistency per AI_CONTEXT_RULES Section 2.8.
  */
 
 /* Unified Focus Ring (only :focus-visible per updated rule) */
-.chrome-ax-tooltip *:focus-visible,
+.nexus-accessibility-ui-inspector *:focus-visible,
 .popup :focus-visible {
   outline: 2px solid #683ab7 !important;
   outline-offset: 2px !important;
@@ -20,8 +20,8 @@
 }
 
 /* Keyboard shortcut key styling shared */
-.chrome-ax-tooltip-keys kbd,
-.popup .chrome-ax-tooltip-keys kbd {
+.nexus-accessibility-ui-inspector-keys kbd,
+.popup .nexus-accessibility-ui-inspector-keys kbd {
   display: inline-block;
   font-family: inherit;
   font-size: 11px;
@@ -39,7 +39,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chrome-ax-tooltip *,
+  .nexus-accessibility-ui-inspector *,
   .popup * {
     transition: none !important;
     animation: none !important;

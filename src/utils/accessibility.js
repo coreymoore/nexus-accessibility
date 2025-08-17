@@ -10,7 +10,7 @@ import { logger } from "./logger.js";
 
 class AccessibilityUtils {
   constructor() {
-    this.log = logger.tooltip;
+    this.log = logger.inspector;
     this.focusStack = [];
     this.lastFocusedElement = null;
     this.keyboardListeners = new Map();
@@ -283,47 +283,47 @@ class AccessibilityUtils {
   }
 
   /**
-   * Create accessible tooltip with proper ARIA
+   * Create accessible inspector with proper ARIA
    * @param {HTMLElement} trigger - Trigger element
-   * @param {string} content - Tooltip content
-   * @param {Object} options - Tooltip options
-   * @returns {Object} Tooltip management object
+   * @param {string} content - Inspector content
+   * @param {Object} options - Inspector options
+   * @returns {Object} Inspector management object
    */
-  createAccessibleTooltip(trigger, content, options = {}) {
-    const { placement = "top", delay = 500, role = "tooltip" } = options;
+  createAccessibleInspector(trigger, content, options = {}) {
+    const { placement = "top", delay = 500, role = "inspector" } = options;
 
-    const tooltipId = `nexus-tooltip-${Date.now()}-${Math.random()
+    const inspectorId = `nexus-inspector-${Date.now()}-${Math.random()
       .toString(36)
       .substr(2, 9)}`;
-    let tooltip = null;
+    let inspector = null;
     let showTimeout = null;
     let hideTimeout = null;
 
     const show = () => {
-      if (tooltip) return;
+      if (inspector) return;
 
-      tooltip = document.createElement("div");
-      tooltip.id = tooltipId;
-      tooltip.role = role;
-      tooltip.textContent = content;
-      tooltip.className = "nexus-accessible-tooltip";
+      inspector = document.createElement("div");
+      inspector.id = inspectorId;
+      inspector.role = role;
+      inspector.textContent = content;
+      inspector.className = "nexus-accessible-inspector";
 
-      // Position tooltip
-      document.body.appendChild(tooltip);
-      this.positionTooltip(tooltip, trigger, placement);
+      // Position inspector
+      document.body.appendChild(inspector);
+      this.positionInspector(inspector, trigger, placement);
 
       // Update ARIA
-      trigger.setAttribute("aria-describedby", tooltipId);
+      trigger.setAttribute("aria-describedby", inspectorId);
 
-      this.log.debug("Accessible tooltip shown", { tooltipId, content });
+      this.log.debug("Accessible inspector shown", { inspectorId, content });
     };
 
     const hide = () => {
-      if (tooltip) {
-        tooltip.remove();
-        tooltip = null;
+      if (inspector) {
+        inspector.remove();
+        inspector = null;
         trigger.removeAttribute("aria-describedby");
-        this.log.debug("Accessible tooltip hidden", { tooltipId });
+        this.log.debug("Accessible inspector hidden", { inspectorId });
       }
     };
 
@@ -359,32 +359,32 @@ class AccessibilityUtils {
   }
 
   /**
-   * Position tooltip relative to trigger
-   * @param {HTMLElement} tooltip - Tooltip element
+   * Position inspector relative to trigger
+   * @param {HTMLElement} inspector - Inspector element
    * @param {HTMLElement} trigger - Trigger element
    * @param {string} placement - Placement direction
    */
-  positionTooltip(tooltip, trigger, placement) {
+  positionInspector(inspector, trigger, placement) {
     const triggerRect = trigger.getBoundingClientRect();
-    const tooltipRect = tooltip.getBoundingClientRect();
+    const inspectorRect = inspector.getBoundingClientRect();
 
     let top, left;
 
     switch (placement) {
       case "top":
-        top = triggerRect.top - tooltipRect.height - 8;
-        left = triggerRect.left + (triggerRect.width - tooltipRect.width) / 2;
+        top = triggerRect.top - inspectorRect.height - 8;
+        left = triggerRect.left + (triggerRect.width - inspectorRect.width) / 2;
         break;
       case "bottom":
         top = triggerRect.bottom + 8;
-        left = triggerRect.left + (triggerRect.width - tooltipRect.width) / 2;
+        left = triggerRect.left + (triggerRect.width - inspectorRect.width) / 2;
         break;
       case "left":
-        top = triggerRect.top + (triggerRect.height - tooltipRect.height) / 2;
-        left = triggerRect.left - tooltipRect.width - 8;
+        top = triggerRect.top + (triggerRect.height - inspectorRect.height) / 2;
+        left = triggerRect.left - inspectorRect.width - 8;
         break;
       case "right":
-        top = triggerRect.top + (triggerRect.height - tooltipRect.height) / 2;
+        top = triggerRect.top + (triggerRect.height - inspectorRect.height) / 2;
         left = triggerRect.right + 8;
         break;
       default:
@@ -392,19 +392,19 @@ class AccessibilityUtils {
         left = triggerRect.left;
     }
 
-    // Keep tooltip within viewport
+    // Keep inspector within viewport
     const viewport = {
       width: window.innerWidth,
       height: window.innerHeight,
     };
 
-    top = Math.max(8, Math.min(top, viewport.height - tooltipRect.height - 8));
-    left = Math.max(8, Math.min(left, viewport.width - tooltipRect.width - 8));
+    top = Math.max(8, Math.min(top, viewport.height - inspectorRect.height - 8));
+    left = Math.max(8, Math.min(left, viewport.width - inspectorRect.width - 8));
 
-    tooltip.style.position = "fixed";
-    tooltip.style.top = `${top}px`;
-    tooltip.style.left = `${left}px`;
-    tooltip.style.zIndex = "10000";
+    inspector.style.position = "fixed";
+    inspector.style.top = `${top}px`;
+    inspector.style.left = `${left}px`;
+    inspector.style.zIndex = "10000";
   }
 
   /**

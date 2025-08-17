@@ -17,10 +17,10 @@ class PerformanceMonitor {
 
     // Track performance thresholds
     this.thresholds = {
-      tooltipDisplay:
+      inspectorDisplay:
         (typeof window !== "undefined" &&
-          window.NexusConstants?.PERFORMANCE_THRESHOLDS?.TOOLTIP_DISPLAY) ||
-        100, // ms - target for tooltip display
+          window.NexusConstants?.PERFORMANCE_THRESHOLDS?.INSPECTOR_DISPLAY) ||
+        100, // ms - target for inspector display
       debuggerAttach:
         (typeof window !== "undefined" &&
           window.NexusConstants?.PERFORMANCE_THRESHOLDS?.DEBUGGER_ATTACH) ||

@@ -1,23 +1,23 @@
 /**
- * Tooltip Events Module
+ * Inspector Events Module
  *
- * Handles all event management for tooltips including keyboard shortcuts,
+ * Handles all event management for inspectors including keyboard shortcuts,
  * close button functionality, and Chrome extension message handling.
  *
  * Dependencies: None (interacts with core through passed instance)
  *
- * Global API: window.NexusTooltip.Events
+ * Global API: window.NexusInspector.Events
  */
 
 (function () {
   "use strict";
 
   /**
-   * Event manager for tooltip interactions
+   * Event manager for inspector interactions
    */
   class EventManager {
-    constructor(tooltipCore) {
-      this.core = tooltipCore;
+    constructor(inspectorCore) {
+      this.core = inspectorCore;
       this._messageListener = null;
       this._shortcutRegistered = false;
       this._keydownHandler = null;
@@ -41,10 +41,10 @@
         if (msg && typeof msg.miniMode === "boolean") {
           this.core.miniMode = msg.miniMode;
           if (
-            this.core.tooltip &&
-            this.core.tooltip.style.display === "block"
+            this.core.inspector &&
+            this.core.inspector.style.display === "block"
           ) {
-            this.core.showTooltip(
+            this.core.showInspector(
               this.core._lastInfo,
               this.core._lastTarget,
               this.core._lastOptions
@@ -61,7 +61,10 @@
      */
     _registerKeyboardShortcuts() {
       // Check both instance-level and global flags to prevent multiple registrations
-      if (this._shortcutRegistered || window.chromeAxTooltipShortcutRegistered)
+      if (
+        this._shortcutRegistered ||
+        window.nexusAccessibilityUiInspectorShortcutRegistered
+      )
         return;
 
       this._keydownHandler = (e) => {
@@ -72,7 +75,7 @@
       this._shortcutRegistered = true;
 
       // Set global flag to prevent multiple registrations
-      window.chromeAxTooltipShortcutRegistered = true;
+      window.nexusAccessibilityUiInspectorShortcutRegistered = true;
     }
 
     /**
@@ -83,8 +86,8 @@
       // Alt+[ shortcut for focusing screen reader section
       if (
         this._isAltBracketLeft(e) &&
-        this.core.tooltip &&
-        this.core.tooltip.style.display === "block"
+        this.core.inspector &&
+        this.core.inspector.style.display === "block"
       ) {
         this._handleFocusShortcut(e);
         return;
@@ -128,16 +131,20 @@
      * @param {KeyboardEvent} e - Keyboard event
      */
     _handleFocusShortcut(e) {
-      // Allow focus into tooltip content only when user intentionally invokes the shortcut
-      const body = this.core.tooltip.querySelector(".chrome-ax-tooltip-body");
+      // Allow focus into inspector content only when user intentionally invokes the shortcut
+      const body = this.core.inspector.querySelector(
+        ".nexus-accessibility-ui-inspector-body"
+      );
       if (body) {
         body.removeAttribute("inert");
         body.style.pointerEvents = "";
       }
 
-      const srNode = this.core.tooltip.querySelector(".chrome-ax-tooltip-sr");
-      const closeButton = this.core.tooltip.querySelector(
-        ".chrome-ax-tooltip-close"
+      const srNode = this.core.inspector.querySelector(
+        ".nexus-accessibility-ui-inspector-sr"
+      );
+      const closeButton = this.core.inspector.querySelector(
+        ".nexus-accessibility-ui-inspector-close"
       );
 
       if (closeButton) {
@@ -147,7 +154,7 @@
         closeButton.setAttribute("aria-hidden", "false");
       }
 
-      this.core.tooltip.removeAttribute("aria-hidden");
+      this.core.inspector.removeAttribute("aria-hidden");
       this.core.focus._acceptingFocus = true;
 
       if (srNode) {
@@ -275,8 +282,8 @@
         this._keydownHandler = null;
         this._shortcutRegistered = false;
         // Reset global flag if this was the active instance
-        if (window.chromeAxTooltipShortcutRegistered) {
-          window.chromeAxTooltipShortcutRegistered = false;
+        if (window.nexusAccessibilityUiInspectorShortcutRegistered) {
+          window.nexusAccessibilityUiInspectorShortcutRegistered = false;
         }
       }
     }
@@ -298,11 +305,11 @@
           // Store handler for mini mode changes
           this._miniModeChangeHandler = handler;
           break;
-        case "tooltipShow":
-          this._tooltipShowHandler = handler;
+        case "inspectorShow":
+          this._inspectorShowHandler = handler;
           break;
-        case "tooltipHide":
-          this._tooltipHideHandler = handler;
+        case "inspectorHide":
+          this._inspectorHideHandler = handler;
           break;
         default:
           console.warn(`Unknown event type: ${eventType}`);
@@ -321,14 +328,14 @@
             this._miniModeChangeHandler(data);
           }
           break;
-        case "tooltipShow":
-          if (this._tooltipShowHandler) {
-            this._tooltipShowHandler(data);
+        case "inspectorShow":
+          if (this._inspectorShowHandler) {
+            this._inspectorShowHandler(data);
           }
           break;
-        case "tooltipHide":
-          if (this._tooltipHideHandler) {
-            this._tooltipHideHandler(data);
+        case "inspectorHide":
+          if (this._inspectorHideHandler) {
+            this._inspectorHideHandler(data);
           }
           break;
       }
@@ -336,12 +343,12 @@
   }
 
   // Initialize global namespace
-  if (!window.NexusTooltip) {
-    window.NexusTooltip = {};
+  if (!window.NexusInspector) {
+    window.NexusInspector = {};
   }
 
   // Export event manager
-  window.NexusTooltip.Events = {
+  window.NexusInspector.Events = {
     EventManager: EventManager,
   };
 })();

@@ -1,35 +1,35 @@
 /**
- * Tooltip Positioning Module
+ * Inspector Positioning Module
  *
- * Handles tooltip positioning, connector line creation, and repositioning logic.
- * Manages the visual relationship between tooltip and target elements.
+ * Handles inspector positioning, connector line creation, and repositioning logic.
+ * Manages the visual relationship between inspector and target elements.
  *
  * Dependencies:
- * - tooltip-utils.js (for geometric calculations)
+ * - inspector-utils.js (for geometric calculations)
  *
- * Global API: window.NexusTooltip.Positioning
+ * Global API: window.NexusInspector.Positioning
  */
 
 (function () {
   "use strict";
 
   // Access utilities
-  const utils = window.NexusTooltip.Utils;
+  const utils = window.NexusInspector.Utils;
 
   /**
-   * Positioning manager for tooltips and connectors
+   * Positioning manager for inspectors and connectors
    */
   class PositioningManager {
-    constructor(tooltipCore) {
-      this.core = tooltipCore;
+    constructor(inspectorCore) {
+      this.core = inspectorCore;
     }
 
     /**
-     * Position tooltip relative to target element
+     * Position inspector relative to target element
      * @param {Element} target - Target element to position relative to
      */
-    positionTooltip(target) {
-      if (!this.core.tooltip || !target) return;
+    positionInspector(target) {
+      if (!this.core.inspector || !target) return;
 
       const rect = target.getBoundingClientRect();
       const margin = this.core._margin;
@@ -38,91 +38,91 @@
       const placeBelow = spaceBelow >= spaceAbove;
 
       // Set max height based on available space
-      this.core.tooltip.style.maxHeight = `${Math.max(
+      this.core.inspector.style.maxHeight = `${Math.max(
         0,
         placeBelow ? spaceBelow : spaceAbove
       )}px`;
 
-      const tooltipRect = this.core.tooltip.getBoundingClientRect();
+      const inspectorRect = this.core.inspector.getBoundingClientRect();
       const topAbs = placeBelow
         ? window.scrollY + rect.bottom + margin
-        : window.scrollY + rect.top - tooltipRect.height - margin;
+        : window.scrollY + rect.top - inspectorRect.height - margin;
 
       let leftAbs = window.scrollX + rect.right + margin;
 
-      // Adjust if tooltip would go off right edge
-      if (leftAbs + tooltipRect.width > window.scrollX + window.innerWidth) {
-        leftAbs = window.scrollX + rect.left - tooltipRect.width - margin;
+      // Adjust if inspector would go off right edge
+      if (leftAbs + inspectorRect.width > window.scrollX + window.innerWidth) {
+        leftAbs = window.scrollX + rect.left - inspectorRect.width - margin;
       }
 
-      // Ensure tooltip stays within viewport
+      // Ensure inspector stays within viewport
       leftAbs = Math.max(
         window.scrollX,
         Math.min(
           leftAbs,
-          window.scrollX + window.innerWidth - tooltipRect.width
+          window.scrollX + window.innerWidth - inspectorRect.width
         )
       );
 
-      this.core.tooltip.style.top = `${topAbs}px`;
-      this.core.tooltip.style.left = `${leftAbs}px`;
+      this.core.inspector.style.top = `${topAbs}px`;
+      this.core.inspector.style.left = `${leftAbs}px`;
     }
 
     /**
-     * Position tooltip and create connector line
+     * Position inspector and create connector line
      * @param {Element} target - Target element to connect to
      */
-    positionTooltipWithConnector(target) {
-      if (!this.core.tooltip || !target) return;
+    positionInspectorWithConnector(target) {
+      if (!this.core.inspector || !target) return;
 
       const rect = target.getBoundingClientRect();
-      const tooltipRect = this.core.tooltip.getBoundingClientRect();
+      const inspectorRect = this.core.inspector.getBoundingClientRect();
       const margin = this.core._margin;
 
       // Calculate initial position
       let top = window.scrollY + rect.bottom + margin;
       let left = window.scrollX + rect.right + margin;
 
-      // Adjust if tooltip would go off bottom edge
-      if (top + tooltipRect.height > window.scrollY + window.innerHeight) {
-        top = window.scrollY + rect.top - tooltipRect.height - margin;
+      // Adjust if inspector would go off bottom edge
+      if (top + inspectorRect.height > window.scrollY + window.innerHeight) {
+        top = window.scrollY + rect.top - inspectorRect.height - margin;
       }
 
-      // Adjust if tooltip would go off right edge
-      if (left + tooltipRect.width > window.scrollX + window.innerWidth) {
-        left = window.scrollX + rect.left - tooltipRect.width - margin;
+      // Adjust if inspector would go off right edge
+      if (left + inspectorRect.width > window.scrollX + window.innerWidth) {
+        left = window.scrollX + rect.left - inspectorRect.width - margin;
       }
 
-      // Ensure tooltip stays within viewport bounds
+      // Ensure inspector stays within viewport bounds
       top = Math.max(
         window.scrollY,
-        Math.min(top, window.scrollY + window.innerHeight - tooltipRect.height)
+        Math.min(top, window.scrollY + window.innerHeight - inspectorRect.height)
       );
       left = Math.max(
         window.scrollX,
-        Math.min(left, window.scrollX + window.innerWidth - tooltipRect.width)
+        Math.min(left, window.scrollX + window.innerWidth - inspectorRect.width)
       );
 
-      // Update tooltip position
-      this.core.tooltip.style.position = "fixed";
-      this.core.tooltip.style.top = `${top - window.scrollY}px`;
-      this.core.tooltip.style.left = `${left - window.scrollX}px`;
+      // Update inspector position
+      this.core.inspector.style.position = "fixed";
+      this.core.inspector.style.top = `${top - window.scrollY}px`;
+      this.core.inspector.style.left = `${left - window.scrollX}px`;
 
       // Create connector line
       this.createConnector(target, {
         left,
         top,
-        width: tooltipRect.width,
-        height: tooltipRect.height,
+        width: inspectorRect.width,
+        height: inspectorRect.height,
       });
     }
 
     /**
-     * Create SVG connector line between tooltip and target
+     * Create SVG connector line between inspector and target
      * @param {Element} target - Target element
-     * @param {Object} tooltipBounds - Tooltip position and dimensions
+     * @param {Object} inspectorBounds - Inspector position and dimensions
      */
-    createConnector(target, tooltipBounds) {
+    createConnector(target, inspectorBounds) {
       // Remove old connector
       if (this.core.connector) {
         this.core.connector.remove();
@@ -145,13 +145,13 @@
 
       // Calculate connector line coordinates
       const rect = target.getBoundingClientRect();
-      const tooltipRectAbs = {
-        left: tooltipBounds.left,
-        right: tooltipBounds.left + tooltipBounds.width,
-        top: tooltipBounds.top,
-        bottom: tooltipBounds.top + tooltipBounds.height,
-        width: tooltipBounds.width,
-        height: tooltipBounds.height,
+      const inspectorRectAbs = {
+        left: inspectorBounds.left,
+        right: inspectorBounds.left + inspectorBounds.width,
+        top: inspectorBounds.top,
+        bottom: inspectorBounds.top + inspectorBounds.height,
+        width: inspectorBounds.width,
+        height: inspectorBounds.height,
       };
 
       const elemRectAbs = {
@@ -163,20 +163,20 @@
         height: rect.height,
       };
 
-      let [tooltipEdge, elemEdge] = utils.getClosestEdgePoint(
-        tooltipRectAbs,
+      let [inspectorEdge, elemEdge] = utils.getClosestEdgePoint(
+        inspectorRectAbs,
         elemRectAbs
       );
 
       // Extend line endpoints slightly for better visual connection
-      const dx = elemEdge.x - tooltipEdge.x;
-      const dy = elemEdge.y - tooltipEdge.y;
+      const dx = elemEdge.x - inspectorEdge.x;
+      const dy = elemEdge.y - inspectorEdge.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const extension = 4;
 
-      tooltipEdge = {
-        x: tooltipEdge.x - (dx / distance) * extension,
-        y: tooltipEdge.y - (dy / distance) * extension,
+      inspectorEdge = {
+        x: inspectorEdge.x - (dx / distance) * extension,
+        y: inspectorEdge.y - (dy / distance) * extension,
       };
       elemEdge = {
         x: elemEdge.x + (dx / distance) * extension,
@@ -188,8 +188,8 @@
         "http://www.w3.org/2000/svg",
         "line"
       );
-      borderLine.setAttribute("x1", tooltipEdge.x);
-      borderLine.setAttribute("y1", tooltipEdge.y);
+      borderLine.setAttribute("x1", inspectorEdge.x);
+      borderLine.setAttribute("y1", inspectorEdge.y);
       borderLine.setAttribute("x2", elemEdge.x);
       borderLine.setAttribute("y2", elemEdge.y);
       borderLine.setAttribute("stroke", "white");
@@ -202,8 +202,8 @@
         "http://www.w3.org/2000/svg",
         "line"
       );
-      mainLine.setAttribute("x1", tooltipEdge.x);
-      mainLine.setAttribute("y1", tooltipEdge.y);
+      mainLine.setAttribute("x1", inspectorEdge.x);
+      mainLine.setAttribute("y1", inspectorEdge.y);
       mainLine.setAttribute("x2", elemEdge.x);
       mainLine.setAttribute("y2", elemEdge.y);
       mainLine.setAttribute("stroke", "#683ab7");
@@ -216,15 +216,15 @@
     }
 
     /**
-     * Reposition tooltip and connector (used for scroll/resize events)
+     * Reposition inspector and connector (used for scroll/resize events)
      * @param {Element} target - Target element to reposition relative to
      */
-    repositionTooltipAndConnector(target) {
-      if (!this.core.tooltip || !target) return;
+    repositionInspectorAndConnector(target) {
+      if (!this.core.inspector || !target) return;
 
       // Recalculate position and connector
       const rect = target.getBoundingClientRect();
-      const tooltipRect = this.core.tooltip.getBoundingClientRect();
+      const inspectorRect = this.core.inspector.getBoundingClientRect();
       const margin = 16;
 
       // Calculate available space above and below the element
@@ -232,54 +232,54 @@
       const spaceBelow = window.innerHeight - rect.bottom - margin;
 
       let top, left;
-      if (spaceBelow >= tooltipRect.height || spaceBelow > spaceAbove) {
+      if (spaceBelow >= inspectorRect.height || spaceBelow > spaceAbove) {
         top = window.scrollY + rect.bottom + margin;
       } else {
-        top = window.scrollY + rect.top - tooltipRect.height - margin;
+        top = window.scrollY + rect.top - inspectorRect.height - margin;
       }
 
       left = window.scrollX + rect.right + margin;
-      if (left + tooltipRect.width > window.scrollX + window.innerWidth) {
-        left = window.scrollX + rect.left - tooltipRect.width - margin;
+      if (left + inspectorRect.width > window.scrollX + window.innerWidth) {
+        left = window.scrollX + rect.left - inspectorRect.width - margin;
       }
 
       top = Math.max(
         window.scrollY,
-        Math.min(top, window.scrollY + window.innerHeight - tooltipRect.height)
+        Math.min(top, window.scrollY + window.innerHeight - inspectorRect.height)
       );
       left = Math.max(
         window.scrollX,
-        Math.min(left, window.scrollX + window.innerWidth - tooltipRect.width)
+        Math.min(left, window.scrollX + window.innerWidth - inspectorRect.width)
       );
 
-      this.core.tooltip.style.top = `${top - window.scrollY}px`;
-      this.core.tooltip.style.left = `${left - window.scrollX}px`;
+      this.core.inspector.style.top = `${top - window.scrollY}px`;
+      this.core.inspector.style.left = `${left - window.scrollX}px`;
 
       // Reposition connector
       this.updateConnectorPosition(target, {
         left,
         top,
-        width: tooltipRect.width,
-        height: tooltipRect.height,
+        width: inspectorRect.width,
+        height: inspectorRect.height,
       });
     }
 
     /**
      * Update connector line position without recreating
      * @param {Element} target - Target element
-     * @param {Object} tooltipBounds - Tooltip position and dimensions
+     * @param {Object} inspectorBounds - Inspector position and dimensions
      */
-    updateConnectorPosition(target, tooltipBounds) {
+    updateConnectorPosition(target, inspectorBounds) {
       if (!this.core.connector) return;
 
       const rect = target.getBoundingClientRect();
-      const tooltipRectAbs = {
-        left: tooltipBounds.left,
-        right: tooltipBounds.left + tooltipBounds.width,
-        top: tooltipBounds.top,
-        bottom: tooltipBounds.top + tooltipBounds.height,
-        width: tooltipBounds.width,
-        height: tooltipBounds.height,
+      const inspectorRectAbs = {
+        left: inspectorBounds.left,
+        right: inspectorBounds.left + inspectorBounds.width,
+        top: inspectorBounds.top,
+        bottom: inspectorBounds.top + inspectorBounds.height,
+        width: inspectorBounds.width,
+        height: inspectorBounds.height,
       };
 
       const elemRectAbs = {
@@ -291,19 +291,19 @@
         height: rect.height,
       };
 
-      let [tooltipEdge, elemEdge] = utils.getClosestEdgePoint(
-        tooltipRectAbs,
+      let [inspectorEdge, elemEdge] = utils.getClosestEdgePoint(
+        inspectorRectAbs,
         elemRectAbs
       );
 
-      const dx = elemEdge.x - tooltipEdge.x;
-      const dy = elemEdge.y - tooltipEdge.y;
+      const dx = elemEdge.x - inspectorEdge.x;
+      const dy = elemEdge.y - inspectorEdge.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const extension = 4;
 
-      tooltipEdge = {
-        x: tooltipEdge.x - (dx / distance) * extension,
-        y: tooltipEdge.y - (dy / distance) * extension,
+      inspectorEdge = {
+        x: inspectorEdge.x - (dx / distance) * extension,
+        y: inspectorEdge.y - (dy / distance) * extension,
       };
       elemEdge = {
         x: elemEdge.x + (dx / distance) * extension,
@@ -319,13 +319,13 @@
       );
 
       if (borderLine && mainLine) {
-        borderLine.setAttribute("x1", tooltipEdge.x);
-        borderLine.setAttribute("y1", tooltipEdge.y);
+        borderLine.setAttribute("x1", inspectorEdge.x);
+        borderLine.setAttribute("y1", inspectorEdge.y);
         borderLine.setAttribute("x2", elemEdge.x);
         borderLine.setAttribute("y2", elemEdge.y);
 
-        mainLine.setAttribute("x1", tooltipEdge.x);
-        mainLine.setAttribute("y1", tooltipEdge.y);
+        mainLine.setAttribute("x1", inspectorEdge.x);
+        mainLine.setAttribute("y1", inspectorEdge.y);
         mainLine.setAttribute("x2", elemEdge.x);
         mainLine.setAttribute("y2", elemEdge.y);
       }
@@ -333,12 +333,12 @@
   }
 
   // Initialize global namespace
-  if (!window.NexusTooltip) {
-    window.NexusTooltip = {};
+  if (!window.NexusInspector) {
+    window.NexusInspector = {};
   }
 
   // Export positioning manager
-  window.NexusTooltip.Positioning = {
+  window.NexusInspector.Positioning = {
     PositioningManager: PositioningManager,
   };
 })();
