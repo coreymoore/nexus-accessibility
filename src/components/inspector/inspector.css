@@ -30,7 +30,7 @@
   position: absolute;
   background: #f3f0fa;
   color: #2d1958;
-  padding: 12px 16px 12px 16px;
+  padding: 12px 32px 12px 16px; /* Do not change */
   border-radius: 8px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
   z-index: 2147483647 !important;
@@ -43,10 +43,10 @@
   cursor: default;
   letter-spacing: 0;
   min-width: 280px;
-  max-width: 360px;
+  max-width: 50vw;
   max-height: 100vh;
-  overflow-y: auto;
   overflow-x: auto;
+  overflow-y: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -73,6 +73,11 @@
   align-items: center;
   justify-content: center;
   padding: 0;
+}
+
+.nexus-accessibility-ui-inspector-close:hover {
+  background: rgba(104, 58, 183, 0.2);
+  color: #683ab7;
 }
 
 /* Only show transition for users who don't prefer reduced motion */

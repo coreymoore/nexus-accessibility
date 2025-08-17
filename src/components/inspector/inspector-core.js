@@ -104,8 +104,8 @@
       this.inspector.className = "nexus-accessibility-ui-inspector";
       this.inspector.setAttribute("role", "group");
       this.inspector.setAttribute(
-        "aria-label",
-        "Nexus Accessibility Inspector"
+        "aria-roledescription",
+        "Accessibility Inspector"
       );
       this.inspector.setAttribute("id", "nexus-accessibility-ui-inspector");
 
@@ -170,7 +170,11 @@
     _createInspectorElement(target) {
       this.inspector = document.createElement("div");
       this.inspector.className = "nexus-accessibility-ui-inspector";
-      this.inspector.setAttribute("role", "inspector");
+      this.inspector.setAttribute("role", "group");
+      this.inspector.setAttribute(
+        "aria-roledescription",
+        "Accessibility Inspector"
+      );
       this.inspector.setAttribute("id", "nexus-accessibility-ui-inspector");
       // Per AI_CONTEXT_RULES: do NOT use aria-live / live regions in injected inspector.
       // Also avoid aria-hidden on container; expose only on explicit focus interaction.
