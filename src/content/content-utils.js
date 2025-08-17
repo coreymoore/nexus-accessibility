@@ -365,6 +365,43 @@
     safeFocus,
     safeGetAttribute,
     safeContains,
+    /**
+     * Send a validated extension message with optional retry via errorRecovery.
+     * Centralizes enforcement of allowed actions defined in MessageValidator.
+     * @param {Object} msg - Message payload (must include action or type)
+     * @param {string} [operationId] - Optional operation ID for recovery tracking
+     * @returns {Promise<any>} Response from background
+     */
+    validatedSend(msg, operationId = msg.action || msg.type || "unknown-op") {
+      if (!msg || typeof msg !== "object") {
+        return Promise.reject(new Error("Invalid message object"));
+      }
+      const action = msg.action || msg.type;
+      const ALLOWED_ACTIONS = new Set([
+        "getAccessibilityTree",
+        "getBackendNodeIdAndAccessibleInfo",
+        "AX_TOOLTIP_SHOWN",
+        "keepAlive",
+        "detachDebugger",
+      ]);
+      if (!ALLOWED_ACTIONS.has(action)) {
+        return Promise.reject(new Error(`Disallowed action: ${action}`));
+      }
+      const executor = () => chrome.runtime.sendMessage(msg);
+      const er = window.errorRecovery;
+      if (er && typeof er.executeWithRecovery === "function") {
+        return er.executeWithRecovery(operationId, executor, {
+          shouldRetry: (err, attempt) => {
+            const m = err?.message || "";
+            if (m.includes("timeout") || m.includes("disconnected"))
+              return attempt < 2;
+            return attempt === 0;
+          },
+          maxRetries: 2,
+        });
+      }
+      return executor();
+    },
 
     // Manual implementations for fallback
     manualDebounce,

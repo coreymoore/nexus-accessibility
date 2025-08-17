@@ -152,3 +152,9 @@ export class ErrorRecoveryManager {
 }
 
 export const errorRecovery = new ErrorRecoveryManager();
+
+// Expose globally for content scripts (non-module execution context)
+// Safe no-op if already defined.
+if (typeof window !== "undefined" && !window.errorRecovery) {
+  window.errorRecovery = errorRecovery;
+}

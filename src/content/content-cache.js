@@ -14,8 +14,18 @@
   window.ContentExtension = window.ContentExtension || {};
   const CE = window.ContentExtension;
 
-  // Cache for successful accessibility info lookups
+  // Cache for successful accessibility info lookups (WeakMap to avoid leaks)
   const accessibilityCache = new WeakMap();
+  /**
+   * Metadata WeakMap storing timestamps for TTL enforcement.
+   * Using separate WeakMap keeps primary cache lean while allowing expiry checks.
+   */
+  const accessibilityCacheMeta = new WeakMap();
+  // Default TTL (ms) sourced from constants with safe fallback
+  const DEFAULT_CACHE_TTL =
+    (typeof window !== "undefined" &&
+      window.NexusConstants?.CACHE?.DEFAULT_TTL) ||
+    10000; // 10s fallback
 
   // Track in-flight fetches to prevent duplicate requests
   const inflightRequests = new WeakMap();
@@ -40,7 +50,16 @@
    * @returns {Object|null} Cached accessibility info or null
    */
   function getCached(element) {
-    return accessibilityCache.get(element);
+    const info = accessibilityCache.get(element);
+    if (!info) return null;
+    const meta = accessibilityCacheMeta.get(element);
+    if (meta && Date.now() - meta.timestamp > (meta.ttl || DEFAULT_CACHE_TTL)) {
+      // Expired
+      accessibilityCache.delete(element);
+      accessibilityCacheMeta.delete(element);
+      return null;
+    }
+    return info;
   }
 
   /**
@@ -58,6 +77,10 @@
         Object.keys(info.ariaProperties || {}).length > 0)
     ) {
       accessibilityCache.set(element, info);
+      accessibilityCacheMeta.set(element, {
+        timestamp: Date.now(),
+        ttl: DEFAULT_CACHE_TTL,
+      });
     }
   }
 
@@ -67,6 +90,7 @@
    */
   function deleteCached(element) {
     accessibilityCache.delete(element);
+    accessibilityCacheMeta.delete(element);
   }
 
   /**
@@ -75,7 +99,8 @@
    * @returns {boolean} True if element has cached info
    */
   function hasCached(element) {
-    return accessibilityCache.has(element);
+    if (!accessibilityCache.has(element)) return false;
+    return !!getCached(element);
   }
 
   /**

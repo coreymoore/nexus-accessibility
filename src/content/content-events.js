@@ -490,7 +490,18 @@
 
       // Request background to detach debugger when focus leaves
       try {
-        chrome.runtime.sendMessage({ action: "detachDebugger" });
+        if (CE.utils && CE.utils.validatedSend) {
+          CE.utils
+            .validatedSend({ action: "detachDebugger" }, "detachDebuggerOnBlur")
+            .catch((e) =>
+              console.warn(
+                "[ContentExtension.events] detachDebugger send failed:",
+                e.message
+              )
+            );
+        } else {
+          chrome.runtime.sendMessage({ action: "detachDebugger" });
+        }
       } catch (error) {
         console.warn(
           "[ContentExtension.events] Failed to send detach message:",

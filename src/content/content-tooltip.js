@@ -134,10 +134,13 @@
    */
   function broadcastTooltipShown() {
     try {
-      chrome.runtime.sendMessage({
-        type: "AX_TOOLTIP_SHOWN",
-        frameToken: CE.utils.getFrameToken(),
-      });
+      CE.utils.validatedSend(
+        {
+          type: "AX_TOOLTIP_SHOWN",
+          frameToken: CE.utils.getFrameToken(),
+        },
+        "broadcastTooltipShown"
+      );
     } catch (error) {
       console.warn(
         "[ContentExtension.tooltip] Failed to broadcast tooltip shown:",

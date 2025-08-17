@@ -73,7 +73,13 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  transition: all 0.2s ease;
+}
+
+/* Only show transition for users who don't prefer reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  .chrome-ax-tooltip-close {
+    transition: all 0.2s ease;
+  }
 }
 
 /* Screen reader output block */

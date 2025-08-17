@@ -67,6 +67,56 @@
   ) {
     const cache = CE.cache;
 
+    // Allowed actions (mirror of MessageValidator.ALLOWED_ACTIONS)
+    const ALLOWED_ACTIONS = new Set([
+      "getAccessibilityTree",
+      "getBackendNodeIdAndAccessibleInfo",
+      "AX_TOOLTIP_SHOWN",
+      "keepAlive",
+      "detachDebugger",
+    ]);
+
+    /**
+     * Validate and send a runtime message with optional recovery.
+     * Ensures action is permitted before dispatching.
+     * @param {Object} msg - Message object to send (must include action)
+     * @param {string} opId - Operation identifier for recovery
+     * @returns {Promise<any>} Response
+     */
+    function validatedSend(msg, opId) {
+      if (!msg || typeof msg !== "object") {
+        return Promise.reject(new Error("Invalid message object"));
+      }
+      const action = msg.action || msg.type;
+      if (!ALLOWED_ACTIONS.has(action)) {
+        return Promise.reject(new Error(`Disallowed action: ${action}`));
+      }
+      const executor = () => chrome.runtime.sendMessage(msg);
+      if (
+        window.errorRecovery &&
+        typeof window.errorRecovery.executeWithRecovery === "function"
+      ) {
+        return window.errorRecovery.executeWithRecovery(opId, executor, {
+          onError: (err, attempt) => {
+            console.warn(
+              `[NEXUS] Message send failed (attempt ${
+                attempt + 1
+              }) for ${action}:`,
+              err.message
+            );
+          },
+          shouldRetry: (err, attempt) => {
+            const m = err?.message || "";
+            if (m.includes("timeout") || m.includes("disconnected"))
+              return attempt < 2;
+            return attempt === 0; // single retry for other transient cases
+          },
+          maxRetries: 2,
+        });
+      }
+      return executor();
+    }
+
     // Cancel any pending request
     if (cache) {
       cache.clearPendingRequest();
@@ -89,12 +139,15 @@
         // Use CDP approach with direct element reference
         const selector = CE.utils.getUniqueSelector(target);
 
-        const response = await chrome.runtime.sendMessage({
-          action: "getBackendNodeIdAndAccessibleInfo",
-          useDirectReference: true,
-          elementSelector: selector,
-          frameId: 0, // Background script will determine the correct frame
-        });
+        const response = await validatedSend(
+          {
+            action: "getBackendNodeIdAndAccessibleInfo",
+            useDirectReference: true,
+            elementSelector: selector,
+            frameId: 0, // Background script will determine the correct frame
+          },
+          "getBackendNodeIdAndAccessibleInfo"
+        );
 
         console.log("[NEXUS] CDP Response:", {
           role: response?.role,
@@ -165,12 +218,15 @@
     try {
       const selector = CE.utils.getUniqueSelector(target);
 
-      const response = await chrome.runtime.sendMessage({
-        action: "getBackendNodeIdAndAccessibleInfo",
-        useDirectReference: true,
-        elementSelector: selector,
-        frameId: 0, // Background script will determine the correct frame
-      });
+      const response = await validatedSend(
+        {
+          action: "getBackendNodeIdAndAccessibleInfo",
+          useDirectReference: true,
+          elementSelector: selector,
+          frameId: 0, // Background script will determine the correct frame
+        },
+        "finalAttempt-getBackendNodeIdAndAccessibleInfo"
+      );
 
       console.log("Final attempt result:", {
         role: response?.role,
