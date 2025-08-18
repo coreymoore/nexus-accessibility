@@ -564,7 +564,146 @@
               );
             });
         }
+        // Background cache invalidation (reason: shift-escape)
+        try {
+          const selector = CE.utils.getUniqueSelector(target);
+          chrome.runtime.sendMessage({
+            action: "invalidateAccessibilityCache",
+            elementSelector: selector,
+            frameId: 0,
+            reason: "shift-escape",
+          });
+        } catch (_) {}
       }
+      return;
+    }
+
+    // Arrow keys / Enter / Space trigger cache invalidation + delayed refetch
+    const key = e.key;
+    const isNavKey =
+      key === "ArrowUp" ||
+      key === "ArrowDown" ||
+      key === "ArrowLeft" ||
+      key === "ArrowRight" ||
+      key === "Enter" ||
+      key === " " ||
+      key === "Spacebar" ||
+      key === "Space"; // various space representations
+    if (isNavKey) {
+      const target = lastFocusedElement || document.activeElement;
+      if (target && target !== document.body) {
+        // Invalidate local cache
+        if (CE.cache) {
+          CE.cache.deleteCached(target);
+        }
+        // Invalidate background cache (best-effort)
+        try {
+          const selector = CE.utils.getUniqueSelector(target);
+          chrome.runtime.sendMessage({
+            action: "invalidateAccessibilityCache",
+            elementSelector: selector,
+            frameId: 0,
+            reason: `key-${key}`,
+          });
+        } catch (_) {}
+        // Schedule refetch after DOM updates from key handlers
+        if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
+          setTimeout(() => {
+            CE.accessibility
+              .getAccessibleInfo(target, true)
+              .then((info) => {
+                if (
+                  (lastFocusedElement === target ||
+                    document.activeElement === target) &&
+                  CE.inspector
+                ) {
+                  CE.inspector.showInspector(info, target);
+                }
+              })
+              .catch(() => {});
+          }, 40);
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle click interactions (invalidate & refetch)
+   */
+  function onClick(e) {
+    if (!CE.main || !CE.main.isEnabled()) return;
+    const target =
+      document.activeElement && document.activeElement !== document.body
+        ? document.activeElement
+        : e.target;
+    if (!(target instanceof Element)) return;
+    if (CE.cache) CE.cache.deleteCached(target);
+    try {
+      const selector = CE.utils.getUniqueSelector(target);
+      chrome.runtime.sendMessage({
+        action: "invalidateAccessibilityCache",
+        elementSelector: selector,
+        frameId: 0,
+        reason: "click",
+      });
+    } catch (_) {}
+    if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
+      setTimeout(() => {
+        CE.accessibility
+          .getAccessibleInfo(target, true)
+          .then((info) => {
+            if (CE.inspector) CE.inspector.showInspector(info, target);
+          })
+          .catch(() => {});
+      }, 35);
+    }
+  }
+
+  /**
+   * Handle drag start
+   */
+  function onDragStart(e) {
+    if (!CE.main || !CE.main.isEnabled()) return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target) return;
+    if (CE.cache) CE.cache.deleteCached(target);
+    try {
+      const selector = CE.utils.getUniqueSelector(target);
+      chrome.runtime.sendMessage({
+        action: "invalidateAccessibilityCache",
+        elementSelector: selector,
+        frameId: 0,
+        reason: "dragstart",
+      });
+    } catch (_) {}
+  }
+
+  /**
+   * Handle drag end (dragend or drop)
+   */
+  function onDragEnd(e) {
+    if (!CE.main || !CE.main.isEnabled()) return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target) return;
+    if (CE.cache) CE.cache.deleteCached(target);
+    try {
+      const selector = CE.utils.getUniqueSelector(target);
+      chrome.runtime.sendMessage({
+        action: "invalidateAccessibilityCache",
+        elementSelector: selector,
+        frameId: 0,
+        reason: "dragend",
+      });
+    } catch (_) {}
+    if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
+      setTimeout(() => {
+        CE.accessibility
+          .getAccessibleInfo(target, true)
+          .then((info) => {
+            if (CE.inspector) CE.inspector.showInspector(info, target);
+          })
+          .catch(() => {});
+      }, 50);
     }
   }
 
@@ -647,6 +786,10 @@
     document.addEventListener("focusin", onFocusIn, true);
     document.addEventListener("focusout", onFocusOut, true);
     document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("dragstart", onDragStart, true);
+    document.addEventListener("dragend", onDragEnd, true);
+    document.addEventListener("drop", onDragEnd, true);
 
     listenersRegistered = true;
     console.log("[ContentExtension.events] Event listeners enabled");
@@ -664,6 +807,10 @@
     document.removeEventListener("focusin", onFocusIn, true);
     document.removeEventListener("focusout", onFocusOut, true);
     document.removeEventListener("keydown", onKeyDown, true);
+    document.removeEventListener("click", onClick, true);
+    document.removeEventListener("dragstart", onDragStart, true);
+    document.removeEventListener("dragend", onDragEnd, true);
+    document.removeEventListener("drop", onDragEnd, true);
 
     listenersRegistered = false;
     console.log("[ContentExtension.events] Event listeners disabled");
@@ -750,6 +897,9 @@
     onFocusIn,
     onFocusOut,
     onKeyDown,
+    onClick,
+    onDragStart,
+    onDragEnd,
     onValueChanged,
     onNativeCheckboxChange,
   };
