@@ -89,7 +89,7 @@
      */
     createLoadingContent() {
       return `
-  <div class="nexus-accessibility-ui-inspector-body" inert>
+  <div class="nexus-accessibility-ui-inspector-body">
           <div class="nexus-accessibility-ui-loading" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
             ${Templates.LOADING_SPINNER}
             <span>Loading Nexus Accessibility Info</span>
@@ -107,7 +107,7 @@
   <button class="nexus-accessibility-ui-inspector-close" 
                 aria-label="Close Nexus Inspector" 
                 type="button"
-                tabindex="0">
+                tabindex="-1">
           ${Templates.CLOSE_BUTTON_ICON}
         </button>
       `;
@@ -317,7 +317,7 @@
      */
     createErrorContent(message) {
       return `
-  <div class="nexus-accessibility-ui-inspector-body" inert>
+  <div class="nexus-accessibility-ui-inspector-body">
           <div class="nexus-accessibility-ui-error" style="display: flex; align-items: center; gap: 8px; color: #d73a49;">
             ${Templates.ERROR_ICON}
             <span>${utils.escapeHtml(message || "An error occurred")}</span>
@@ -457,7 +457,7 @@
         const screenReaderSection = this.createScreenReaderSection(info);
 
         // Create inspector body wrapper
-        const bodyOpen = `<div class="nexus-accessibility-ui-inspector-body" inert style="pointer-events: none;">`;
+        const bodyOpen = `<div class="nexus-accessibility-ui-inspector-body">`;
         const bodyClose = `</div>`;
 
         let inspectorContent;

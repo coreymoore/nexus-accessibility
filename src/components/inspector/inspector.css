@@ -53,6 +53,12 @@
   overflow-y: auto;
 }
 
+/* Allow text selection only for the main body content (not global * to keep tighter control) */
+.nexus-accessibility-ui-inspector .nexus-accessibility-ui-inspector-body {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nexus-accessibility-ui-inspector {
     transition: none !important;
@@ -137,7 +143,7 @@
   font-family: inherit;
   font-weight: 500;
   letter-spacing: 0.01em;
-  user-select: none;
+  user-select: none; /* Keep shortcuts legend from being selectable */
   line-height: 1.4;
   white-space: nowrap;
   overflow-x: auto;

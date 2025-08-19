@@ -632,11 +632,28 @@
    */
   function onClick(e) {
     if (!CE.main || !CE.main.isEnabled()) return;
+    const rawTarget = e.target;
+
+    // Ignore clicks inside the inspector itself so selecting/clicking there
+    // does not trigger a new inspection cycle.
+    if (
+      CE.inspector &&
+      CE.inspector.inspector &&
+      rawTarget instanceof Element &&
+      CE.inspector.inspector.contains(rawTarget)
+    ) {
+      return;
+    }
+
+    // We no longer auto-show the inspector on generic clicks. This prevents
+    // unwanted element switching while selecting text or interacting with the page.
+    // Cache invalidation still happens so subsequent focus/key navigation picks up fresh AX data.
     const target =
       document.activeElement && document.activeElement !== document.body
         ? document.activeElement
-        : e.target;
+        : rawTarget;
     if (!(target instanceof Element)) return;
+
     if (CE.cache) CE.cache.deleteCached(target);
     try {
       const selector = CE.utils.getUniqueSelector(target);
@@ -647,16 +664,8 @@
         reason: "click",
       });
     } catch (_) {}
-    if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-      setTimeout(() => {
-        CE.accessibility
-          .getAccessibleInfo(target, true)
-          .then((info) => {
-            if (CE.inspector) CE.inspector.showInspector(info, target);
-          })
-          .catch(() => {});
-      }, 35);
-    }
+
+    // Intentionally NOT calling showInspector here anymore.
   }
 
   /**
