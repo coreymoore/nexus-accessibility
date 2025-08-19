@@ -262,34 +262,26 @@
         result = baseStr;
       }
 
-      // Add active descendant information if available (with different styling)
+      // Active descendant (screen reader preview simplified to JUST the descendant's accessible name)
       if (info.activeDescendant) {
-        const activeDesc = info.activeDescendant;
-        let activeDescText = "";
-
-        if (activeDesc.role) {
-          activeDescText += activeDesc.role;
-        }
-
-        if (activeDesc.name) {
-          const name = utils.deepUnwrap(activeDesc.name);
-          activeDescText += activeDescText ? ` "${name}"` : `"${name}"`;
-        }
-
-        if (
-          activeDesc.states &&
-          Array.isArray(activeDesc.states) &&
-          activeDesc.states.length > 0
-        ) {
-          const states = activeDesc.states.join(", ");
-          activeDescText += activeDescText ? ` (${states})` : states;
-        }
-
-        if (activeDescText) {
-          const activeDescSpan = `<span class="sr-active-descendant">${activeDescText}</span>`;
-          result += result
-            ? `, active descendant: ${activeDescSpan}`
-            : `active descendant: ${activeDescSpan}`;
+        try {
+          const activeDesc = info.activeDescendant;
+          const nameOnly =
+            activeDesc && activeDesc.name
+              ? utils.deepUnwrap(activeDesc.name)
+              : "";
+          if (nameOnly) {
+            // Append just the text (no role/label prefix per request)
+            const span = `<span class="sr-active-descendant">${utils.escapeHtml(
+              nameOnly
+            )}</span>`;
+            result += result ? `, ${span}` : span;
+          }
+        } catch (e) {
+          console.warn(
+            "[Inspector] Failed rendering simplified active descendant SR output",
+            e
+          );
         }
       }
 

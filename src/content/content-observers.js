@@ -288,15 +288,85 @@
           "[ContentExtension.observers] Getting accessibility info for container and active descendant"
         );
 
-        // Get container accessibility info
+        // Get container accessibility info (force update so we get fresh states.activedescendant)
         const containerInfo = await CE.accessibility.getAccessibleInfo(
           containerElement,
           true
         );
 
+        // Attempt to resolve active descendant directly from containerInfo.states.activedescendant
+        // BEFORE issuing a separate accessibility call on the descendant element. This avoids the
+        // situation where Chrome returns the container's AX node for the descendant due to timing.
+        let resolvedFromStates = null;
+        try {
+          const raw =
+            containerInfo?.states?.activedescendant ||
+            containerInfo?.activeDescendantRaw;
+          if (
+            raw &&
+            Array.isArray(raw.relatedNodes) &&
+            raw.relatedNodes.length
+          ) {
+            for (const rel of raw.relatedNodes) {
+              // Prefer idref resolution when present; backendDOMNodeId mapping not yet implemented
+              if (rel && rel.idref) {
+                const byId = containerElement.ownerDocument.getElementById(
+                  rel.idref
+                );
+                if (byId) {
+                  resolvedFromStates = {
+                    element: byId,
+                    id: byId.id,
+                    role:
+                      byId.getAttribute("role") || byId.tagName.toLowerCase(),
+                    name:
+                      byId.getAttribute("aria-label") ||
+                      byId.textContent?.trim() ||
+                      byId.id ||
+                      "(no accessible name)",
+                  };
+                  console.log(
+                    "[ContentExtension.observers] Resolved active descendant via container states.activedescendant idref",
+                    {
+                      idref: rel.idref,
+                      role: resolvedFromStates.role,
+                      name: resolvedFromStates.name,
+                    }
+                  );
+                  break;
+                }
+              }
+              // Placeholder for future backendDOMNodeId resolution path
+              if (!resolvedFromStates && rel && rel.backendDOMNodeId) {
+                console.log(
+                  "[ContentExtension.observers] backendDOMNodeId present for activedescendant but no resolver implemented yet",
+                  rel.backendDOMNodeId
+                );
+              }
+            }
+          }
+        } catch (e) {
+          console.warn(
+            "[ContentExtension.observers] Failed resolving activedescendant from states",
+            e
+          );
+        }
+
         // Get active descendant accessibility info if available
         let activeDescendantInfo = null;
-        if (activeDescendant && document.contains(activeDescendant)) {
+        // If we already resolved from states, adopt that without an extra accessibility fetch
+        if (resolvedFromStates && resolvedFromStates.element) {
+          activeDescendantInfo = {
+            role: resolvedFromStates.role,
+            name: resolvedFromStates.name,
+            description: "(no description)",
+            states: [],
+            element: resolvedFromStates.element,
+          };
+          console.log(
+            "[ContentExtension.observers] Using activedescendant info resolved from container states"
+          );
+        } else if (activeDescendant && document.contains(activeDescendant)) {
           try {
             console.log(
               "[ContentExtension.observers] Getting accessibility info for active descendant element:",

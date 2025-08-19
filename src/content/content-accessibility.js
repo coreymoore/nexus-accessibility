@@ -427,6 +427,16 @@
       ignoredReasons: info?.ignoredReasons || [],
     };
 
+    // Preserve raw activedescendant AXValue structure (if any) so observers can try
+    // to resolve it without immediately performing a second round-trip.
+    // We intentionally do NOT mutate the states entry (so inspector shows the
+    // original AX state), but expose a dedicated field for downstream logic.
+    // Shape example from CDP:
+    // states.activedescendant = { type: 'idref', relatedNodes: [{ idref: 'combo1-1', backendDOMNodeId: 600485 }] }
+    if (states && states.activedescendant && !result.activeDescendantRaw) {
+      result.activeDescendantRaw = states.activedescendant;
+    }
+
     // Normalize checkbox states
     normalizeCheckboxStates(result, target);
 
