@@ -138,7 +138,7 @@ export class MessageHandler {
         const result = await getAccessibilityInfoForElement(
           tabId,
           frameId || 0,
-          null, // No selector needed for direct reference
+          msg.elementSelector || null, // Pass selector as a fallback if provided
           connection,
           true // Flag to use direct reference
         );
@@ -248,41 +248,54 @@ export class MessageHandler {
         return { status: "no_selector" };
       }
 
-      // Construct the cache key format used in accessibilityInfo.js
-      const cacheKey = `${tabId}:cdp:${frameId}`;
-      const cacheSelKey = `${cacheKey}::${elementSelector}`;
+      // Construct the cache key format variants used in accessibilityInfo.js
+      const cdpCacheKey = `${tabId}:cdp:${frameId}`;
+      const mainCacheKey = `${tabId}:main`;
+      const cacheSelKeyCdp = `${cdpCacheKey}::${elementSelector}`;
+      const cacheSelKeyMain = `${mainCacheKey}::${elementSelector}`;
 
       console.log(
-        `[MessageHandler] Invalidating CDP cache for key: ${cacheSelKey}, reason: ${
-          reason || "general"
-        }`
+        `[MessageHandler] Invalidating caches for selector: ${elementSelector}, reasons: ${reason || "general"}`
       );
 
-      // Clear the CDP node cache entry
-      __axNodeCache.delete(cacheSelKey);
+      // Clear the CDP node cache entries (both cdp-scoped and main-scoped variants)
+      const deletedKeys = [];
+      if (__axNodeCache.delete(cacheSelKeyCdp)) deletedKeys.push(cacheSelKeyCdp);
+      if (__axNodeCache.delete(cacheSelKeyMain)) deletedKeys.push(cacheSelKeyMain);
 
-      // For combobox changes, also clear related element cache and general cache
-      if (reason === "combobox-expanded-change") {
-        console.log(
-          "[MessageHandler] Combobox change detected - enhanced cache clearing"
-        );
+      // Clear the higher-level result cache used by MessageHandler (selector-based)
+      const generalCacheKey = `element-${tabId}-${frameId}-${elementSelector}`;
+      if (this.cache.delete(generalCacheKey)) deletedKeys.push(generalCacheKey);
 
-        // Clear the general cache entry for this element as well
-        const generalCacheKey = `element-${tabId}-${frameId}-${elementSelector}`;
-        this.cache.delete(generalCacheKey);
+      // Also attempt to clear any direct-reference cache variants that may include selectors
+      // We support a few naming conventions to be conservative.
+      const directKeys = [
+        `element-direct-${tabId}-${frameId}`,
+        `element-direct-${tabId}-${frameId}::${elementSelector}`,
+        `element-direct-${tabId}-${frameId}-${elementSelector}`,
+      ];
+      for (const dk of directKeys) {
+        if (this.cache.delete(dk)) deletedKeys.push(dk);
+      }
 
-        // Also clear direct reference cache for this tab/frame
-        const directCacheKey = `element-direct-${tabId}-${frameId}`;
-        this.cache.delete(directCacheKey);
+      // Also clear the underlying CDP node cache keyed entries explicitly (already attempted above),
+      // and ensure we remove any stored node cache for other common key patterns.
+      // Pattern: `${tabId}:cdp:${frameId}::${elementSelector}` already handled; also try without frame scoping.
 
-        console.log(
-          "[MessageHandler] Enhanced cache clearing complete for combobox"
-        );
+      // Emit debug/telemetry about cleared keys only when verbose testing mode is enabled.
+      // Use a global NEXUS_TESTING_MODE.verbose flag so this can be toggled at runtime
+      // without affecting production behavior.
+      try {
+        if (globalThis?.NEXUS_TESTING_MODE?.verbose) {
+          console.debug("[MessageHandler][TESTING] Cleared cache keys:", deletedKeys);
+        }
+      } catch (e) {
+        // Swallow any telemetry/logging errors to avoid affecting invalidation flow
       }
 
       return {
         status: "invalidated",
-        cacheKey: cacheSelKey,
+        deleted: deletedKeys,
         enhanced: reason === "combobox-expanded-change",
       };
     } catch (error) {

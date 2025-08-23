@@ -50,7 +50,9 @@ export async function getAccessibilityInfoForElement(
   }
 
   // Only validate selector if we're not using direct reference
-  if (!useDirectReference && elementSelector) {
+  // Validate selector if provided. Even in direct-reference mode we may accept
+  // an optional selector as a fallback; validate it to ensure cache keys are safe.
+  if (elementSelector) {
     const selectorValidation = security.validateSelector(elementSelector);
     if (!selectorValidation.valid) {
       throw new Error(`Invalid selector: ${selectorValidation.reason}`);
