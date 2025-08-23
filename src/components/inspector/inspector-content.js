@@ -18,14 +18,7 @@
 
   // HTML Templates for consistency and maintainability
   const Templates = {
-    LOADING_SPINNER: `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="animation: spin 1s linear infinite;" aria-hidden="true" focusable="false">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
-          <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
-          <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
-        </circle>
-      </svg>
-    `,
+    // Loading spinner removed to comply with no-animation policy.
 
     CLOSE_BUTTON_ICON: `
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
@@ -42,10 +35,10 @@
 
     SCREEN_READER_ICON: `
       <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Screen Reader Output" focusable="false" style="vertical-align:middle;">
-        <rect x="3" y="8" width="5" height="8" rx="1.5" fill="#7851a9"/>
-        <polygon points="8,8 14,4 14,20 8,16" fill="#78551a9"/>
-        <path d="M17 9a4 4 0 0 1 0 6" stroke="#7851a9" stroke-width="2" fill="none" stroke-linecap="round"/>
-        <path d="M19.5 7a7 7 0 0 1 0 10" stroke="#78551a9" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <rect x="3" y="8" width="5" height="8" rx="1.5" fill="#683ab7"/>
+        <polygon points="8,8 14,4 14,20 8,16" fill="#683ab7"/>
+        <path d="M17 9a4 4 0 0 1 0 6" stroke="#683ab7" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M19.5 7a7 7 0 0 1 0 10" stroke="#683ab7" stroke-width="1.5" fill="none" stroke-linecap="round"/>
       </svg>
     `,
   };
@@ -90,11 +83,17 @@
     createLoadingContent() {
       return `
   <div class="nexus-accessibility-ui-inspector-body">
-          <div class="nexus-accessibility-ui-loading" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
-            ${Templates.LOADING_SPINNER}
-            <span>Loading Nexus Accessibility Info</span>
-          </div>
-        </div>
+    <div class="nexus-accessibility-ui-loading" aria-hidden="false">
+      <div class="nexus-skeleton" aria-hidden="true">
+        <div class="bar long"></div>
+        <div class="bar medium"></div>
+        <div class="bar short"></div>
+      </div>
+
+      <!-- Accessible-only text for screen readers -->
+      <span class="nexus-sr-only">Loading Nexus Accessibility Info</span>
+    </div>
+  </div>
       `;
     },
 

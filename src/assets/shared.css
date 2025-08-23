@@ -5,6 +5,7 @@
  */
 
 /* Unified Focus Ring (only :focus-visible per updated rule) */
+/* Scope to extension UI surfaces only to avoid interfering with host pages */
 .nexus-accessibility-ui-inspector *:focus-visible,
 .popup :focus-visible {
   outline: 2px solid #683ab7 !important;
@@ -44,4 +45,18 @@
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* --- Utility: screen-reader-only helper (nexus-sr-only) --- */
+/* Use this for text that should be announced to assistive tech but visually hidden. */
+.nexus-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
