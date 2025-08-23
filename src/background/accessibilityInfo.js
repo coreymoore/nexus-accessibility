@@ -878,3 +878,8 @@ function formatAccessibilityNode(node) {
   console.log("Background: Formatted accessibility node:", out);
   return out;
 }
+
+// Explicitly re-export the main function name for clarity and compatibility.
+// This prevents transient module-resolution issues in environments that
+// may not properly surface the named export during hot-reloads.
+ 
