@@ -1,6 +1,13 @@
 import { MessageValidator } from "./message-validator.js";
 import { getAccessibilityInfoForElement } from "./accessibilityInfo.js";
 import { nodeCache as __axNodeCache } from "./caches.js";
+import { connectionManager } from "./connectionManager.js";
+import {
+  getOrCreateIsolatedWorld,
+  evalInWorld,
+  resolveNode,
+  getPartialAXTree,
+} from "./cdp.js";
 
 export class MessageHandler {
   constructor(cacheManager, debuggerManager) {
@@ -16,6 +23,9 @@ export class MessageHandler {
       const action = msg.action || msg.type;
 
       switch (action) {
+        case "AX_REQUEST":
+          return await this.handleAXRequest(msg, sender);
+
         case "NEXUS_TAB_INIT":
           return await this.handleNexusTabInit(msg, sender);
 
@@ -301,6 +311,50 @@ export class MessageHandler {
     } catch (error) {
       console.error("[MessageHandler] Failed to invalidate cache:", error);
       throw new Error(`Failed to invalidate cache: ${error.message}`);
+    }
+  }
+
+  async handleAXRequest(msg, sender) {
+    // Mirror the previous router.js behavior but centralize through MessageHandler
+    try {
+      if (!sender?.tab?.id) return { ok: false, error: 'no_tab' };
+      const tabId = sender.tab.id;
+      const frameId = sender.frameId ?? 0;
+
+      // Use the shared connection manager to serialize debugger operations
+      const result = await connectionManager.executeWithDebugger(
+        tabId,
+        async ({ connection }) => {
+          try {
+            const worldId = await getOrCreateIsolatedWorld(
+              tabId,
+              String(sender.frameId),
+              "AX_Helper"
+            );
+            const evalResult = await evalInWorld(
+              tabId,
+              worldId,
+              // If a selector was provided, attempt to evaluate with it, otherwise default to document.body
+              msg.selector
+                ? `(() => ({objectId: (function(){ const el = document.querySelector(${JSON.stringify(
+                    msg.selector
+                  )}); return el || document.body; })()}))()`
+                : "(() => ({objectId: document.body}))()"
+            );
+
+            const backendNodeId = await resolveNode(tabId, evalResult.objectId);
+            const nodes = await getPartialAXTree(tabId, backendNodeId, true);
+            return { ok: true, nodes };
+          } catch (err) {
+            return { ok: false, error: String((err && err.message) || err) };
+          }
+        },
+        { frameId }
+      );
+
+      return result;
+    } catch (error) {
+      return { ok: false, error: String((error && error.message) || error) };
     }
   }
 }

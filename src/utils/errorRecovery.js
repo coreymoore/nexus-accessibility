@@ -5,10 +5,9 @@
  * for Chrome DevTools Protocol operations.
  */
 
-(function () {
-  "use strict";
+"use strict";
 
-  class ErrorRecoveryManager {
+class ErrorRecoveryManager {
     constructor() {
       this.retryCounters = new Map();
       // Use constants if available, fallback to defaults
@@ -154,11 +153,15 @@
     }
   }
 
-  const errorRecovery = new ErrorRecoveryManager();
+const errorRecovery = new ErrorRecoveryManager();
 
-  // Expose globally for content scripts (non-module execution context)
-  // Safe no-op if already defined.
+// Expose globally for non-module contexts for backward compatibility
+try {
   if (typeof window !== "undefined" && !window.errorRecovery) {
     window.errorRecovery = errorRecovery;
   }
-})();
+} catch (e) {
+  // Ignore if running in a worker/service worker without window
+}
+
+export { errorRecovery };

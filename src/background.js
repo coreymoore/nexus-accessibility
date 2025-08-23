@@ -4,7 +4,6 @@ import {
   initDetachHandlers,
   markUsed,
 } from "./background/attachManager.js";
-import { initRouter } from "./background/router.js";
 import { getCdpFrameId, getOrCreateIsolatedWorld } from "./background/cdp.js";
 import { chromeAsync } from "./utils/chromeAsync.js";
 import { errorRecovery } from "./utils/errorRecovery.js";
@@ -63,14 +62,12 @@ setTimeout(() => {
 
 // Initialize the connection manager
 const connectionManager = new DebuggerConnectionManager();
-
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Chrome Accessibility Extension installed");
 });
 
 // Initialize shared detach/cleanup handlers
 initDetachHandlers();
-initRouter();
 
 // Caches handled via SmartCache in background/caches.js where needed
 
