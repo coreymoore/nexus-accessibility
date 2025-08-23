@@ -11,6 +11,9 @@
     "webNavigation",
     "alarms"
   ],
+  "optional_permissions": [
+    "system.memory"
+  ],
   "host_permissions": ["<all_urls>"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none';"
@@ -20,6 +23,14 @@
     "type": "module"
   },
   "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "all_frames": false,
+      "run_at": "document_idle",
+      "js": [
+        "src/content/tab-init.js"
+      ]
+    },
     {
       "matches": ["<all_urls>"],
       "all_frames": true,

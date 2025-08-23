@@ -102,6 +102,29 @@ export const chromeAsync = {
           });
         }),
     },
+    local: {
+      get: (keys) =>
+        new Promise((resolve, reject) => {
+          chrome.storage.local.get(keys, (items) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve(items);
+            }
+          });
+        }),
+
+      set: (items) =>
+        new Promise((resolve, reject) => {
+          chrome.storage.local.set(items, () => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve();
+            }
+          });
+        }),
+    },
   },
 
   webNavigation: {

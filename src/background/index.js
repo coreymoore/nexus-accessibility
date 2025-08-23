@@ -1,6 +1,7 @@
 import { CacheManager } from "./cache-manager.js";
 import { DebuggerManager } from "./debugger-manager.js";
 import { MessageHandler } from "./message-handler.js";
+import TestUtils from "../utils/testUtils.js";
 
 // Initialize managers
 const cacheManager = new CacheManager();
@@ -25,3 +26,13 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 globalThis.cacheInstance = cacheManager;
 
 console.log("Nexus Background Service Worker initialized");
+
+// Attach test utilities to the service worker global for developer console access.
+try {
+  if (typeof globalThis !== "undefined" && TestUtils) {
+    globalThis.NexusTestUtils = TestUtils;
+    console.log("[BACKGROUND-INDEX] NexusTestUtils attached:", !!globalThis.NexusTestUtils);
+  }
+} catch (e) {
+  console.warn("[BACKGROUND-INDEX] Failed to attach NexusTestUtils:", e);
+}

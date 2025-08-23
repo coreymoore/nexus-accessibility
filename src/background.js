@@ -16,7 +16,50 @@ import { DebuggerConnectionManager } from "./background/connectionManager.js";
 import { getAccessibilityInfoForElement } from "./background/accessibilityInfo.js";
 import { MessageValidator } from "./background/message-validator.js";
 import "./utils/contentInjector.js"; // Initialize content script injection
-import "./utils/testUtils.js"; // Load testing utilities
+import TestUtils from "./utils/testUtils.js"; // Load testing utilities
+
+// Attach test utilities to the service worker global for console access
+try {
+  if (typeof globalThis !== "undefined" && TestUtils) {
+    globalThis.NexusTestUtils = TestUtils;
+  }
+} catch (e) {
+  // If we can't attach, continue without failing startup
+}
+
+try {
+  console.log(
+    "[BACKGROUND] NexusTestUtils attached:",
+    !!(typeof globalThis !== "undefined" && globalThis.NexusTestUtils)
+  );
+} catch (e) {}
+
+// Ensure TestUtils is attached even if the service worker activation timing
+// causes the console to be opened before module initialization completes.
+try {
+  if (chrome && chrome.runtime) {
+    chrome.runtime.onStartup?.addListener(() => {
+      try {
+        globalThis.NexusTestUtils = TestUtils;
+      } catch (e) {}
+    });
+
+    chrome.runtime.onInstalled?.addListener(() => {
+      try {
+        globalThis.NexusTestUtils = TestUtils;
+      } catch (e) {}
+    });
+  }
+} catch (e) {}
+
+// Last-resort delayed attach in case console was opened extremely early.
+setTimeout(() => {
+  try {
+    if (typeof globalThis !== "undefined" && TestUtils) {
+      if (!globalThis.NexusTestUtils) globalThis.NexusTestUtils = TestUtils;
+    }
+  } catch (e) {}
+}, 200);
 
 // Initialize the connection manager
 const connectionManager = new DebuggerConnectionManager();

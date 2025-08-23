@@ -1,3 +1,5 @@
+import { chromeAsync } from "../utils/chromeAsync.js";
+
 export class DebuggerManager {
   constructor() {
     this.connections = new Map();
@@ -9,13 +11,13 @@ export class DebuggerManager {
     }
 
     try {
-      await chrome.debugger.attach({ tabId }, "1.3");
+  await chromeAsync.debugger.attach({ tabId }, "1.3");
 
-      // Enable required domains
-      await chrome.debugger.sendCommand({ tabId }, "DOM.enable");
-      await chrome.debugger.sendCommand({ tabId }, "Accessibility.enable");
-      await chrome.debugger.sendCommand({ tabId }, "Page.enable");
-      await chrome.debugger.sendCommand({ tabId }, "Runtime.enable");
+  // Enable required domains using promise-wrapped API
+  await chromeAsync.debugger.sendCommand({ tabId }, "DOM.enable");
+  await chromeAsync.debugger.sendCommand({ tabId }, "Accessibility.enable");
+  await chromeAsync.debugger.sendCommand({ tabId }, "Page.enable");
+  await chromeAsync.debugger.sendCommand({ tabId }, "Runtime.enable");
 
       const connection = {
         tabId,
@@ -33,7 +35,7 @@ export class DebuggerManager {
 
   async detach(tabId) {
     try {
-      await chrome.debugger.detach({ tabId });
+  await chromeAsync.debugger.detach({ tabId });
       this.connections.delete(tabId);
     } catch (error) {
       // Ignore detach errors
@@ -42,7 +44,7 @@ export class DebuggerManager {
 
   async sendCommand(tabId, method, params = {}) {
     await this.ensureAttached(tabId);
-    return chrome.debugger.sendCommand({ tabId }, method, params);
+    return await chromeAsync.debugger.sendCommand({ tabId }, method, params);
   }
 
   async ensureAttached(tabId) {

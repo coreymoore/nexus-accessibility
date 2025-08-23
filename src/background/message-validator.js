@@ -3,6 +3,7 @@ export class MessageValidator {
     "getAccessibilityTree",
     "getBackendNodeIdAndAccessibleInfo",
     "AX_INSPECTOR_SHOWN",
+    "NEXUS_TAB_INIT",
     "INSPECTOR_STATE_CHANGE",
     "keepAlive",
     "detachDebugger",
@@ -10,8 +11,10 @@ export class MessageValidator {
   ];
 
   static validate(msg, sender) {
-    // Verify sender is from our extension
-    if (sender.id !== chrome.runtime.id) {
+    // For messages coming from other extension contexts (popup, background)
+    // we expect sender.id to match. Content scripts will not have sender.id
+    // set, so only validate sender.id when present.
+    if (sender && sender.id && sender.id !== chrome.runtime.id) {
       throw new Error("Invalid sender");
     }
 
@@ -28,6 +31,9 @@ export class MessageValidator {
 
     // Validate specific fields based on action
     switch (action) {
+      case "NEXUS_TAB_INIT":
+        // Content script initialization message. No extra fields required.
+        break;
       case "INSPECTOR_STATE_CHANGE":
         if (!msg.inspectorState || typeof msg.inspectorState !== "string") {
           throw new Error("Invalid inspectorState");

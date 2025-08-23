@@ -16,6 +16,9 @@ export class MessageHandler {
       const action = msg.action || msg.type;
 
       switch (action) {
+        case "NEXUS_TAB_INIT":
+          return await this.handleNexusTabInit(msg, sender);
+
         case "getAccessibilityTree":
           return await this.handleGetAccessibilityTree(msg, sender);
 
@@ -40,6 +43,38 @@ export class MessageHandler {
     } catch (error) {
       console.error("Message handling error:", error);
       return { error: error.message };
+    }
+  }
+
+  async handleNexusTabInit(msg, sender) {
+    try {
+      const tabId = sender?.tab?.id;
+      if (!tabId) {
+        return { status: "no_tab_id" };
+      }
+
+      // Persist to chrome.storage.local for test utilities to use when tabs
+      // permission is not present.
+      try {
+        await new Promise((resolve, reject) => {
+          chrome.storage.local.set({ nexus_test_tabId: tabId }, () => {
+            const err = chrome.runtime.lastError;
+            if (err) return reject(err);
+            resolve();
+          });
+        });
+        console.log("[MessageHandler] Persisted nexus_test_tabId:", tabId);
+        return { status: "stored", tabId };
+      } catch (storageErr) {
+        console.warn(
+          "[MessageHandler] Failed to persist nexus_test_tabId:",
+          storageErr
+        );
+        return { status: "failed_to_store", error: storageErr.message };
+      }
+    } catch (error) {
+      console.error("[MessageHandler] handleNexusTabInit error:", error);
+      return { status: "error", error: error.message };
     }
   }
 
