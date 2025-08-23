@@ -164,4 +164,7 @@ try {
   // Ignore if running in a worker/service worker without window
 }
 
-export { errorRecovery };
+// Note: This file is intentionally kept as a non-module script so it can be
+// injected into page contexts via the content_scripts entry in the manifest.
+// Background/service-worker code should import the module-friendly
+// implementation `errorRecovery.bg.js` instead.

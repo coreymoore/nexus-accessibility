@@ -24,6 +24,26 @@
   let currentShadowHost = null;
   let shadowActiveElementObserver = null;
   let lastProcessedElement = null; // Track the last element we processed
+  // Simple trigger counter for retrieval attribution
+  let __retrievalCounter = 0;
+
+  /**
+   * Call getAccessibleInfo with a lightweight trigger log so we can attribute
+   * the origin of retrievals (focus|mutation|key|click|value-change).
+   */
+  function logAndCallGetAccessibleInfo(target, forceUpdate, source) {
+    __retrievalCounter++;
+    const id = __retrievalCounter;
+    console.log(
+      `[RETRIEVAL] id=${id} source=${source} target=${target?.tagName} id=${
+        target?.id || "(no id)"
+      }`
+    );
+    if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
+      return CE.accessibility.getAccessibleInfo(target, forceUpdate);
+    }
+    return Promise.resolve(null);
+  }
   /**
    * Monitor shadow DOM active element changes
    */
@@ -331,26 +351,21 @@
 
     // Function to actually fetch the accessibility info
     const fetchAccessibilityInfo = () => {
-      if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-        CE.accessibility
-          .getAccessibleInfo(targetForInspect, true)
-          .then((info) => {
-            clearTimeout(loadingTimeout);
-            if (lastFocusedElement === targetElement && CE.inspector) {
-              CE.inspector.showInspector(info, targetForInspect);
-            }
-          })
-          .catch((error) => {
-            clearTimeout(loadingTimeout);
-            console.error(
-              "[ContentExtension.events] Error showing inspector:",
-              error
-            );
-            if (CE.inspector) {
-              CE.inspector.hideInspector();
-            }
-          });
-      }
+      logAndCallGetAccessibleInfo(targetForInspect, true, "focus").then(
+        (info) => {
+          clearTimeout(loadingTimeout);
+          if (lastFocusedElement === targetElement && CE.inspector) {
+            CE.inspector.showInspector(info, targetForInspect);
+          }
+        }
+      )
+        .catch((error) => {
+          clearTimeout(loadingTimeout);
+          console.error("[ContentExtension.events] Error showing inspector:", error);
+          if (CE.inspector) {
+            CE.inspector.hideInspector();
+          }
+        });
     };
 
     // Fetch accessibility info immediately - timing is now handled in background script
@@ -483,8 +498,7 @@
         }
 
         if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-          CE.accessibility
-            .getAccessibleInfo(target, true)
+          logAndCallGetAccessibleInfo(target, true, "shift-escape")
             .then((info) => {
               if (CE.inspector) {
                 CE.inspector.showInspector(info, target);
@@ -542,8 +556,7 @@
         // Schedule refetch after DOM updates from key handlers
         if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
           setTimeout(() => {
-            CE.accessibility
-              .getAccessibleInfo(target, true)
+            logAndCallGetAccessibleInfo(target, true, "key-event")
               .then((info) => {
                 if (
                   (lastFocusedElement === target ||
@@ -663,8 +676,7 @@
     // Create debounced update function
     const updateInspector = () => {
       if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-        CE.accessibility
-          .getAccessibleInfo(el, true)
+        logAndCallGetAccessibleInfo(el, true, "value-change")
           .then((info) => {
             if (lastFocusedElement === el && CE.inspector) {
               CE.inspector.showInspector(info, el);
@@ -703,8 +715,7 @@
     }
 
     if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-      CE.accessibility
-        .getAccessibleInfo(el, true)
+      logAndCallGetAccessibleInfo(el, true, "native-checkbox")
         .then((info) => {
           if (lastFocusedElement === el && CE.inspector) {
             CE.inspector.showInspector(info, el);

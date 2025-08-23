@@ -3,6 +3,7 @@ node_modules/
 package-lock.json
 build-src/
 rollup.config.js
+.github/prompts
 
 # Keep the generated library files
 !src/libs/dom-accessibility-api.js

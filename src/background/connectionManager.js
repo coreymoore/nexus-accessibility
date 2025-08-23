@@ -6,7 +6,7 @@
  */
 
 import { chromeAsync } from "../utils/chromeAsync.js";
-import { errorRecovery } from "../utils/errorRecovery.js";
+import { errorRecovery } from "../utils/errorRecovery.bg.js";
 import { scheduler } from "../utils/scheduler.js";
 import { logger } from "../utils/logger.js";
 import { security, debuggerRateLimit } from "../utils/security.js";

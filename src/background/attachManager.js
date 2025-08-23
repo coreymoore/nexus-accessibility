@@ -3,7 +3,7 @@ import { attachedTabs, contextCache } from "./state.js";
 import { ensureDomains } from "./cdp.js";
 import { docRoots, nodeCache } from "./caches.js";
 import { chromeAsync } from "../utils/chromeAsync.js";
-import { errorRecovery } from "../utils/errorRecovery.js";
+import { errorRecovery } from "../utils/errorRecovery.bg.js";
 
 export async function attachIfNeeded(tabId) {
   const info = attachedTabs.get(tabId);

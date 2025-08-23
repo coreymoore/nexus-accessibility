@@ -21,6 +21,22 @@
 
   // Main mutation observer
   let mainObserver = null;
+  // Simple retrieval attribution counter for observer-triggered fetches
+  let __observerRetrievalCounter = 0;
+
+  function logAndCallGetAccessibleInfoObserver(target, forceUpdate, source) {
+    __observerRetrievalCounter++;
+    const id = __observerRetrievalCounter;
+    console.log(
+      `[RETRIEVAL][observer] id=${id} source=${source} target=${target?.tagName} id=${
+        target?.id || "(no id)"
+      }`
+    );
+    if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
+      return CE.accessibility.getAccessibleInfo(target, forceUpdate);
+    }
+    return Promise.resolve(null);
+  }
 
   /**
    * Initialize the observers module
@@ -196,8 +212,7 @@
         console.log(
           "[ContentExtension.observers] Executing combobox update with forceUpdate=true"
         );
-        CE.accessibility
-          .getAccessibleInfo(element, true)
+        logAndCallGetAccessibleInfoObserver(element, true, "combobox-update")
           .then((info) => {
             const focusState = CE.events ? CE.events.getFocusState() : {};
             const { lastFocusedElement, inspectedElement } = focusState;
@@ -289,9 +304,10 @@
         );
 
         // Get container accessibility info (force update so we get fresh states.activedescendant)
-        const containerInfo = await CE.accessibility.getAccessibleInfo(
+        const containerInfo = await logAndCallGetAccessibleInfoObserver(
           containerElement,
-          true
+          true,
+          "container-activedescendant"
         );
 
         // Attempt to resolve active descendant directly from containerInfo.states.activedescendant
@@ -395,9 +411,10 @@
             // Add a small delay to ensure Chrome's accessibility tree has updated
             await new Promise((resolve) => setTimeout(resolve, 50));
 
-            activeDescendantInfo = await CE.accessibility.getAccessibleInfo(
+            activeDescendantInfo = await logAndCallGetAccessibleInfoObserver(
               activeDescendant,
-              true // Force update to bypass cache
+              true, // Force update to bypass cache
+              "active-descendant"
             );
 
             console.log(
@@ -440,9 +457,10 @@
               );
               await new Promise((resolve) => setTimeout(resolve, 150));
 
-              const retryInfo = await CE.accessibility.getAccessibleInfo(
+              const retryInfo = await logAndCallGetAccessibleInfoObserver(
                 activeDescendant,
-                true
+                true,
+                "active-descendant-retry"
               );
 
               if (
@@ -583,12 +601,11 @@
 
     // Create debounced update function
     const updateFunction = (element) => {
-      if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
+        if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
         console.log(
           "[ContentExtension.observers] Executing debounced update with forceUpdate=true"
         );
-        CE.accessibility
-          .getAccessibleInfo(element, true)
+        logAndCallGetAccessibleInfoObserver(element, true, "attribute-change")
           .then((info) => {
             const focusState = CE.events ? CE.events.getFocusState() : {};
             const { lastFocusedElement, inspectedElement } = focusState;
