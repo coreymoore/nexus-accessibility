@@ -151,5 +151,26 @@
     },
   };
 
+  // Window message bridge (page <-> content script)
+  // Page scripts can request stats by posting:
+  // window.postMessage({ __nexus: true, type: 'GET_RETRIEVAL_STATS' }, '*');
+  // The content script will respond with:
+  // window.postMessage({ __nexus: true, type: 'RETRIEVAL_STATS_RESPONSE', stats }, '*');
+  function _onWindowMessage(ev) {
+    try {
+      const d = ev && ev.data;
+      if (!d || d.__nexus !== true) return;
+      if (d.type === "GET_RETRIEVAL_STATS") {
+        const stats = CE.retrievalDispatcher.getStats();
+        // respond back to page
+        window.postMessage({ __nexus: true, type: "RETRIEVAL_STATS_RESPONSE", stats }, "*");
+      }
+    } catch (e) {
+      // swallow errors to avoid interfering with host page
+    }
+  }
+
+  window.addEventListener("message", _onWindowMessage);
+
   console.log("[ContentExtension.retrievalDispatcher] loaded");
 })();
