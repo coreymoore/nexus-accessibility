@@ -39,9 +39,19 @@
         target?.id || "(no id)"
       }`
     );
+    // Prefer the centralized dispatcher if available
+    try {
+      if (CE.retrievalDispatcher && typeof CE.retrievalDispatcher.request === "function") {
+        return CE.retrievalDispatcher.request(target, forceUpdate, source);
+      }
+    } catch (e) {
+      // fall through to direct call
+    }
+
     if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
       return CE.accessibility.getAccessibleInfo(target, forceUpdate);
     }
+
     return Promise.resolve(null);
   }
   /**

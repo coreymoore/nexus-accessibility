@@ -32,6 +32,12 @@
         target?.id || "(no id)"
       }`
     );
+    try {
+      if (CE.retrievalDispatcher && typeof CE.retrievalDispatcher.request === "function") {
+        return CE.retrievalDispatcher.request(target, forceUpdate, source);
+      }
+    } catch (e) {}
+
     if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
       return CE.accessibility.getAccessibleInfo(target, forceUpdate);
     }
