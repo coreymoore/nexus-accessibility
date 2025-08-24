@@ -286,9 +286,50 @@ export class DebuggerConnectionManager {
    * Clear caches for a specific tab
    * @param {number} tabId - Chrome tab ID
    */
-  clearCaches(tabId) {
-    // This will be implemented when we integrate with existing cache system
-    console.log(`Clearing caches for tab ${tabId}`);
+  async clearCaches(tabId) {
+    // Notify all frames in the tab to clear their content-side caches and timers.
+    // Collect per-frame ACKs and return a summary so callers can observe delivery.
+    try {
+      console.log(`Clearing caches for tab ${tabId}`);
+
+      // Get all frames for the tab (best-effort)
+      let frames = [];
+      try {
+        frames = await chromeAsync.webNavigation.getAllFrames({ tabId });
+      } catch (e) {
+        // If webNavigation isn't available or fails, we'll still attempt a top-frame message
+        frames = [];
+      }
+
+      const results = [];
+
+      if (frames && frames.length) {
+        const promises = frames.map((frame) =>
+          chromeAsync.tabs
+            .sendMessage(tabId, { type: "CLEAR_CACHES" }, { frameId: frame.frameId })
+            .then((response) => ({ frameId: frame.frameId, ok: true, response }))
+            .catch((err) => ({ frameId: frame.frameId, ok: false, error: err.message }))
+        );
+
+        const settled = await Promise.all(promises);
+        for (const r of settled) results.push(r);
+      } else {
+        // Fallback: send to top-level frame
+        try {
+          const response = await chromeAsync.tabs.sendMessage(tabId, { type: "CLEAR_CACHES" });
+          results.push({ frameId: 0, ok: true, response });
+        } catch (err) {
+          results.push({ frameId: 0, ok: false, error: err.message });
+        }
+      }
+
+      // Log summary and return results for observability
+      console.log(`clearCaches results for tab ${tabId}:`, results);
+      return results;
+    } catch (error) {
+      console.warn(`Failed to clear caches for tab ${tabId}:`, error);
+      return [{ frameId: 0, ok: false, error: error.message }];
+    }
   }
 
   /**

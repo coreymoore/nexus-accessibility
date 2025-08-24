@@ -26,6 +26,24 @@
   window.ContentExtension = window.ContentExtension || {};
   const CE = window.ContentExtension;
 
+  // Generate or reuse a stable per-frame ID for diagnostics and ACKs.
+  // This value remains consistent for the lifetime of the document/frame and
+  // is useful to correlate background frame lists with content-side acks.
+  if (!CE.frameId) {
+    try {
+      // Simple random hex id (8 chars) — deterministic enough for correlation
+      CE.frameId = (
+        Math.random().toString(16).slice(2, 10) + Date.now().toString(16).slice(-4)
+      ).slice(0, 12);
+    } catch (e) {
+      CE.frameId = String(Math.floor(Math.random() * 1e9));
+    }
+    // Expose for debugging from page context if needed
+    try {
+      window.__NEXUS_FRAME_ID = CE.frameId;
+    } catch (e) {}
+  }
+
   // Extension state
   let extensionEnabled = true;
   let currentInspectorState = "on"; // "off", "on", or "mini"
@@ -102,7 +120,7 @@
     }
 
     // Listen for state change messages from popup
-    chrome.runtime.onMessage.addListener((msg) => {
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       try {
         switch (msg.type) {
           case "INSPECTOR_STATE_CHANGE":
@@ -121,6 +139,54 @@
             if (CE.inspector && CE.inspector.handleCrossFrameInspector) {
               CE.inspector.handleCrossFrameInspector(msg);
             }
+            break;
+          case "CLEAR_CACHES":
+            // Background requested that content frames clear their caches and timers
+            (async () => {
+              const frameId = (window.frameElement && window.frameElement.id) || 0;
+              try {
+                console.log("[ContentExtension] CLEAR_CACHES received from background");
+
+                // Invoke module-level cleanup functions if present
+                if (CE.cache && typeof CE.cache.clearAllRefetchTimers === "function") {
+                  CE.cache.clearAllRefetchTimers();
+                }
+                if (CE.cache && typeof CE.cache.clearPendingRequest === "function") {
+                  CE.cache.clearPendingRequest();
+                }
+                if (CE.observers && typeof CE.observers.stopObserving === "function") {
+                  CE.observers.stopObserving();
+                }
+                if (CE.inspector && typeof CE.inspector.hideInspector === "function") {
+                  CE.inspector.hideInspector();
+                }
+
+                // Send an explicit ACK back to background with richer metadata
+                if (typeof sendResponse === "function") {
+                  sendResponse({
+                    status: "cleared",
+                    frameId: CE.frameId,
+                    originFrameId: frameId,
+                    url: window.location.href,
+                    title: document.title,
+                    isTopFrame: window.top === window,
+                  });
+                }
+              } catch (e) {
+                console.warn("[ContentExtension] Error handling CLEAR_CACHES:", e);
+                if (typeof sendResponse === "function") {
+                  sendResponse({
+                    status: "error",
+                    frameId: CE.frameId,
+                    originFrameId: frameId,
+                    error: e.message,
+                  });
+                }
+              }
+            })();
+
+            // Indicate we will call sendResponse asynchronously
+            return true;
             break;
           default:
             // Handle legacy miniMode messages

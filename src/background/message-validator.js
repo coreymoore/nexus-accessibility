@@ -5,6 +5,7 @@ export class MessageValidator {
     "AX_INSPECTOR_SHOWN",
     "NEXUS_TAB_INIT",
     "INSPECTOR_STATE_CHANGE",
+    "CLEAR_CACHES",
     "keepAlive",
     "detachDebugger",
     "invalidateAccessibilityCache",

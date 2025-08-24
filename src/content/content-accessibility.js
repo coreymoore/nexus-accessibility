@@ -128,6 +128,12 @@
       cache.setPendingRequest(currentRequest);
     }
 
+    // Short stabilization delays to allow CDP to settle for rapidly changing DOM.
+    // Prefer explicit short retries for the first few attempts.
+    const shortRetryDelays =
+      (window.NexusConstants && window.NexusConstants.TIMEOUTS && window.NexusConstants.TIMEOUTS.ACCESSIBILITY_SHORT_RETRY_DELAYS) ||
+      [0, 40, 120];
+
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       // Check if this request was cancelled
       if (currentRequest.cancelled) {
@@ -177,21 +183,32 @@
           return response;
         }
 
-        // Short backoff: 50ms, 100ms, 150ms, ...
+        // Use explicit short delays for the first few attempts, then fall back
+        // to the previous incremental delay behaviour.
         if (attempt < maxAttempts - 1) {
-          const delay =
-            (window.NexusConstants?.TIMEOUTS?.ACCESSIBILITY_RETRY_BASE || 50) *
-            (attempt + 1);
+          let delay = null;
+          if (attempt < shortRetryDelays.length) {
+            delay = shortRetryDelays[attempt];
+          } else {
+            delay =
+              (window.NexusConstants?.TIMEOUTS?.ACCESSIBILITY_RETRY_BASE || 50) *
+              (attempt + 1);
+          }
+
           console.log(
-            `No meaningful data on attempt ${
-              attempt + 1
-            }, waiting ${delay}ms...`,
+            `No meaningful data on attempt ${attempt + 1}, waiting ${delay}ms...`,
             {
               role: response?.role,
               name: response?.name,
             }
           );
-          await new Promise((resolve) => setTimeout(resolve, delay));
+
+          if (delay > 0) {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          } else {
+            // zero delay - yield to event loop
+            await Promise.resolve();
+          }
         }
       } catch (error) {
         if (currentRequest.cancelled) return null;

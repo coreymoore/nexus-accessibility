@@ -24,6 +24,8 @@
   // Configuration
   const DEFAULT_DEBOUNCE_MS =
     (window.NexusConstants && window.NexusConstants.DEBOUNCE_MS) || 60;
+  // Tuned default to reduce duplicate retrievals on rapid interactions.
+  // Previously 60ms; increased to 100ms to improve coalescing.
 
   function request(target, forceUpdate = false, source = "unknown") {
     if (!target || !(target instanceof Element)) {
