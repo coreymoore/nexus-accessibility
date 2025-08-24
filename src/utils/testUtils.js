@@ -5,16 +5,16 @@
  * Run these from the browser console in the extension's service worker context.
  */
 
-// Resolve a safe global object in any JS environment
-const _G =
-  typeof globalThis !== "undefined"
-    ? globalThis
-    : typeof window !== "undefined"
-    ? window
-    : typeof self !== "undefined"
-    ? self
-    : {};
-
+// Resolve a safe global object in any JS environment (standard globalThis polyfill)
+const _G = typeof globalThis !== "undefined"
+  ? globalThis
+  : typeof self !== "undefined"
+  ? self
+  : typeof window !== "undefined"
+  ? window
+  : typeof global !== "undefined"
+  ? global
+  : {};
   // Import the chromeAsync promise wrapper so test utils can use it at runtime
   import { chromeAsync } from "./chromeAsync.js";
   // Import centralized CDP helper for consistent correlation logging
