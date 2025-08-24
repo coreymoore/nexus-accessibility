@@ -75,11 +75,11 @@ window.formatAccessibilityInfo = function (info) {
 
   let dl = "<dl>";
 
-  // Basic properties
-  if (info.role) dl += `<dt>Role</dt><dd>${info.role}</dd>`;
-  if (info.name) dl += `<dt>Name</dt><dd>${info.name}</dd>`;
+  // Basic properties (unwrap complex AX values to readable text)
+  if (info.role) dl += `<dt>Role</dt><dd>${deepUnwrap(info.role)}</dd>`;
+  if (info.name) dl += `<dt>Name</dt><dd>${deepUnwrap(info.name)}</dd>`;
   if (info.description && info.description !== "(no description)")
-    dl += `<dt>Description</dt><dd>${info.description}</dd>`;
+    dl += `<dt>Description</dt><dd>${deepUnwrap(info.description)}</dd>`;
 
   // Active Descendant (placed immediately after Name/Description block per request)
   if (info.activeDescendant) {
@@ -102,6 +102,19 @@ window.formatAccessibilityInfo = function (info) {
       // Fail silently; do not break overall formatting
       console.warn("[Formatter] Failed to render active descendant entry", e);
     }
+  } else {
+    // Fallback: try to extract a human-friendly active descendant from raw state data
+    try {
+      const raw = info?.states?.activedescendant || info?.activeDescendantRaw || info?.ariaProperties?.activedescendant;
+      if (raw) {
+        const rawText = deepUnwrap(raw);
+        if (rawText) {
+          dl += `<dt>Active Descendant</dt><dd>${rawText}</dd>`;
+        }
+      }
+    } catch (e) {
+      // Silent fallback - don't break formatting
+    }
   }
   // Group (immediately after Description)
   if (info.group && info.group.role) {
@@ -123,14 +136,9 @@ window.formatAccessibilityInfo = function (info) {
   }
 
   // ARIA properties section
-  if (info.ariaProperties && Object.keys(info.ariaProperties).length > 0) {
-    dl += '<dt>ARIA</dt><dd class="aria-list">';
-    for (const [prop, value] of Object.entries(info.ariaProperties)) {
-      const v = deepUnwrap(value);
-      dl += `<span class="aria-badge">${prop}: ${v}</span>`;
-    }
-    dl += "</dd>";
-  }
+  // Note: we intentionally do not render a dedicated 'ARIA' properties block here
+  // to keep the inspector concise. Individual ARIA-derived states and values are
+  // surfaced elsewhere (screen reader preview, states, properties list).
 
   dl += "</dl>";
   return dl;

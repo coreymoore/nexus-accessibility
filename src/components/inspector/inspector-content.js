@@ -135,16 +135,27 @@
         states: info.states,
       });
 
-      // Base: role, name, description
+      // Base: role, name, description - always deepUnwrap to convert AX values to text
       const base = [];
-      if (info.role) {
-        base.push(this.createSafeSpan("sr-role", info.role));
-      }
-      if (info.name && info.name !== "(no accessible name)") {
-        base.push(this.createSafeSpan("sr-name", info.name));
-      }
-      if (info.description && info.description !== "(no description)") {
-        base.push(this.createSafeSpan("sr-desc", info.description));
+      try {
+        const roleText = info.role ? utils.deepUnwrap(info.role) : null;
+        const nameText = info.name ? utils.deepUnwrap(info.name) : null;
+        const descText = info.description ? utils.deepUnwrap(info.description) : null;
+
+        if (roleText) {
+          base.push(this.createSafeSpan("sr-role", roleText));
+        }
+        if (nameText && nameText !== "(no accessible name)") {
+          base.push(this.createSafeSpan("sr-name", nameText));
+        }
+        if (descText && descText !== "(no description)") {
+          base.push(this.createSafeSpan("sr-desc", descText));
+        }
+      } catch (e) {
+        // If deepUnwrap fails for any reason, fallback to original values
+        if (info.role) base.push(this.createSafeSpan("sr-role", String(info.role)));
+        if (info.name && info.name !== "(no accessible name)") base.push(this.createSafeSpan("sr-name", String(info.name)));
+        if (info.description && info.description !== "(no description)") base.push(this.createSafeSpan("sr-desc", String(info.description)));
       }
 
       // Extras: states, aria-derived states, group, value, required
@@ -262,26 +273,43 @@
       }
 
       // Active descendant (screen reader preview simplified to JUST the descendant's accessible name)
-      if (info.activeDescendant) {
-        try {
-          const activeDesc = info.activeDescendant;
-          const nameOnly =
-            activeDesc && activeDesc.name
-              ? utils.deepUnwrap(activeDesc.name)
-              : "";
-          if (nameOnly) {
-            // Append just the text (no role/label prefix per request)
-            const span = `<span class="sr-active-descendant">${utils.escapeHtml(
-              nameOnly
-            )}</span>`;
+      // Prefer enhanced `activeDescendant` object but fallback to raw states/aria data
+      try {
+        let nameOnly = null;
+        if (info.activeDescendant && info.activeDescendant.name) {
+          nameOnly = utils.deepUnwrap(info.activeDescendant.name);
+        } else {
+          // Fallback: try states.activedescendant, activeDescendantRaw, or ariaProperties
+          const raw = info?.states?.activedescendant || info?.activeDescendantRaw || info?.ariaProperties?.activedescendant;
+          if (raw) {
+            nameOnly = utils.deepUnwrap(raw);
+            // deepUnwrap may produce idrefs or roles; try to extract last quoted name if present
+            if (typeof nameOnly === 'string') {
+              // If the string contains idref tokens like combo1-1, it's okay; this is a best-effort fallback
+            }
+          }
+        }
+        if (nameOnly) {
+          let textVal = String(nameOnly).trim();
+          // Avoid showing raw serialized object JSON (heuristic: starts with { and contains "relatedNodes")
+          if (/^\{/.test(textVal) && /relatedNodes/.test(textVal)) {
+            // Attempt final fallback: if enhanced object exists now use its name
+            if (info.activeDescendant && info.activeDescendant.name) {
+              textVal = String(utils.deepUnwrap(info.activeDescendant.name)).trim();
+            } else {
+              // Drop instead of showing opaque structure
+              textVal = "";
+            }
+          }
+            // Also collapse multiple spaces
+          if (textVal) {
+            textVal = textVal.replace(/\s+/g, " ");
+            const span = `<span class="sr-active-descendant">${utils.escapeHtml(textVal)}</span>`;
             result += result ? `, ${span}` : span;
           }
-        } catch (e) {
-          console.warn(
-            "[Inspector] Failed rendering simplified active descendant SR output",
-            e
-          );
         }
+      } catch (e) {
+        console.warn("[Inspector] Failed rendering active descendant SR output", e);
       }
 
       return result;
@@ -370,6 +398,17 @@
 
         if (activeDescValue) {
           pairs.push({ label: "Active Descendant", value: activeDescValue });
+        }
+      } else {
+        // Fallback: try to derive active descendant from raw states/aria
+        try {
+          const raw = accessibilityInfo?.states?.activedescendant || accessibilityInfo?.activeDescendantRaw || accessibilityInfo?.ariaProperties?.activedescendant;
+          const rawText = raw ? utils.deepUnwrap(raw) : null;
+          if (rawText) {
+            pairs.push({ label: "Active Descendant", value: rawText });
+          }
+        } catch (e) {
+          // ignore fallback failures
         }
       }
 

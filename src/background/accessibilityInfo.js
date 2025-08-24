@@ -143,10 +143,99 @@ export async function getAccessibilityInfoForElement(
                   };
                   
                   return waitForFocus().then(() => {
-                    // Use the element stored by content script if available
-                    let targetEl = window.nexusTargetElement || document.activeElement;
+                    // Use the element stored by content script if available and still valid
+                    let targetEl = null;
+
+                      // First priority: use stored element via data attribute (cross-context compatible)
+                      // Poll briefly (up to 250ms) for the ephemeral token to reduce races with the content-script cleanup
+                      const _pollForToken = (timeout = 250, interval = 25) => new Promise((resolve) => {
+                        const start = Date.now();
+                        const check = () => {
+                          try {
+                            const cur = document.documentElement.getAttribute('data-nexus-current-target');
+                            if (cur) return resolve(cur);
+                          } catch (e) {
+                            // ignore DOM read errors
+                          }
+                          if (Date.now() - start >= timeout) return resolve(null);
+                          setTimeout(check, interval);
+                        };
+                        check();
+                      });
+
+                      return _pollForToken().then((currentTargetAttr) => {
+                        if (currentTargetAttr) {
+                          try {
+                            const selector = '[' + currentTargetAttr + ']';
+                            const candidateEl = document.querySelector(selector);
+                            if (candidateEl && candidateEl.isConnected && candidateEl.ownerDocument === document) {
+                              targetEl = candidateEl;
+                              console.log('[CDP] Using stored target element via data attribute:', targetEl);
+
+                              // Immediately remove the token attribute from the element and clear the published pointer
+                              try { candidateEl.removeAttribute(currentTargetAttr); } catch (e) { console.warn('[CDP] Failed to remove token attribute from candidate element:', e); }
+                              try {
+                                const cur = document.documentElement.getAttribute('data-nexus-current-target');
+                                if (cur === currentTargetAttr) document.documentElement.removeAttribute('data-nexus-current-target');
+                              } catch (e) { /* ignore */ }
+                              try { document.documentElement.removeAttribute('data-nexus-previous-target'); } catch (e) { /* ignore */ }
+                            } else {
+                              console.log('[CDP] Stored element via data attribute is no longer valid or not found');
+                            }
+                          } catch (err) {
+                            console.warn('[CDP] Error while reading data-nexus-current-target:', err);
+                          }
+                        } else {
+                          console.log('[CDP] No stored element data attribute found');
+                        }
+
+                        // Continue with the remainder of the original logic in the same chain
+                        // Fallback: check content script window (might work in some contexts)
+                        if (!targetEl && window.nexusTargetElement) {
+                      const storedEl = window.nexusTargetElement;
+                      console.log('[CDP] Found stored element in window:', storedEl);
+                      if (storedEl.isConnected && storedEl.ownerDocument === document) {
+                        targetEl = storedEl;
+                        console.log('[CDP] Using stored target element from window:', targetEl);
+                      } else {
+                        console.log('[CDP] Stored element from window is no longer valid, isConnected:', storedEl.isConnected, 'ownerDocument matches:', storedEl.ownerDocument === document);
+                      }
+                        } else if (!targetEl) {
+                          console.log('[CDP] No stored element found in window, window.nexusTargetElement is:', window.nexusTargetElement);
+                        }
                     
-                    console.log('[CDP] Target element:', targetEl);
+                        // Fallback to document.activeElement only if no valid stored element
+                        if (!targetEl) {
+                      const activeEl = document.activeElement;
+                      console.log('[CDP] Using document.activeElement as fallback:', activeEl);
+                      // Additional validation for activeElement
+                      if (activeEl && activeEl.isConnected) {
+                        targetEl = activeEl;
+                      } else {
+                        console.log('[CDP] WARNING: document.activeElement is also invalid or null:', activeEl);
+                        // Last resort: try to find a focusable element
+                        targetEl = document.querySelector('[tabindex], input, button, select, textarea, a[href]');
+                        console.log('[CDP] Emergency fallback element:', targetEl);
+                      }
+            }
+
+            console.log('[CDP] Final target element:', targetEl);
+
+            // Skip presentational iframes unless explicitly requested
+            if (targetEl && (targetEl.tagName === 'IFRAME' || targetEl.tagName === 'FRAME')) {
+                      const role = targetEl.getAttribute('role');
+                      if (role === 'presentation' || role === 'none') {
+                        console.log('[CDP] Skipping presentational iframe, not useful for accessibility inspection');
+                        // Try to find a more meaningful element to inspect instead
+                        const storedElement = window.nexusTargetElement;
+                        if (storedElement && storedElement !== targetEl && storedElement.isConnected) {
+                          console.log('[CDP] Using stored element instead of presentational iframe:', storedElement);
+                          targetEl = storedElement;
+                        } else {
+                          console.log('[CDP] No alternative element available, proceeding with iframe');
+                        }
+                      }
+                    }
                     
                     // If target element is in shadow DOM, use it directly
                     if (targetEl && targetEl.getRootNode() instanceof ShadowRoot) {
@@ -212,14 +301,104 @@ export async function getAccessibilityInfoForElement(
                     };
                     
                     return waitForFocus().then(() => {
-                      // Use the element stored by content script if available
-                      let targetEl = window.nexusTargetElement || document.activeElement;
+                        // Use the element stored by content script if available and still valid
+                        let targetEl = null;
+
+                        // First priority: use stored element via data attribute (cross-context compatible)
+                        // Poll briefly (up to 250ms) for the ephemeral token to reduce races with the content-script cleanup
+                        const _pollForToken = (timeout = 250, interval = 25) => new Promise((resolve) => {
+                          const start = Date.now();
+                          const check = () => {
+                            try {
+                              const cur = document.documentElement.getAttribute('data-nexus-current-target');
+                              if (cur) return resolve(cur);
+                            } catch (e) {
+                              // ignore DOM read errors
+                            }
+                            if (Date.now() - start >= timeout) return resolve(null);
+                            setTimeout(check, interval);
+                          };
+                          check();
+                        });
+
+                        return _pollForToken().then((currentTargetAttr) => {
+                          if (currentTargetAttr) {
+                            try {
+                              const selector = '[' + currentTargetAttr + ']';
+                              const candidateEl = document.querySelector(selector);
+                              if (candidateEl && candidateEl.isConnected && candidateEl.ownerDocument === document) {
+                                targetEl = candidateEl;
+                                console.log('[CDP] Using stored target element via data attribute:', targetEl);
+
+                                // Immediately remove the token attribute from the element and clear the published pointer
+                                try { candidateEl.removeAttribute(currentTargetAttr); } catch (e) { console.warn('[CDP] Failed to remove token attribute from candidate element:', e); }
+                                try {
+                                  const cur = document.documentElement.getAttribute('data-nexus-current-target');
+                                  if (cur === currentTargetAttr) document.documentElement.removeAttribute('data-nexus-current-target');
+                                } catch (e) { /* ignore */ }
+                                try { document.documentElement.removeAttribute('data-nexus-previous-target'); } catch (e) { /* ignore */ }
+                              } else {
+                                console.log('[CDP] Stored element via data attribute is no longer valid or not found');
+                              }
+                            } catch (err) {
+                              console.warn('[CDP] Error while reading data-nexus-current-target:', err);
+                            }
+                          } else {
+                            console.log('[CDP] No stored element data attribute found');
+                          }
+
+                          // Continue with the remainder of the original logic in the same chain
+                      
+                      // Fallback: check content script window (might work in some contexts)
+                      if (!targetEl && window.nexusTargetElement) {
+                        const storedEl = window.nexusTargetElement;
+                        console.log('[CDP] Found stored element in window:', storedEl);
+                        if (storedEl.isConnected && storedEl.ownerDocument === document) {
+                          targetEl = storedEl;
+                          console.log('[CDP] Using stored target element from window:', targetEl);
+                        } else {
+                          console.log('[CDP] Stored element from window is no longer valid, isConnected:', storedEl.isConnected, 'ownerDocument matches:', storedEl.ownerDocument === document);
+                        }
+                      } else if (!targetEl) {
+                        console.log('[CDP] No stored element found in window, window.nexusTargetElement is:', window.nexusTargetElement);
+                      }
+                      
+                      // Fallback to document.activeElement only if no valid stored element
+                      if (!targetEl) {
+                        const activeEl = document.activeElement;
+                        console.log('[CDP] Using document.activeElement as fallback:', activeEl);
+                        // Additional validation for activeElement
+                        if (activeEl && activeEl.isConnected) {
+                          targetEl = activeEl;
+                        } else {
+                          console.log('[CDP] WARNING: document.activeElement is also invalid or null:', activeEl);
+                          // Last resort: try to find a focusable element
+                          targetEl = document.querySelector('[tabindex], input, button, select, textarea, a[href]');
+                          console.log('[CDP] Emergency fallback element:', targetEl);
+                        }
+                      }
                       
                       console.log('[CDP] === SHADOW DOM DEBUG START ===');
                       console.log('[CDP] Target element tagName:', targetEl?.tagName);
                       console.log('[CDP] Target element id:', targetEl?.id);
                       console.log('[CDP] Target has shadowRoot:', !!targetEl?.shadowRoot);
                       console.log('[CDP] Target shadowRoot delegatesFocus:', targetEl?.shadowRoot?.delegatesFocus);
+                      
+                      // Skip presentational iframes unless explicitly requested
+                      if (targetEl && (targetEl.tagName === 'IFRAME' || targetEl.tagName === 'FRAME')) {
+                        const role = targetEl.getAttribute('role');
+                        if (role === 'presentation' || role === 'none') {
+                          console.log('[CDP] Skipping presentational iframe, not useful for accessibility inspection');
+                          // Try to find a more meaningful element to inspect instead
+                          const storedElement = window.nexusTargetElement;
+                          if (storedElement && storedElement !== targetEl && storedElement.isConnected) {
+                            console.log('[CDP] Using stored element instead of presentational iframe:', storedElement);
+                            targetEl = storedElement;
+                          } else {
+                            console.log('[CDP] No alternative element available, proceeding with iframe');
+                          }
+                        }
+                      }
                       
                       // If target element is in shadow DOM, use it directly
                       if (targetEl && targetEl.getRootNode() instanceof ShadowRoot) {

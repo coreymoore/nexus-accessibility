@@ -576,6 +576,11 @@
         // Schedule refetch after DOM updates from key handlers
         if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
           setTimeout(() => {
+            // Store the target element for CDP access before inspection
+            if (target && CE.utils && CE.utils.storeElementForCDP) {
+              CE.utils.storeElementForCDP(target, "key-event-target");
+            }
+            
             logAndCallGetAccessibleInfo(target, true, "key-event")
               .then((info) => {
                 if (

@@ -124,6 +124,53 @@
         if (texts.length) return texts.join(" ");
       }
 
+      // Handle idref / idrefList structures from CDP Accessibility protocol
+      // These often only contain idref identifiers without embedded text so we attempt
+      // to resolve them to DOM elements and extract a readable label or textContent.
+      if ((v.type === "idref" || v.type === "idrefList") && Array.isArray(v.relatedNodes)) {
+        const resolved = v.relatedNodes
+          .map((n) => {
+            if (!n) return null;
+            // Prefer any textual fields already present
+            const direct = n.text || n.name || n.label || n.innerText || n.nodeValue;
+            if (direct) return this.deepUnwrap(direct);
+            if (n.idref) {
+              try {
+                const el = document.getElementById(n.idref);
+                if (el) {
+                  // Derive an accessible label preference order
+                  const ariaLabel = el.getAttribute("aria-label");
+                  let labelledbyText = null;
+                  const labelledby = el.getAttribute("aria-labelledby");
+                  if (!ariaLabel && labelledby) {
+                    labelledbyText = labelledby
+                      .split(/\s+/)
+                      .map((id) => {
+                        const ref = document.getElementById(id);
+                        if (!ref) return null;
+                        return (ref.textContent || "").trim();
+                      })
+                      .filter(Boolean)
+                      .join(" ");
+                  }
+                  const txt =
+                    ariaLabel ||
+                    labelledbyText ||
+                    (el.textContent || el.innerText || "").trim();
+                  if (txt) {
+                    return txt.replace(/\s+/g, " ");
+                  }
+                }
+              } catch (e) {
+                // Swallow resolution errors silently; fall back to JSON later
+              }
+            }
+            return null;
+          })
+          .filter((t) => t != null && t !== "");
+        if (resolved.length) return resolved.join(" ");
+      }
+
       if ("text" in v) return this.deepUnwrap(v.text);
       if ("name" in v) return this.deepUnwrap(v.name);
       if ("label" in v) return this.deepUnwrap(v.label);
