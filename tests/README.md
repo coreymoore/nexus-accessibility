@@ -1,3 +1,6 @@
+Inspector smoke tests
+
+Open `tests/inspector-signature-smoke.html` in a browser (or serve the repository root) and click "Run Smoke Test" to validate inspector signature deduplication.
 Clear Caches Smoke Test
 
 How to run

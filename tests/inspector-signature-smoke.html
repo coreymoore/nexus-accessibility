@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inspector Signature Smoke Test</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      body { font-family: Inter, Arial, sans-serif; padding: 24px; }
+      #results { margin-top: 16px; white-space: pre-wrap; }
+      .ok { color: #29922d; }
+      .fail { color: #b8002f; }
+    </style>
+  </head>
+  <body>
+    <h1>Inspector Signature Smoke Test</h1>
+    <p>This test loads the inspector core and calls <code>showInspector</code> twice
+      for the same element and asserts the render signature matches and a duplicate
+      render is skipped (only one inspector element remains).</p>
+
+    <button id="run">Run Smoke Test</button>
+    <div id="results"></div>
+
+    <script src="inspector-signature-smoke.js"></script>
+  </body>
+</html>

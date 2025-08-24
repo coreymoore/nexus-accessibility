@@ -817,26 +817,87 @@
       }
     }
 
+    /**
+     * Lightweight djb2 hash returning a compact base36 string.
+     */
+    _djb2Hash(str) {
+      let h = 5381;
+      for (let i = 0; i < str.length; i++) {
+        h = (h * 33) ^ str.charCodeAt(i);
+      }
+      // >>>0 to ensure unsigned 32-bit, then present in base36 for compactness
+      return (h >>> 0).toString(36);
+    }
+
+    /**
+     * Deterministic serializer for signature components. Uses utils.deepUnwrap
+     * when available to convert AX values to readable primitives and sorts
+     * object keys to ensure deterministic output.
+     */
+    _serializeForSignature(v) {
+      try {
+        if (v === null || v === undefined) return "";
+        if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
+        if (Array.isArray(v)) return v.map((x) => this._serializeForSignature(x)).join(",");
+
+        // Try using deepUnwrap to get readable values from AX wrappers
+        if (utils && typeof utils.deepUnwrap === "function") {
+          try {
+            const u = utils.deepUnwrap(v);
+            if (u === null || u === undefined) return "";
+            if (typeof u === "string" || typeof u === "number" || typeof u === "boolean") return String(u);
+            // If deepUnwrap produced an array or object, fall through to object handling below
+            v = u;
+          } catch (e) {
+            // ignore and continue
+          }
+        }
+
+        if (typeof v === "object") {
+          const keys = Object.keys(v).sort();
+          return keys.map((k) => `${k}:${this._serializeForSignature(v[k])}`).join(",");
+        }
+
+        return String(v);
+      } catch (e) {
+        return "";
+      }
+    }
+
     _generateRenderSignature(info, target, options) {
-      // Generate a signature for this render call to detect duplicates
-      const infoKey = info ? JSON.stringify({
-        name: info.name,
-        role: info.role,
-        description: info.description,
-        activeDescendant: info.activeDescendant,
-        value: info.value,
-        states: info.states,
-        properties: info.properties
-      }) : 'null';
-      
-      const targetKey = target ? `${target.tagName}-${target.id || ''}-${target.className || ''}` : 'null';
-      const optionsKey = JSON.stringify({ 
-        enabled: options.enabled, 
-        miniMode: this.miniMode,
-        correlationId: options.correlationId 
-      });
-      
-      return `${infoKey}|${targetKey}|${optionsKey}`;
+      options = options || {};
+
+      // Build a deterministic, compact raw signature string using readable pieces
+      const parts = [];
+
+      if (info) {
+        parts.push(this._serializeForSignature(info.name));
+        parts.push(this._serializeForSignature(info.role));
+        parts.push(this._serializeForSignature(info.description));
+
+        // Active descendant: prefer its name if available
+        try {
+          if (info.activeDescendant && info.activeDescendant.name) {
+            parts.push(this._serializeForSignature(info.activeDescendant.name));
+          } else {
+            parts.push(this._serializeForSignature(info.activeDescendant));
+          }
+        } catch (e) {
+          parts.push("");
+        }
+
+        parts.push(this._serializeForSignature(info.value));
+        parts.push(this._serializeForSignature(info.states));
+        parts.push(this._serializeForSignature(info.properties));
+      } else {
+        parts.push("null");
+      }
+
+      const targetKey = target ? `${target.tagName || ''}-${target.id || ''}-${target.className || ''}` : 'null';
+      const optionsKey = `${options.enabled ? '1' : '0'}|${this.miniMode ? '1' : '0'}|${options.correlationId || ''}`;
+
+      const raw = `${parts.join('|')}|${targetKey}|${optionsKey}`;
+      return this._djb2Hash(raw);
     }
   }
 
