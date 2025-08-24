@@ -76,6 +76,9 @@ export class MessageValidator {
         if (msg.frameId !== undefined && typeof msg.frameId !== "number") {
           throw new Error("Invalid frameId for cache invalidation");
         }
+        if (msg.mode !== undefined && !["direct", "selector"].includes(msg.mode)) {
+          throw new Error("Invalid mode for cache invalidation");
+        }
         break;
     }
 

@@ -202,6 +202,7 @@
             frameId: 0,
             elementSelector: elementSelector,
             reason: "combobox-expanded-change", // Special reason for enhanced clearing
+            mode: "selector",
           })
           .catch((error) => {
             console.warn(
@@ -595,6 +596,7 @@
             tabId: null, // Background will determine current tab
             frameId: 0, // Background will determine correct frame
             elementSelector: elementSelector,
+            mode: "selector",
           })
           .catch((error) => {
             console.warn(

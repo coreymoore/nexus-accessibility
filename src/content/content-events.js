@@ -529,6 +529,7 @@
             elementSelector: selector,
             frameId: 0,
             reason: "shift-escape",
+            mode: "selector",
           });
         } catch (_) {}
       }
@@ -561,6 +562,7 @@
             elementSelector: selector,
             frameId: 0,
             reason: `key-${key}`,
+            mode: "selector",
           });
         } catch (_) {}
         // Schedule refetch after DOM updates from key handlers
@@ -618,6 +620,7 @@
         elementSelector: selector,
         frameId: 0,
         reason: "click",
+        mode: "selector",
       });
     } catch (_) {}
 
@@ -639,6 +642,7 @@
         elementSelector: selector,
         frameId: 0,
         reason: "dragstart",
+        mode: "selector",
       });
     } catch (_) {}
   }
@@ -658,6 +662,7 @@
         elementSelector: selector,
         frameId: 0,
         reason: "dragend",
+        mode: "selector",
       });
     } catch (_) {}
     if (CE.accessibility && CE.accessibility.getAccessibleInfo) {

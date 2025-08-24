@@ -23,6 +23,9 @@ export class MessageHandler {
       const action = msg.action || msg.type;
 
       switch (action) {
+        case "CLEAR_CACHES":
+          return await this.handleClearCaches(msg, sender);
+
         case "AX_REQUEST":
           return await this.handleAXRequest(msg, sender);
 
@@ -53,6 +56,23 @@ export class MessageHandler {
     } catch (error) {
       console.error("Message handling error:", error);
       return { error: error.message };
+    }
+  }
+
+  async handleClearCaches(msg, sender) {
+    try {
+      const tabId = sender?.tab?.id || msg.tabId;
+      if (!tabId) {
+        return { status: "no_tab_id" };
+      }
+
+      // Use connectionManager to clear per-frame caches and await ACKs
+      const results = await connectionManager.clearCaches(tabId);
+
+      return { status: "cleared", tabId, results };
+    } catch (error) {
+      console.error("[MessageHandler] handleClearCaches failed:", error);
+      return { status: "error", error: error.message };
     }
   }
 
@@ -265,7 +285,7 @@ export class MessageHandler {
       const cacheSelKeyMain = `${mainCacheKey}::${elementSelector}`;
 
       console.log(
-        `[MessageHandler] Invalidating caches for selector: ${elementSelector}, reasons: ${reason || "general"}`
+        `[MessageHandler] Invalidating caches for selector: ${elementSelector}, reasons: ${reason || "general"}, mode: ${msg.mode || 'selector'}`
       );
 
       // Clear the CDP node cache entries (both cdp-scoped and main-scoped variants)
@@ -273,19 +293,35 @@ export class MessageHandler {
       if (__axNodeCache.delete(cacheSelKeyCdp)) deletedKeys.push(cacheSelKeyCdp);
       if (__axNodeCache.delete(cacheSelKeyMain)) deletedKeys.push(cacheSelKeyMain);
 
+      // Mode-aware deletion: if the caller indicates mode==='direct', avoid deleting
+      // selector-based cache entries to preserve selector cache for other consumers.
+      const mode = msg.mode || 'selector';
+
       // Clear the higher-level result cache used by MessageHandler (selector-based)
       const generalCacheKey = `element-${tabId}-${frameId}-${elementSelector}`;
-      if (this.cache.delete(generalCacheKey)) deletedKeys.push(generalCacheKey);
+      if (mode !== 'direct') {
+        if (this.cache.delete(generalCacheKey)) deletedKeys.push(generalCacheKey);
+      } else {
+        // When mode is direct, prefer conservative deleteWithMode on direct keys only
+        // and do not evict selector caches.
+      }
 
-      // Also attempt to clear any direct-reference cache variants that may include selectors
-      // We support a few naming conventions to be conservative.
+      // Attempt to clear any direct-reference cache variants that may include selectors
       const directKeys = [
         `element-direct-${tabId}-${frameId}`,
         `element-direct-${tabId}-${frameId}::${elementSelector}`,
         `element-direct-${tabId}-${frameId}-${elementSelector}`,
       ];
       for (const dk of directKeys) {
-        if (this.cache.delete(dk)) deletedKeys.push(dk);
+        // Use cache manager's mode-aware delete to avoid evicting unrelated keys
+        try {
+          const deleted = this.cache.deleteWithMode
+            ? this.cache.deleteWithMode(dk, { mode })
+            : this.cache.delete(dk);
+          if (deleted) deletedKeys.push(dk);
+        } catch (e) {
+          // ignore per-key deletion errors
+        }
       }
 
       // Also clear the underlying CDP node cache keyed entries explicitly (already attempted above),
