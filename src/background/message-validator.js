@@ -80,6 +80,20 @@ export class MessageValidator {
           throw new Error("Invalid mode for cache invalidation");
         }
         break;
+      case "CLEAR_CACHES":
+        if (msg.correlationId !== undefined) {
+          if (typeof msg.correlationId !== "string" || !/^[0-9a-fA-F]{6,16}$/.test(msg.correlationId)) {
+            throw new Error("Invalid correlationId format for CLEAR_CACHES");
+          }
+        }
+        break;
+      case "getBackendNodeIdAndAccessibleInfo":
+        if (msg.correlationId !== undefined) {
+          if (typeof msg.correlationId !== 'string' || !/^[0-9a-fA-F]{6,16}$/.test(msg.correlationId)) {
+            throw new Error('Invalid correlationId format');
+          }
+        }
+        break;
     }
 
     return true;

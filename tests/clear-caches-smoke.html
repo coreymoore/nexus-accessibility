@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Clear Caches Smoke Test — Nexus</title>
+    <style>
+      body { font-family: Inter, Arial, sans-serif; padding: 20px; max-width: 900px; }
+      pre { background:#111; color:#0f0; padding:12px; border-radius:6px; overflow:auto }
+      .btn { background:#683ab7; color:#fff; border:none; padding:10px 14px; border-radius:6px; cursor:pointer }
+      .muted { color:#666; font-size:13px }
+      .log { white-space:pre-wrap; font-family: monospace; background:#f3f0fa; padding:10px; border-radius:6px }
+    </style>
+  </head>
+  <body>
+    <h1>CLEAR_CACHES Smoke Test</h1>
+    <p class="muted">This page attempts to send a <code>CLEAR_CACHES</code> message to the extension background and shows the aggregated per-frame ACKs. Open this page as an extension page (chrome-extension://...) or load it from the extension bundle to ensure <code>chrome.runtime</code> is available.</p>
+
+    <div style="margin:12px 0">
+      <label>Correlation ID: <input id="corr" style="width:260px;padding:6px;border-radius:4px;border:1px solid #ddd"/></label>
+      <button id="gen" class="btn" style="margin-left:8px">Generate</button>
+    </div>
+
+    <div style="margin:12px 0">
+      <button id="run" class="btn">Run CLEAR_CACHES</button>
+      <span id="status" class="muted" style="margin-left:12px">Idle</span>
+    </div>
+
+    <h3>Result</h3>
+    <div id="result" class="log">No result yet.</div>
+
+    <h3>Console Trace</h3>
+    <div id="trace" class="log">No trace yet.</div>
+
+    <script src="clear-caches-smoke.js"></script>
+  </body>
+</html>

@@ -60,10 +60,10 @@
    * @param {number} maxAttempts - Maximum number of retry attempts
    * @returns {Promise<Object>} Accessibility information
    */
-  async function waitForAccessibilityUpdate(
+    async function waitForAccessibilityUpdate(
     target,
-    maxAttempts = window.NexusConstants?.RETRY_ATTEMPTS?.ACCESSIBILITY_UPDATE ||
-      8
+    maxAttempts = window.NexusConstants?.RETRY_ATTEMPTS?.ACCESSIBILITY_UPDATE || 8,
+    opts = {}
   ) {
     const cache = CE.cache;
 
@@ -145,15 +145,15 @@
         // Use CDP approach with direct element reference
         const selector = CE.utils.getUniqueSelector(target);
 
-        const response = await validatedSend(
-          {
+          const msg = {
             action: "getBackendNodeIdAndAccessibleInfo",
             useDirectReference: true,
             elementSelector: selector,
             frameId: 0, // Background script will determine the correct frame
-          },
-          "getBackendNodeIdAndAccessibleInfo"
-        );
+          };
+          if (opts && opts.correlationId) msg.correlationId = opts.correlationId;
+
+          const response = await validatedSend(msg, "getBackendNodeIdAndAccessibleInfo");
 
         console.log("[NEXUS] CDP Response:", {
           role: response?.role,
@@ -235,15 +235,15 @@
     try {
       const selector = CE.utils.getUniqueSelector(target);
 
-      const response = await validatedSend(
-        {
-          action: "getBackendNodeIdAndAccessibleInfo",
-          useDirectReference: true,
-          elementSelector: selector,
-          frameId: 0, // Background script will determine the correct frame
-        },
-        "finalAttempt-getBackendNodeIdAndAccessibleInfo"
-      );
+      const msgFinal = {
+        action: "getBackendNodeIdAndAccessibleInfo",
+        useDirectReference: true,
+        elementSelector: selector,
+        frameId: 0,
+      };
+      if (opts && opts.correlationId) msgFinal.correlationId = opts.correlationId;
+
+      const response = await validatedSend(msgFinal, "finalAttempt-getBackendNodeIdAndAccessibleInfo");
 
       console.log("Final attempt result:", {
         role: response?.role,
@@ -262,7 +262,7 @@
    * @param {boolean} forceUpdate - Whether to force update ignoring cache
    * @returns {Promise<Object>} Accessibility information
    */
-  async function getAccessibleInfo(target, forceUpdate = false) {
+  async function getAccessibleInfo(target, forceUpdate = false, opts = {}) {
     console.log(
       "getAccessibleInfo called with:",
       target,
@@ -314,7 +314,7 @@
       console.log("DOM aria-expanded value before fetch:", domExpanded);
 
       try {
-        const info = await waitForAccessibilityUpdate(target);
+  const info = await waitForAccessibilityUpdate(target, undefined, opts);
 
         // Handle structured error response
         if (info && info.error) {

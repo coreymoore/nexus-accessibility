@@ -26,6 +26,9 @@ export class MessageHandler {
         case "CLEAR_CACHES":
           return await this.handleClearCaches(msg, sender);
 
+        case "REQUEST_HOST_PERMISSION":
+          return await this.handleRequestHostPermission(msg, sender);
+
         case "AX_REQUEST":
           return await this.handleAXRequest(msg, sender);
 
@@ -61,18 +64,66 @@ export class MessageHandler {
 
   async handleClearCaches(msg, sender) {
     try {
-      const tabId = sender?.tab?.id || msg.tabId;
+      const tabId = sender.tab && sender.tab.id;
       if (!tabId) {
         return { status: "no_tab_id" };
       }
 
-      // Use connectionManager to clear per-frame caches and await ACKs
-      const results = await connectionManager.clearCaches(tabId);
+      const opts = {};
+      if (msg && msg.correlationId) opts.correlationId = msg.correlationId;
+      const results = await connectionManager.clearCaches(tabId, opts);
 
-      return { status: "cleared", tabId, results };
+  const resp = { status: "cleared", tabId, results };
+      if (opts.correlationId) resp.correlationId = opts.correlationId;
+
+      // If connectionManager annotated permission issues, surface them here
+      try {
+        if (results && typeof results.permissionRequiredCount === 'number') {
+          resp.permissionRequiredCount = results.permissionRequiredCount;
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      // Surface blocked hosts at top-level for easier UX
+      try {
+        const blocked = new Set();
+        if (Array.isArray(results)) {
+          for (const r of results) {
+            if (r && r.permissionRequired && r.url) {
+              try {
+                const u = new URL(r.url);
+                blocked.add(`${u.protocol}//${u.hostname}/*`);
+              } catch (e) {}
+            }
+          }
+        }
+        if (blocked.size) resp.blockedHosts = Array.from(blocked);
+      } catch (e) {
+        // ignore
+      }
+
+      return resp;
     } catch (error) {
       console.error("[MessageHandler] handleClearCaches failed:", error);
       return { status: "error", error: error.message };
+    }
+  }
+
+  async handleRequestHostPermission(msg, sender) {
+    try {
+      if (!msg || !msg.origin) return { status: 'no_origin' };
+      const origins = Array.isArray(msg.origin) ? msg.origin : [msg.origin];
+      return await new Promise((resolve) => {
+        chrome.permissions.request({ origins }, (granted) => {
+          if (chrome.runtime.lastError) {
+            return resolve({ status: 'error', error: chrome.runtime.lastError.message });
+          }
+          resolve({ status: granted ? 'granted' : 'denied', origins });
+        });
+      });
+    } catch (error) {
+      return { status: 'error', error: error.message };
     }
   }
 

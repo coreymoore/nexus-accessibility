@@ -44,6 +44,92 @@
     } catch (e) {}
   }
 
+  // Register message listener early so frames can respond to background
+  // messages (CLEAR_CACHES, state changes, etc.) even if module
+  // initialization fails or is delayed. This prevents "Receiving end does
+  // not exist" errors when the background sends messages shortly after
+  // injection.
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    try {
+      switch (msg.type) {
+        case "INSPECTOR_STATE_CHANGE":
+          updateInspectorState(msg.inspectorState);
+          break;
+        case "ENABLE_EXTENSION":
+          updateInspectorState("on");
+          break;
+        case "DISABLE_EXTENSION":
+          updateInspectorState("off");
+          break;
+        case "AX_INSPECTOR_SHOWN":
+          if (CE.inspector && CE.inspector.handleCrossFrameInspector) {
+            CE.inspector.handleCrossFrameInspector(msg);
+          }
+          break;
+        case "CLEAR_CACHES":
+          (async () => {
+            const frameId = (window.frameElement && window.frameElement.id) || 0;
+            try {
+              console.log("[ContentExtension] CLEAR_CACHES received from background");
+
+              if (CE.cache && typeof CE.cache.clearAllRefetchTimers === "function") {
+                CE.cache.clearAllRefetchTimers();
+              }
+              if (CE.cache && typeof CE.cache.clearPendingRequest === "function") {
+                CE.cache.clearPendingRequest();
+              }
+              if (CE.observers && typeof CE.observers.stopObserving === "function") {
+                CE.observers.stopObserving();
+              }
+              if (CE.inspector && typeof CE.inspector.hideInspector === "function") {
+                CE.inspector.hideInspector();
+              }
+
+              if (typeof sendResponse === "function") {
+                const resp = {
+                  status: "cleared",
+                  frameId: CE.frameId,
+                  originFrameId: frameId,
+                  url: window.location.href,
+                  title: document.title,
+                  isTopFrame: window.top === window,
+                };
+                if (msg && msg.correlationId) resp.correlationId = msg.correlationId;
+                sendResponse(resp);
+              }
+            } catch (e) {
+              console.warn("[ContentExtension] Error handling CLEAR_CACHES:", e);
+              if (typeof sendResponse === "function") {
+                const errResp = {
+                  status: "error",
+                  frameId: CE.frameId,
+                  originFrameId: frameId,
+                  error: e.message,
+                };
+                if (msg && msg.correlationId) errResp.correlationId = msg.correlationId;
+                sendResponse(errResp);
+              }
+            }
+          })();
+
+          // Indicate async sendResponse will be used
+          return true;
+          break;
+        default:
+          if (msg && typeof msg.miniMode === "boolean") {
+            const currentState = getInspectorState();
+            if (currentState !== "off") {
+              updateInspectorState(msg.miniMode ? "mini" : "on");
+            }
+          } else {
+            console.warn("[ContentExtension] Unknown message type:", msg && msg.type);
+          }
+      }
+    } catch (error) {
+      console.error("[ContentExtension] Error handling message:", error);
+    }
+  });
+
   // Extension state
   let extensionEnabled = true;
   let currentInspectorState = "on"; // "off", "on", or "mini"
@@ -163,24 +249,28 @@
 
                 // Send an explicit ACK back to background with richer metadata
                 if (typeof sendResponse === "function") {
-                  sendResponse({
+                  const resp = {
                     status: "cleared",
                     frameId: CE.frameId,
                     originFrameId: frameId,
                     url: window.location.href,
                     title: document.title,
                     isTopFrame: window.top === window,
-                  });
+                  };
+                  if (msg && msg.correlationId) resp.correlationId = msg.correlationId;
+                  sendResponse(resp);
                 }
               } catch (e) {
                 console.warn("[ContentExtension] Error handling CLEAR_CACHES:", e);
                 if (typeof sendResponse === "function") {
-                  sendResponse({
+                  const errResp = {
                     status: "error",
                     frameId: CE.frameId,
                     originFrameId: frameId,
                     error: e.message,
-                  });
+                  };
+                  if (msg && msg.correlationId) errResp.correlationId = msg.correlationId;
+                  sendResponse(errResp);
                 }
               }
             })();

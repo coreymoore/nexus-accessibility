@@ -10,7 +10,7 @@ import {
   docRoots as __axDocRoots,
   nodeCache as __axNodeCache,
 } from "./caches.js";
-import { getCdpFrameId, getOrCreateIsolatedWorld } from "./cdp.js";
+import { getCdpFrameId, getOrCreateIsolatedWorld, sendCdp } from "./cdp.js";
 import { security } from "../utils/security.js";
 import { performance } from "../utils/performance.js";
 import { logger } from "../utils/logger.js";

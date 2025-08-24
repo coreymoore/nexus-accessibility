@@ -79,13 +79,45 @@ export class DebuggerConnectionManager {
     const operation = queue.then(async () => {
       return await performance.measure("debugger-operation", async () => {
         try {
+          // Surface correlationId in logs for tracing
+          if (opts && opts.correlationId) {
+            console.log(`executeWithDebugger starting for tab ${tabId} [corr=${opts.correlationId}]`);
+          } else {
+            console.log(`executeWithDebugger starting for tab ${tabId}`);
+          }
+
           await this.ensureAttached(tabId, opts);
+          // attach correlationId to connection state for downstream usage
+          const connection = this.getConnectionState(tabId);
+          if (opts && opts.correlationId) {
+            connection.lastCorrelationId = opts.correlationId;
+            try {
+              globalThis.__NEXUS_LAST_CORR = opts.correlationId;
+            } catch (e) {}
+          }
+
           const result = await callback({
-            connection: this.getConnectionState(tabId),
+            connection,
             tabId,
             frameId: opts.frameId,
+            correlationId: opts.correlationId,
           });
+
+          // clear global correlation marker to avoid leakage
+          try {
+            if (globalThis.__NEXUS_LAST_CORR === opts.correlationId) {
+              delete globalThis.__NEXUS_LAST_CORR;
+            }
+          } catch (e) {}
+
           this.scheduleDetach(tabId);
+
+          if (opts && opts.correlationId) {
+            console.log(`executeWithDebugger finished for tab ${tabId} [corr=${opts.correlationId}]`);
+          } else {
+            console.log(`executeWithDebugger finished for tab ${tabId}`);
+          }
+
           return result;
         } catch (error) {
           await this.handleError(tabId, error);
@@ -286,11 +318,27 @@ export class DebuggerConnectionManager {
    * Clear caches for a specific tab
    * @param {number} tabId - Chrome tab ID
    */
-  async clearCaches(tabId) {
+  async clearCaches(tabId, opts = {}) {
     // Notify all frames in the tab to clear their content-side caches and timers.
     // Collect per-frame ACKs and return a summary so callers can observe delivery.
     try {
       console.log(`Clearing caches for tab ${tabId}`);
+
+      // Verify tab still exists. Tabs can be closed or navigated away between
+      // the time the request was enqueued and execution; if the tab is gone,
+      // return a clear per-tab error rather than letting chrome.tabs.get throw
+      // an unchecked runtime.lastError elsewhere.
+      try {
+        await new Promise((resolve, reject) => {
+          chrome.tabs.get(tabId, (tab) => {
+            if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+            resolve(tab);
+          });
+        });
+      } catch (tabErr) {
+        console.warn(`Tab ${tabId} not available when clearing caches:`, tabErr.message);
+        return [{ frameId: 0, ok: false, error: `No tab with id: ${tabId}`, message: tabErr.message }];
+      }
 
       // Get all frames for the tab (best-effort)
       let frames = [];
@@ -301,30 +349,90 @@ export class DebuggerConnectionManager {
         frames = [];
       }
 
-      const results = [];
+  const results = [];
+  let permissionRequiredCount = 0;
 
       if (frames && frames.length) {
-        const promises = frames.map((frame) =>
-          chromeAsync.tabs
-            .sendMessage(tabId, { type: "CLEAR_CACHES" }, { frameId: frame.frameId })
-            .then((response) => ({ frameId: frame.frameId, ok: true, response }))
-            .catch((err) => ({ frameId: frame.frameId, ok: false, error: err.message }))
-        );
+        // Helper: try sending message, and on "Receiving end does not exist" try
+        // injecting the content-main script into that specific frame and retry once.
+        const sendToFrameWithRetry = async (frame) => {
+          const payload = { type: "CLEAR_CACHES" };
+          if (opts && opts.correlationId) payload.correlationId = opts.correlationId;
+          try {
+            const response = await chromeAsync.tabs.sendMessage(tabId, payload, { frameId: frame.frameId });
+            return { frameId: frame.frameId, ok: true, response, url: frame.url };
+          } catch (err) {
+            const errMsg = (err && err.message) || String(err);
+            // If this is a permission/host access error, don't try to inject —
+            // the extension lacks rights to run scripts on this host.
+              if (/Cannot access contents of the page|must request permission to access|request permission to access|Extension manifest must request permission/i.test(errMsg)) {
+              permissionRequiredCount++;
+              return { frameId: frame.frameId, ok: false, error: errMsg, url: frame.url, permissionRequired: true };
+            }
+
+            // If receiving end missing, attempt conservative one-shot injection
+            if (err && /Receiving end does not exist/.test(errMsg)) {
+              try {
+                console.log(`No receiver in tab ${tabId} frame ${frame.frameId}, attempting one-shot inject and retry`);
+                await chromeAsync.scripting.executeScript({ target: { tabId, frameIds: [frame.frameId] }, files: ["src/content/content-main.js"] });
+                // small delay to allow the injected script to register listeners
+                await new Promise((res) => setTimeout(res, 120));
+                const response = await chromeAsync.tabs.sendMessage(tabId, payload, { frameId: frame.frameId });
+                return { frameId: frame.frameId, ok: true, response, retried: true, url: frame.url };
+              } catch (e2) {
+                return { frameId: frame.frameId, ok: false, error: e2.message, url: frame.url };
+              }
+            }
+            return { frameId: frame.frameId, ok: false, error: err.message, url: frame.url };
+          }
+        };
+
+        const promises = frames.map((frame) => sendToFrameWithRetry(frame));
 
         const settled = await Promise.all(promises);
         for (const r of settled) results.push(r);
       } else {
         // Fallback: send to top-level frame
         try {
-          const response = await chromeAsync.tabs.sendMessage(tabId, { type: "CLEAR_CACHES" });
-          results.push({ frameId: 0, ok: true, response });
+          const payload = { type: "CLEAR_CACHES" };
+          if (opts && opts.correlationId) payload.correlationId = opts.correlationId;
+          try {
+            const response = await chromeAsync.tabs.sendMessage(tabId, payload);
+            results.push({ frameId: 0, ok: true, response });
+          } catch (err) {
+            const errMsg = (err && err.message) || String(err);
+            if (/Cannot access contents of the page|must request permission to access|request permission to access|Extension manifest must request permission/i.test(errMsg)) {
+              console.log(`Permission error sending to top frame of tab ${tabId}: ${errMsg}`);
+              permissionRequiredCount++;
+              results.push({ frameId: 0, ok: false, error: errMsg, permissionRequired: true });
+            } else if (err && /Receiving end does not exist/.test(errMsg)) {
+              console.log(`No receiver in top frame of tab ${tabId}, attempting one-shot inject and retry`);
+              try {
+                await chromeAsync.scripting.executeScript({ target: { tabId, frameIds: [0] }, files: ["src/content/content-main.js"] });
+                await new Promise((res) => setTimeout(res, 120));
+                const response = await chromeAsync.tabs.sendMessage(tabId, payload);
+                results.push({ frameId: 0, ok: true, response, retried: true });
+              } catch (e2) {
+                results.push({ frameId: 0, ok: false, error: e2.message });
+              }
+            } else {
+              results.push({ frameId: 0, ok: false, error: errMsg });
+            }
+          }
         } catch (err) {
           results.push({ frameId: 0, ok: false, error: err.message });
         }
       }
-
+      // Annotate results with summary information for permission issues
+      if (permissionRequiredCount > 0) {
+        results.permissionRequiredCount = permissionRequiredCount;
+      }
       // Log summary and return results for observability
-      console.log(`clearCaches results for tab ${tabId}:`, results);
+      if (opts && opts.correlationId) {
+        console.log(`clearCaches results for tab ${tabId} [corr=${opts.correlationId}]:`, results);
+      } else {
+        console.log(`clearCaches results for tab ${tabId}:`, results);
+      }
       return results;
     } catch (error) {
       console.warn(`Failed to clear caches for tab ${tabId}:`, error);

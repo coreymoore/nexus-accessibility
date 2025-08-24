@@ -48,6 +48,18 @@
       return existing;
     }
 
+    // Create a correlationId for this retrieval so logs and background calls can be traced
+    const correlationId = (() => {
+      try {
+        return (
+          Math.random().toString(16).slice(2, 10) +
+          Date.now().toString(16).slice(-4)
+        ).slice(0, 12);
+      } catch (e) {
+        return String(Math.floor(Math.random() * 1e9));
+      }
+    })();
+
     // Create a promise and store it as in-flight immediately so duplicates use it
     let resolveFn, rejectFn;
     const p = new Promise((resolve, reject) => {
@@ -64,12 +76,12 @@
       clearTimeout(existingTimer);
     }
 
-    pendingResolvers.set(target, { resolve: resolveFn, reject: rejectFn, source, forceUpdate });
+  pendingResolvers.set(target, { resolve: resolveFn, reject: rejectFn, source, forceUpdate, correlationId });
 
     const timer = setTimeout(async () => {
-      try {
+        try {
         executedRequests += 1;
-        console.log(`[ContentExtension.retrievalDispatcher] EXECUTE id=${readableId} source=${source} executed=${executedRequests}`);
+        console.log(`[ContentExtension.retrievalDispatcher] EXECUTE id=${readableId} source=${source} corr=${correlationId} executed=${executedRequests}`);
         // If content-side cache exists and has in-flight, prefer that
         let info = null;
         try {
@@ -86,7 +98,8 @@
         if (info == null) {
           // Use CE.accessibility to fetch data
           if (CE.accessibility && typeof CE.accessibility.getAccessibleInfo === "function") {
-            info = await CE.accessibility.getAccessibleInfo(target, forceUpdate);
+            // Pass correlationId so background and CDP logs can correlate this request
+            info = await CE.accessibility.getAccessibleInfo(target, forceUpdate, { correlationId, source });
           } else {
             info = null;
           }
@@ -95,7 +108,7 @@
         const pr = pendingResolvers.get(target);
         if (pr) {
           pr.resolve(info);
-          console.log(`[ContentExtension.retrievalDispatcher] RESOLVE id=${readableId} source=${pr.source}`);
+          console.log(`[ContentExtension.retrievalDispatcher] RESOLVE id=${readableId} source=${pr.source} corr=${pr.correlationId}`);
         }
       } catch (error) {
         const pr = pendingResolvers.get(target);
