@@ -16,6 +16,10 @@
   let dedupedRequests = 0; // number of times we returned an existing in-flight promise
   const elementIds = new WeakMap(); // Element -> numeric id for readable logs
   let nextElementId = 1;
+  // Maintain a small Set of inflight numeric ids so we can report an approximate
+  // enumeratable inflightCount. We store numbers (not Elements) to avoid
+  // retaining strong references to DOM nodes.
+  const inflightIdSet = new Set(); // numeric id -> present
 
   // Configuration
   const DEFAULT_DEBOUNCE_MS =
@@ -49,6 +53,8 @@
       rejectFn = reject;
     });
     inflight.set(target, p);
+    // record numeric id for inflight counting
+    inflightIdSet.add(readableId);
 
     // Clear any existing timer and set a new debounce timer
     const existingTimer = debounceTimers.get(target);
@@ -95,6 +101,12 @@
       } finally {
         // Clean up
         inflight.delete(target);
+        // remove numeric id from our inflight id set
+        try {
+          inflightIdSet.delete(readableId);
+        } catch (e) {
+          // ignore
+        }
         debounceTimers.delete(target);
         pendingResolvers.delete(target);
       }
@@ -136,11 +148,7 @@
         totalRequests,
         executedRequests,
         dedupedRequests,
-        inflightCount: (function () {
-          // WeakMap size cannot be read directly; approximate by iterating known element ids is not possible.
-          // Return -1 to indicate unknown/unsupported in this context.
-          return -1;
-        })(),
+        inflightCount: inflightIdSet.size,
         DEFAULT_DEBOUNCE_MS,
       };
     },
@@ -164,6 +172,22 @@
         const stats = CE.retrievalDispatcher.getStats();
         // respond back to page
         window.postMessage({ __nexus: true, type: "RETRIEVAL_STATS_RESPONSE", stats }, "*");
+        return;
+      }
+      if (d.type === "RESET_RETRIEVAL_STATS") {
+        CE.retrievalDispatcher.resetStats();
+        window.postMessage({ __nexus: true, type: "RETRIEVAL_STATS_RESET" }, "*");
+        return;
+      }
+      if (d.type === "GET_INFLIGHT_IDS") {
+        // Return a copy of the inflight numeric ids array for debugging
+        try {
+          const ids = Array.from(inflightIdSet);
+          window.postMessage({ __nexus: true, type: "RETRIEVAL_INFLIGHT_IDS", ids }, "*");
+        } catch (e) {
+          window.postMessage({ __nexus: true, type: "RETRIEVAL_INFLIGHT_IDS", ids: [] }, "*");
+        }
+        return;
       }
     } catch (e) {
       // swallow errors to avoid interfering with host page
