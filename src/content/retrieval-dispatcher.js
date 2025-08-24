@@ -49,16 +49,27 @@
     }
 
     // Create a correlationId for this retrieval so logs and background calls can be traced
-    const correlationId = (() => {
-      try {
-        return (
-          Math.random().toString(16).slice(2, 10) +
-          Date.now().toString(16).slice(-4)
-        ).slice(0, 12);
-      } catch (e) {
-        return String(Math.floor(Math.random() * 1e9));
+    let correlationId = null;
+    try {
+      if (window && window.NexusUtils && typeof window.NexusUtils.generateCorrelationId === 'function') {
+        correlationId = window.NexusUtils.generateCorrelationId();
       }
-    })();
+    } catch (e) {
+      correlationId = null;
+    }
+    if (!correlationId) {
+      // Fallback inline generator: compact hex + timestamp, short and readable
+      correlationId = (() => {
+        try {
+          return (
+            Math.random().toString(16).slice(2, 10) +
+            Date.now().toString(16).slice(-4)
+          ).slice(0, 12);
+        } catch (e) {
+          return String(Math.floor(Math.random() * 1e9));
+        }
+      })();
+    }
 
     // Create a promise and store it as in-flight immediately so duplicates use it
     let resolveFn, rejectFn;

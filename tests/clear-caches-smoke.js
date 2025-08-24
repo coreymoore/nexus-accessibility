@@ -1,5 +1,10 @@
 // Simple generator for a 12-character hex correlation id
 function generateCorrelationId() {
+  try {
+    if (window && window.NexusUtils && typeof window.NexusUtils.generateCorrelationId === 'function') {
+      return window.NexusUtils.generateCorrelationId();
+    }
+  } catch (e) {}
   return (Math.random().toString(16).slice(2, 10) + Date.now().toString(16).slice(-4)).slice(0,12);
 }
 

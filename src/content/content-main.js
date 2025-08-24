@@ -33,7 +33,10 @@
     try {
       // Simple random hex id (8 chars) — deterministic enough for correlation
       CE.frameId = (
-        Math.random().toString(16).slice(2, 10) + Date.now().toString(16).slice(-4)
+        // Prefer centralized UUID generator when available
+        (window && window.NexusUtils && typeof window.NexusUtils.generateCorrelationId === 'function')
+          ? window.NexusUtils.generateCorrelationId()
+          : (Math.random().toString(16).slice(2, 10) + Date.now().toString(16).slice(-4))
       ).slice(0, 12);
     } catch (e) {
       CE.frameId = String(Math.floor(Math.random() * 1e9));
