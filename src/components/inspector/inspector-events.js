@@ -21,6 +21,8 @@
       this._messageListener = null;
       this._shortcutRegistered = false;
       this._keydownHandler = null;
+      // Track installed listeners for robust cleanup
+      this._installedListeners = [];
     }
 
     /**
@@ -278,12 +280,39 @@
           onResize,
           100
         );
-        window.addEventListener("resize", debouncedResize);
+        window.addEventListener("resize", debouncedResize, { passive: true });
+        this._installedListeners.push({
+          target: window,
+          type: "resize",
+          handler: debouncedResize,
+          options: { passive: true },
+        });
       }
 
       if (onScroll) {
         const debouncedScroll = this.createDebouncedScrollHandler(onScroll);
-        window.addEventListener("scroll", debouncedScroll, true);
+        // Use passive:true to avoid blocking the main thread during scroll
+        try {
+          window.addEventListener("scroll", debouncedScroll, {
+            capture: true,
+            passive: true,
+          });
+          this._installedListeners.push({
+            target: window,
+            type: "scroll",
+            handler: debouncedScroll,
+            options: { capture: true, passive: true },
+          });
+        } catch (e) {
+          // Fallback for older browsers
+          window.addEventListener("scroll", debouncedScroll, true);
+          this._installedListeners.push({
+            target: window,
+            type: "scroll",
+            handler: debouncedScroll,
+            options: true,
+          });
+        }
       }
 
       if (onVisibilityChange) {
@@ -310,6 +339,33 @@
         if (window.nexusAccessibilityUiInspectorShortcutRegistered) {
           window.nexusAccessibilityUiInspectorShortcutRegistered = false;
         }
+      }
+
+      // Remove any installed listeners we recorded
+      try {
+        for (const l of this._installedListeners || []) {
+          try {
+            if (l && l.target && l.type && l.handler) {
+              // Attempt to remove with same options object if provided
+              try {
+                l.target.removeEventListener(l.type, l.handler, l.options);
+              } catch (e) {
+                // Fallback to boolean capture removal
+                if (typeof l.options === "object" && l.options.capture) {
+                  l.target.removeEventListener(l.type, l.handler, true);
+                } else if (l.options === true) {
+                  l.target.removeEventListener(l.type, l.handler, true);
+                } else {
+                  l.target.removeEventListener(l.type, l.handler);
+                }
+              }
+            }
+          } catch (e) {
+            // ignore per-listener errors
+          }
+        }
+      } catch (e) {
+        // ignore
       }
     }
 

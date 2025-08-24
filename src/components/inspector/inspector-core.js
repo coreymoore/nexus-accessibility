@@ -205,7 +205,16 @@
           this.positioning.repositionInspectorAndConnector(this._lastTarget);
         }
       };
-      window.addEventListener("scroll", this._scrollHandler, true);
+      // Use passive:true for scroll listeners to avoid causing scroll jank
+      try {
+        window.addEventListener("scroll", this._scrollHandler, {
+          capture: true,
+          passive: true,
+        });
+      } catch (e) {
+        // Fallback for older browsers: add with boolean capture
+        window.addEventListener("scroll", this._scrollHandler, true);
+      }
 
       // Setup close button functionality
       const closeButton = this.inspector.querySelector(
