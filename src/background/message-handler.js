@@ -8,6 +8,7 @@ import {
   resolveNode,
   getPartialAXTree,
 } from "./cdp.js";
+import { DIRECT_CACHE_TTL_MS } from "./constants.js";
 
 export class MessageHandler {
   constructor(cacheManager, debuggerManager) {
@@ -204,7 +205,7 @@ export class MessageHandler {
           // Check micro-cache first (TTL 150ms)
           try {
             const cached = this.directCache.get(cacheKey);
-            if (cached && Date.now() - cached.t < 150) {
+            if (cached && Date.now() - cached.t < DIRECT_CACHE_TTL_MS) {
               console.log("Background: Returning micro-cached direct reference result");
               return cached.value;
             }
