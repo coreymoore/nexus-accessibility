@@ -13,6 +13,10 @@ export class MessageHandler {
   constructor(cacheManager, debuggerManager) {
     this.cache = cacheManager;
     this.debugger = debuggerManager;
+    // Micro-cache for direct-reference results to avoid CDP churn during rapid
+    // key navigation. Keyed by `element-direct-${tabId}-${frameId}` and
+    // stores { value, t } where t is timestamp in ms.
+    this.directCache = new Map();
   }
 
   async handle(msg, sender) {
@@ -196,41 +200,47 @@ export class MessageHandler {
       if (msg.useDirectReference) {
         console.log("Background: Using direct element reference approach");
 
-        // For direct reference, we don't need complex selectors or caching by selector
-        // Clear any existing cache when we get a new request to ensure fresh data
-        const cacheKey = `element-direct-${tabId}-${frameId || 0}`;
-        console.log(
-          "Background: Clearing any existing cache for fresh element data"
-        );
-        this.cache.delete(cacheKey);
+          const cacheKey = `element-direct-${tabId}-${frameId || 0}`;
+          // Check micro-cache first (TTL 150ms)
+          try {
+            const cached = this.directCache.get(cacheKey);
+            if (cached && Date.now() - cached.t < 150) {
+              console.log("Background: Returning micro-cached direct reference result");
+              return cached.value;
+            }
+          } catch (e) {
+            // ignore cache errors
+          }
 
-        // Don't use cache for direct reference - always get fresh data
-        // This ensures we always get the current element, not a cached previous one
+          // Ensure debugger is attached and get connection
+          console.log("Background: attaching debugger to tab", tabId);
+          const connection = await this.debugger.attach(tabId);
+          console.log("Background: debugger attached, connection:", connection);
 
-        // Ensure debugger is attached and get connection
-        console.log("Background: attaching debugger to tab", tabId);
-        const connection = await this.debugger.attach(tabId);
-        console.log("Background: debugger attached, connection:", connection);
+          // Get accessibility info using direct reference method
+          console.log(
+            "Background: calling getAccessibilityInfoForElement with direct reference"
+          );
+          const result = await getAccessibilityInfoForElement(
+            tabId,
+            frameId || 0,
+            msg.elementSelector || null, // Pass selector as a fallback if provided
+            connection,
+            true // Flag to use direct reference
+          );
+          console.log(
+            "Background: got result from direct reference method:",
+            result
+          );
 
-        // Get accessibility info using direct reference method
-        console.log(
-          "Background: calling getAccessibilityInfoForElement with direct reference"
-        );
-        const result = await getAccessibilityInfoForElement(
-          tabId,
-          frameId || 0,
-          msg.elementSelector || null, // Pass selector as a fallback if provided
-          connection,
-          true // Flag to use direct reference
-        );
-        console.log(
-          "Background: got result from direct reference method:",
-          result
-        );
+          // Store micro-cache entry
+          try {
+            this.directCache.set(cacheKey, { value: result, t: Date.now() });
+          } catch (e) {
+            // ignore
+          }
 
-        // Don't cache direct reference results to ensure we always get fresh data
-        // Each focus change should get the current element, not cached data
-        return result;
+          return result;
       }
 
       // Legacy selector-based approach (fallback)
@@ -306,8 +316,15 @@ export class MessageHandler {
     try {
       const tabId = sender.tab?.id || msg.tabId;
       if (tabId) {
-        await this.debugger.detach(tabId);
-        return { status: "detached", tabId };
+        // Schedule a detach rather than forcing immediate detach to avoid
+        // attach/detach churn when users quickly refocus the page.
+        if (this.debugger && typeof this.debugger.scheduleDetach === "function") {
+          this.debugger.scheduleDetach(tabId);
+        } else if (this.debugger && typeof this.debugger.detach === "function") {
+          // Fallback to immediate detach if scheduling is not available
+          await this.debugger.detach(tabId);
+        }
+        return { status: "scheduled_detach", tabId };
       }
       return { status: "no_tab_id" };
     } catch (error) {

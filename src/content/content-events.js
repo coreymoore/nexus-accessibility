@@ -554,16 +554,24 @@
         if (CE.cache) {
           CE.cache.deleteCached(target);
         }
-        // Invalidate background cache (best-effort)
+        // Invalidate background cache (best-effort) only when we can't
+        // resolve the active item locally via aria-activedescendant.
         try {
-          const selector = CE.utils.getUniqueSelector(target);
-          chrome.runtime.sendMessage({
-            action: "invalidateAccessibilityCache",
-            elementSelector: selector,
-            frameId: 0,
-            reason: `key-${key}`,
-            mode: "selector",
-          });
+          const activeDescId = CE.utils.safeGetAttribute(target, "aria-activedescendant");
+          if (!activeDescId) {
+            const selector = CE.utils.getUniqueSelector(target);
+            chrome.runtime.sendMessage({
+              action: "invalidateAccessibilityCache",
+              elementSelector: selector,
+              frameId: 0,
+              reason: `key-${key}`,
+              mode: "selector",
+            });
+          } else {
+            // If aria-activedescendant is present, prefer local quick updates
+            // and avoid SW invalidation to reduce CDP churn.
+            console.log('[ContentExtension.events] Skipping SW invalidate for nav key because aria-activedescendant present');
+          }
         } catch (_) {}
         // Schedule refetch after DOM updates from key handlers
         if (CE.accessibility && CE.accessibility.getAccessibleInfo) {

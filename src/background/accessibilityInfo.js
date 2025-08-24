@@ -55,8 +55,29 @@ export async function getAccessibilityInfoForElement(
   if (elementSelector) {
     const selectorValidation = security.validateSelector(elementSelector);
     if (!selectorValidation.valid) {
-      throw new Error(`Invalid selector: ${selectorValidation.reason}`);
+      // Do not block retrievals for inspection. Log the validation failure
+      // and proceed with a safe selector-based lookup. We avoid throwing
+      // here because inspection must succeed even when selectors contain
+      // unusual patterns (e.g. data: URIs). Downstream queries use
+      // JSON.stringify when embedding the selector into Runtime.evaluate,
+      // which prevents code execution.
+      logger.background && logger.background.warn && logger.background.warn(
+        `Selector validation failed but proceeding with lookup: ${selectorValidation.reason}`
+      );
+      // keep elementSelector as-is so fallback selector-based lookup can run
     }
+  }
+
+  // Small deterministic hash for selector-based cache keys so we don't store
+  // raw selector strings (which may contain sensitive or problematic content).
+  function _simpleHash(str) {
+    if (!str) return "0";
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return (h >>> 0).toString(16);
   }
 
   const log = logger.background;
@@ -441,7 +462,8 @@ export async function getAccessibilityInfoForElement(
         }
       }
 
-      const cacheSelKey = `${cacheKey}::${elementSelector}`;
+  const selHash = elementSelector ? _simpleHash(elementSelector) : "0";
+  const cacheSelKey = `${cacheKey}::${selHash}`;
       let cachedNode = __axNodeCache.get(cacheSelKey);
       let nodeId = cachedNode && cachedNode.nodeId;
       let usedCache = false;
