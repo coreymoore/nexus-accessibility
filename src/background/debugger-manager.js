@@ -1,4 +1,5 @@
 import { chromeAsync } from "../utils/chromeAsync.js";
+import { sendCdp } from "./cdp.js";
 
 export class DebuggerManager {
   constructor() {
@@ -13,11 +14,11 @@ export class DebuggerManager {
     try {
   await chromeAsync.debugger.attach({ tabId }, "1.3");
 
-  // Enable required domains using promise-wrapped API
-  await chromeAsync.debugger.sendCommand({ tabId }, "DOM.enable");
-  await chromeAsync.debugger.sendCommand({ tabId }, "Accessibility.enable");
-  await chromeAsync.debugger.sendCommand({ tabId }, "Page.enable");
-  await chromeAsync.debugger.sendCommand({ tabId }, "Runtime.enable");
+  // Enable required CDP domains via centralized sender
+  await sendCdp(tabId, "DOM.enable");
+  await sendCdp(tabId, "Accessibility.enable");
+  await sendCdp(tabId, "Page.enable");
+  await sendCdp(tabId, "Runtime.enable");
 
       const connection = {
         tabId,
@@ -44,7 +45,7 @@ export class DebuggerManager {
 
   async sendCommand(tabId, method, params = {}) {
     await this.ensureAttached(tabId);
-    return await chromeAsync.debugger.sendCommand({ tabId }, method, params);
+    return await sendCdp(tabId, method, params);
   }
 
   async ensureAttached(tabId) {

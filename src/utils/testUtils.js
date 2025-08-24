@@ -17,6 +17,8 @@ const _G =
 
   // Import the chromeAsync promise wrapper so test utils can use it at runtime
   import { chromeAsync } from "./chromeAsync.js";
+  // Import centralized CDP helper for consistent correlation logging
+  import { sendCdp } from "../background/cdp.js";
 
 // Provide a compatibility alias for `window` in non-window globals (service worker / worker)
 // so callers using `window.NexusTestUtils` from the service worker console won't see
@@ -172,9 +174,9 @@ if (typeof chrome !== "undefined" && chrome.runtime) {
         if (!chromeAsync || !chromeAsync.debugger) {
           throw new Error("chromeAsync.debugger is not available in this context");
         }
-        await chromeAsync.debugger.attach({ tabId }, "1.3");
-        await chromeAsync.debugger.sendCommand({ tabId }, "Accessibility.enable");
-        await chromeAsync.debugger.detach({ tabId });
+  await chromeAsync.debugger.attach({ tabId }, "1.3");
+  await sendCdp(tabId, "Accessibility.enable");
+  await chromeAsync.debugger.detach({ tabId });
         successCount++;
         console.log(`✓ Iteration ${i + 1} successful`);
       } catch (error) {
@@ -300,7 +302,7 @@ if (typeof chrome !== "undefined" && chrome.runtime) {
 
       try {
         await chromeAsync.debugger.attach({ tabId }, "1.3");
-        await chromeAsync.debugger.sendCommand({ tabId }, "DOM.enable");
+        await sendCdp(tabId, "DOM.enable");
 
         const afterAttach = performance.memory.usedJSHeapSize;
         console.log(
@@ -395,7 +397,7 @@ if (typeof chrome !== "undefined" && chrome.runtime) {
     console.log("Testing error recovery system...");
 
     try {
-      await chromeAsync.debugger.sendCommand({ tabId: 99999 }, "DOM.enable");
+      await sendCdp(99999, "DOM.enable");
     } catch (error) {
       console.log("Expected error caught:", error.message);
     }

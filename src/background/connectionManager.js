@@ -6,6 +6,7 @@
  */
 
 import { chromeAsync } from "../utils/chromeAsync.js";
+import { sendCdp } from "./cdp.js";
 import { errorRecovery } from "../utils/errorRecovery.bg.js";
 import { scheduler } from "../utils/scheduler.js";
 import { logger } from "../utils/logger.js";
@@ -169,14 +170,12 @@ export class DebuggerConnectionManager {
         try {
           await chromeAsync.debugger.attach({ tabId }, "1.3");
 
-          // Enable required CDP domains
-          await chromeAsync.debugger.sendCommand({ tabId }, "DOM.enable");
-          await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "Accessibility.enable"
-          );
-          await chromeAsync.debugger.sendCommand({ tabId }, "Page.enable");
-          await chromeAsync.debugger.sendCommand({ tabId }, "Runtime.enable");
+          // Enable required CDP domains via centralized sender so correlationId
+          // logging is applied consistently.
+          await sendCdp(tabId, "DOM.enable", {});
+          await sendCdp(tabId, "Accessibility.enable", {});
+          await sendCdp(tabId, "Page.enable", {});
+          await sendCdp(tabId, "Runtime.enable", {});
 
           const connection = this.getConnectionState(tabId);
           connection.state = "ATTACHED";
@@ -449,8 +448,8 @@ export class DebuggerConnectionManager {
    */
   async createIsolatedWorld(tabId, frameId, worldName = "NexusAccessibility") {
     try {
-      const { executionContextId } = await chromeAsync.debugger.sendCommand(
-        { tabId },
+      const { executionContextId } = await sendCdp(
+        tabId,
         "Page.createIsolatedWorld",
         {
           frameId,

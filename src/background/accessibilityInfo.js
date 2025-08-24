@@ -105,8 +105,8 @@ export async function getAccessibilityInfoForElement(
             );
             console.log("Background: Got execution context ID:", ctxId);
 
-            result = await chromeAsync.debugger.sendCommand(
-              { tabId },
+            result = await sendCdp(
+              tabId,
               "Runtime.evaluate",
               {
                 expression: `
@@ -174,8 +174,8 @@ export async function getAccessibilityInfoForElement(
           } else {
             // For main frame: use default context
             console.log("Background: Using main frame context");
-            result = await chromeAsync.debugger.sendCommand(
-              { tabId },
+            result = await sendCdp(
+              tabId,
               "Runtime.evaluate",
               {
                 expression: `
@@ -263,11 +263,7 @@ export async function getAccessibilityInfoForElement(
               console.log(
                 "Background: Initializing DOM tree with DOM.getDocument"
               );
-              await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.getDocument",
-                { depth: 0 }
-              );
+              await sendCdp(tabId, "DOM.getDocument", { depth: 0 });
               console.log("Background: DOM tree initialized successfully");
             } catch (domInitError) {
               console.error(
@@ -278,11 +274,9 @@ export async function getAccessibilityInfoForElement(
 
             // Convert objectId to nodeId using DOM.requestNode
             try {
-              const nodeResult = await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.requestNode",
-                { objectId: result.result.objectId }
-              );
+              const nodeResult = await sendCdp(tabId, "DOM.requestNode", {
+                objectId: result.result.objectId,
+              });
 
               console.log("Background: DOM.requestNode response:", nodeResult);
               const nodeId = nodeResult.nodeId;
@@ -293,8 +287,8 @@ export async function getAccessibilityInfoForElement(
 
               if (nodeId && nodeId > 0) {
                 // Get the accessibility node with all properties
-                const { nodes } = await chromeAsync.debugger.sendCommand(
-                  { tabId },
+                const { nodes } = await sendCdp(
+                  tabId,
                   "Accessibility.getPartialAXTree",
                   {
                     nodeId,
@@ -355,47 +349,33 @@ export async function getAccessibilityInfoForElement(
 
         try {
           // Last resort: try document.activeElement directly
-          const activeResult = await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "Runtime.evaluate",
-            {
-              expression: "document.activeElement",
-              returnByValue: false,
-            }
-          );
+          const activeResult = await sendCdp(tabId, "Runtime.evaluate", {
+            expression: "document.activeElement",
+            returnByValue: false,
+          });
 
           if (activeResult.result?.objectId) {
             console.log("Background: Found document.activeElement as fallback");
 
             // Initialize DOM if needed
             try {
-              await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.getDocument",
-                { depth: 0 }
-              );
+              await sendCdp(tabId, "DOM.getDocument", { depth: 0 });
             } catch (domError) {
               console.log("Background: DOM already initialized");
             }
 
             // Convert objectId to nodeId
-            const nodeResult = await chromeAsync.debugger.sendCommand(
-              { tabId },
-              "DOM.requestNode",
-              { objectId: activeResult.result.objectId }
-            );
+            const nodeResult = await sendCdp(tabId, "DOM.requestNode", {
+              objectId: activeResult.result.objectId,
+            });
 
             const nodeId = nodeResult.nodeId;
             if (nodeId && nodeId > 0) {
               // Get accessibility info
-              const { nodes } = await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "Accessibility.getPartialAXTree",
-                {
-                  nodeId,
-                  fetchRelatives: true,
-                }
-              );
+              const { nodes } = await sendCdp(tabId, "Accessibility.getPartialAXTree", {
+                nodeId,
+                fetchRelatives: true,
+              });
 
               if (nodes && nodes.length > 0) {
                 let node = nodes[0];
@@ -452,11 +432,7 @@ export async function getAccessibilityInfoForElement(
       } else {
         // For main frame, cache top-level document root. For subframes, we won't rely on DOM.getDocument.
         if (!pageFrameId) {
-          const { root } = await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "DOM.getDocument",
-            { depth: 1 }
-          );
+          const { root } = await sendCdp(tabId, "DOM.getDocument", { depth: 1 });
           documentNodeId = root.nodeId;
           __axDocRoots.set(cacheKey, {
             nodeId: documentNodeId,
@@ -481,11 +457,10 @@ export async function getAccessibilityInfoForElement(
       if (nodeId) {
         // Validate quickly by asking for a small AX slice; if it fails, we'll re-query
         try {
-          const test = await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "Accessibility.getPartialAXTree",
-            { nodeId, fetchRelatives: false }
-          );
+          const test = await sendCdp(tabId, "Accessibility.getPartialAXTree", {
+            nodeId,
+            fetchRelatives: false,
+          });
           if (test && Array.isArray(test.nodes) && test.nodes.length) {
             usedCache = true;
           } else {
@@ -514,25 +489,19 @@ export async function getAccessibilityInfoForElement(
               elementSelector
             )})`;
             console.log("Background: Evaluating expression:", expr);
-            const { result } = await chromeAsync.debugger.sendCommand(
-              { tabId },
-              "Runtime.evaluate",
-              {
-                contextId: ctxId,
-                expression: expr,
-                returnByValue: false,
-                awaitPromise: false,
-              }
-            );
+            const { result } = await sendCdp(tabId, "Runtime.evaluate", {
+              contextId: ctxId,
+              expression: expr,
+              returnByValue: false,
+              awaitPromise: false,
+            });
             console.log("Background: Runtime.evaluate result:", result);
             const objectId = result && result.objectId;
             if (objectId) {
               // Convert objectId to nodeId using DOM.requestNode
-              const nodeResult = await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.requestNode",
-                { objectId }
-              );
+              const nodeResult = await sendCdp(tabId, "DOM.requestNode", {
+                objectId,
+              });
               nodeId = nodeResult.nodeId;
               console.log(
                 "Background: Frame-world query found nodeId:",
@@ -555,14 +524,10 @@ export async function getAccessibilityInfoForElement(
             "Background: Attempting main frame DOM query with documentNodeId:",
             documentNodeId
           );
-          let q = await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "DOM.querySelector",
-            {
-              nodeId: documentNodeId,
-              selector: elementSelector,
-            }
-          );
+          let q = await sendCdp(tabId, "DOM.querySelector", {
+            nodeId: documentNodeId,
+            selector: elementSelector,
+          });
           nodeId = q.nodeId;
           console.log(
             "Background: Main frame DOM query result nodeId:",
@@ -573,11 +538,9 @@ export async function getAccessibilityInfoForElement(
           if (!nodeId && !pageFrameId) {
             try {
               console.log("Background: Refreshing document root and retrying");
-              const { root } = await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.getDocument",
-                { depth: 1 }
-              );
+              const { root } = await sendCdp(tabId, "DOM.getDocument", {
+                depth: 1,
+              });
               documentNodeId = root.nodeId;
               console.log(
                 "Background: New document root nodeId:",
@@ -587,14 +550,10 @@ export async function getAccessibilityInfoForElement(
                 nodeId: documentNodeId,
                 t: Date.now(),
               });
-              q = await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.querySelector",
-                {
-                  nodeId: documentNodeId,
-                  selector: elementSelector,
-                }
-              );
+              q = await sendCdp(tabId, "DOM.querySelector", {
+                nodeId: documentNodeId,
+                selector: elementSelector,
+              });
               nodeId = q.nodeId;
               console.log("Background: Retry DOM query result nodeId:", nodeId);
             } catch (retryError) {
@@ -626,14 +585,10 @@ export async function getAccessibilityInfoForElement(
       }
 
       // Get the accessibility node with all properties
-      const { nodes } = await chromeAsync.debugger.sendCommand(
-        { tabId },
-        "Accessibility.getPartialAXTree",
-        {
-          nodeId,
-          fetchRelatives: true,
-        }
-      );
+      const { nodes } = await sendCdp(tabId, "Accessibility.getPartialAXTree", {
+        nodeId,
+        fetchRelatives: true,
+      });
 
       // Optionally get DOM attributes to capture ARIA properties (defer unless needed)
       let attributes = null;
@@ -755,11 +710,7 @@ export async function getAccessibilityInfoForElement(
       // If ariaProperties are still empty and we didn't fetch attributes yet, fetch once
       if (Object.keys(out.ariaProperties).length === 0 && attributes === null) {
         try {
-          const resp = await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "DOM.getAttributes",
-            { nodeId }
-          );
+          const resp = await sendCdp(tabId, "DOM.getAttributes", { nodeId });
           attributes = resp.attributes;
           if (attributes && Array.isArray(attributes)) {
             for (let i = 0; i < attributes.length; i += 2) {
