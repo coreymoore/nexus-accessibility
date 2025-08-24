@@ -18,14 +18,7 @@
 
   // HTML Templates for consistency and maintainability
   const Templates = {
-    LOADING_SPINNER: `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="animation: spin 1s linear infinite;" aria-hidden="true" focusable="false">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
-          <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
-          <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
-        </circle>
-      </svg>
-    `,
+    // Loading spinner removed to comply with no-animation policy.
 
     CLOSE_BUTTON_ICON: `
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
@@ -42,10 +35,10 @@
 
     SCREEN_READER_ICON: `
       <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Screen Reader Output" focusable="false" style="vertical-align:middle;">
-        <rect x="3" y="8" width="5" height="8" rx="1.5" fill="#7851a9"/>
-        <polygon points="8,8 14,4 14,20 8,16" fill="#78551a9"/>
-        <path d="M17 9a4 4 0 0 1 0 6" stroke="#7851a9" stroke-width="2" fill="none" stroke-linecap="round"/>
-        <path d="M19.5 7a7 7 0 0 1 0 10" stroke="#78551a9" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <rect x="3" y="8" width="5" height="8" rx="1.5" fill="#683ab7"/>
+        <polygon points="8,8 14,4 14,20 8,16" fill="#683ab7"/>
+        <path d="M17 9a4 4 0 0 1 0 6" stroke="#683ab7" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M19.5 7a7 7 0 0 1 0 10" stroke="#683ab7" stroke-width="1.5" fill="none" stroke-linecap="round"/>
       </svg>
     `,
   };
@@ -89,12 +82,18 @@
      */
     createLoadingContent() {
       return `
-  <div class="nexus-accessibility-ui-inspector-body" inert>
-          <div class="nexus-accessibility-ui-loading" style="display: flex; align-items: center; gap: 8px; color: #683ab7;">
-            ${Templates.LOADING_SPINNER}
-            <span>Loading Nexus Accessibility Info</span>
-          </div>
-        </div>
+  <div class="nexus-accessibility-ui-inspector-body">
+    <div class="nexus-accessibility-ui-loading" aria-hidden="false">
+      <div class="nexus-skeleton" aria-hidden="true">
+        <div class="bar long"></div>
+        <div class="bar medium"></div>
+        <div class="bar short"></div>
+      </div>
+
+      <!-- Accessible-only text for screen readers -->
+      <span class="nexus-sr-only">Loading Nexus Accessibility Info</span>
+    </div>
+  </div>
       `;
     },
 
@@ -107,7 +106,7 @@
   <button class="nexus-accessibility-ui-inspector-close" 
                 aria-label="Close Nexus Inspector" 
                 type="button"
-                tabindex="0">
+                tabindex="-1">
           ${Templates.CLOSE_BUTTON_ICON}
         </button>
       `;
@@ -136,16 +135,27 @@
         states: info.states,
       });
 
-      // Base: role, name, description
+      // Base: role, name, description - always deepUnwrap to convert AX values to text
       const base = [];
-      if (info.role) {
-        base.push(this.createSafeSpan("sr-role", info.role));
-      }
-      if (info.name && info.name !== "(no accessible name)") {
-        base.push(this.createSafeSpan("sr-name", info.name));
-      }
-      if (info.description && info.description !== "(no description)") {
-        base.push(this.createSafeSpan("sr-desc", info.description));
+      try {
+        const roleText = info.role ? utils.deepUnwrap(info.role) : null;
+        const nameText = info.name ? utils.deepUnwrap(info.name) : null;
+        const descText = info.description ? utils.deepUnwrap(info.description) : null;
+
+        if (roleText) {
+          base.push(this.createSafeSpan("sr-role", roleText));
+        }
+        if (nameText && nameText !== "(no accessible name)") {
+          base.push(this.createSafeSpan("sr-name", nameText));
+        }
+        if (descText && descText !== "(no description)") {
+          base.push(this.createSafeSpan("sr-desc", descText));
+        }
+      } catch (e) {
+        // If deepUnwrap fails for any reason, fallback to original values
+        if (info.role) base.push(this.createSafeSpan("sr-role", String(info.role)));
+        if (info.name && info.name !== "(no accessible name)") base.push(this.createSafeSpan("sr-name", String(info.name)));
+        if (info.description && info.description !== "(no description)") base.push(this.createSafeSpan("sr-desc", String(info.description)));
       }
 
       // Extras: states, aria-derived states, group, value, required
@@ -262,35 +272,44 @@
         result = baseStr;
       }
 
-      // Add active descendant information if available (with different styling)
-      if (info.activeDescendant) {
-        const activeDesc = info.activeDescendant;
-        let activeDescText = "";
-
-        if (activeDesc.role) {
-          activeDescText += activeDesc.role;
+      // Active descendant (screen reader preview simplified to JUST the descendant's accessible name)
+      // Prefer enhanced `activeDescendant` object but fallback to raw states/aria data
+      try {
+        let nameOnly = null;
+        if (info.activeDescendant && info.activeDescendant.name) {
+          nameOnly = utils.deepUnwrap(info.activeDescendant.name);
+        } else {
+          // Fallback: try states.activedescendant, activeDescendantRaw, or ariaProperties
+          const raw = info?.states?.activedescendant || info?.activeDescendantRaw || info?.ariaProperties?.activedescendant;
+          if (raw) {
+            nameOnly = utils.deepUnwrap(raw);
+            // deepUnwrap may produce idrefs or roles; try to extract last quoted name if present
+            if (typeof nameOnly === 'string') {
+              // If the string contains idref tokens like combo1-1, it's okay; this is a best-effort fallback
+            }
+          }
         }
-
-        if (activeDesc.name) {
-          const name = utils.deepUnwrap(activeDesc.name);
-          activeDescText += activeDescText ? ` "${name}"` : `"${name}"`;
+        if (nameOnly) {
+          let textVal = String(nameOnly).trim();
+          // Avoid showing raw serialized object JSON (heuristic: starts with { and contains "relatedNodes")
+          if (/^\{/.test(textVal) && /relatedNodes/.test(textVal)) {
+            // Attempt final fallback: if enhanced object exists now use its name
+            if (info.activeDescendant && info.activeDescendant.name) {
+              textVal = String(utils.deepUnwrap(info.activeDescendant.name)).trim();
+            } else {
+              // Drop instead of showing opaque structure
+              textVal = "";
+            }
+          }
+            // Also collapse multiple spaces
+          if (textVal) {
+            textVal = textVal.replace(/\s+/g, " ");
+            const span = `<span class="sr-active-descendant">${utils.escapeHtml(textVal)}</span>`;
+            result += result ? `, ${span}` : span;
+          }
         }
-
-        if (
-          activeDesc.states &&
-          Array.isArray(activeDesc.states) &&
-          activeDesc.states.length > 0
-        ) {
-          const states = activeDesc.states.join(", ");
-          activeDescText += activeDescText ? ` (${states})` : states;
-        }
-
-        if (activeDescText) {
-          const activeDescSpan = `<span class="sr-active-descendant">${activeDescText}</span>`;
-          result += result
-            ? `, active descendant: ${activeDescSpan}`
-            : `active descendant: ${activeDescSpan}`;
-        }
+      } catch (e) {
+        console.warn("[Inspector] Failed rendering active descendant SR output", e);
       }
 
       return result;
@@ -317,7 +336,7 @@
      */
     createErrorContent(message) {
       return `
-  <div class="nexus-accessibility-ui-inspector-body" inert>
+  <div class="nexus-accessibility-ui-inspector-body">
           <div class="nexus-accessibility-ui-error" style="display: flex; align-items: center; gap: 8px; color: #d73a49;">
             ${Templates.ERROR_ICON}
             <span>${utils.escapeHtml(message || "An error occurred")}</span>
@@ -379,6 +398,17 @@
 
         if (activeDescValue) {
           pairs.push({ label: "Active Descendant", value: activeDescValue });
+        }
+      } else {
+        // Fallback: try to derive active descendant from raw states/aria
+        try {
+          const raw = accessibilityInfo?.states?.activedescendant || accessibilityInfo?.activeDescendantRaw || accessibilityInfo?.ariaProperties?.activedescendant;
+          const rawText = raw ? utils.deepUnwrap(raw) : null;
+          if (rawText) {
+            pairs.push({ label: "Active Descendant", value: rawText });
+          }
+        } catch (e) {
+          // ignore fallback failures
         }
       }
 
@@ -457,7 +487,7 @@
         const screenReaderSection = this.createScreenReaderSection(info);
 
         // Create inspector body wrapper
-        const bodyOpen = `<div class="nexus-accessibility-ui-inspector-body" inert style="pointer-events: none;">`;
+        const bodyOpen = `<div class="nexus-accessibility-ui-inspector-body">`;
         const bodyClose = `</div>`;
 
         let inspectorContent;

@@ -57,14 +57,58 @@
       return;
     }
 
+    // Store in content script context (fallback) but prefer the data-attribute method for CDP
     window.nexusTargetElement = element;
-    console.log(
-      `[NEXUS] Element stored for CDP access (${selectionType}):`,
-      element
-    );
-    console.log(
-      "[NEXUS] This element should be accessible via document.activeElement in CDP context"
-    );
+
+    // Create a short-lived unique token attribute name
+    const timestamp = Date.now();
+    const dataAttr = `data-nexus-target-${timestamp}`;
+
+    try {
+      element.setAttribute(dataAttr, 'true');
+    } catch (e) {
+      console.warn('[NEXUS] Failed to set data attribute token on element:', e);
+    }
+
+    // Publish token name on document.documentElement for main-world lookup
+    try {
+      // Move any current token into previous-target before overwriting
+      const existing = document.documentElement.getAttribute('data-nexus-current-target');
+      if (existing && existing !== dataAttr) {
+        document.documentElement.setAttribute('data-nexus-previous-target', existing);
+      }
+      document.documentElement.setAttribute('data-nexus-current-target', dataAttr);
+    } catch (e) {
+      console.warn('[NEXUS] Failed to set document-level nexus token:', e);
+    }
+
+    console.log(`[NEXUS] Element stored for CDP access (${selectionType}):`, element);
+    console.log("[NEXUS] Published data attribute token for main-world CDP access:", dataAttr);
+
+    // Safety cleanup: if background/CDP doesn't remove tokens within TTL, remove them here
+    const SAFETY_TTL_MS = 300; // short, but allow CDP evaluate to run
+    setTimeout(() => {
+      try {
+        const cur = document.documentElement.getAttribute('data-nexus-current-target');
+        if (cur === dataAttr) {
+          document.documentElement.removeAttribute('data-nexus-current-target');
+        }
+      } catch (e) {
+        // ignore
+      }
+      try {
+        // remove attribute from the element itself
+        element.removeAttribute(dataAttr);
+      } catch (e) {
+        // ignore
+      }
+      // Clear fallback global to avoid stale exposure
+      try {
+        if (window.nexusTargetElement === element) window.nexusTargetElement = null;
+      } catch (e) {
+        // ignore
+      }
+    }, SAFETY_TTL_MS);
   }
 
   /**

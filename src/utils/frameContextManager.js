@@ -6,6 +6,7 @@
  */
 
 import { chromeAsync } from "./chromeAsync.js";
+import { sendCdp } from "../background/cdp.js";
 
 export class FrameContextManager {
   constructor() {
@@ -51,15 +52,11 @@ export class FrameContextManager {
 
     try {
       // Create new isolated world
-      const { executionContextId } = await chromeAsync.debugger.sendCommand(
-        { tabId },
-        "Page.createIsolatedWorld",
-        {
-          frameId,
-          worldName: `${worldName}_${Date.now()}`,
-          grantUniversalAccess: false,
-        }
-      );
+      const { executionContextId } = await sendCdp(tabId, "Page.createIsolatedWorld", {
+        frameId,
+        worldName: `${worldName}_${Date.now()}`,
+        grantUniversalAccess: false,
+      });
 
       const contextInfo = {
         executionContextId,
@@ -80,10 +77,7 @@ export class FrameContextManager {
 
       // Fallback: try to get the default execution context
       try {
-        const { contexts } = await chromeAsync.debugger.sendCommand(
-          { tabId },
-          "Runtime.getIsolatedWorlds"
-        );
+        const { contexts } = await sendCdp(tabId, "Runtime.getIsolatedWorlds");
 
         const mainContext = contexts.find(
           (ctx) => ctx.frameId === frameId && ctx.type === "main"
@@ -110,17 +104,13 @@ export class FrameContextManager {
   async evaluateInFrame(tabId, frameId, expression) {
     const contextId = await this.getOrCreateContext(tabId, frameId);
 
-    const { result } = await chromeAsync.debugger.sendCommand(
-      { tabId },
-      "Runtime.evaluate",
-      {
-        contextId,
-        expression,
-        returnByValue: false,
-        awaitPromise: true,
-        userGesture: false,
-      }
-    );
+    const { result } = await sendCdp(tabId, "Runtime.evaluate", {
+      contextId,
+      expression,
+      returnByValue: false,
+      awaitPromise: true,
+      userGesture: false,
+    });
 
     if (result.exceptionDetails) {
       throw new Error(`Evaluation failed: ${result.exceptionDetails.text}`);
@@ -145,11 +135,7 @@ export class FrameContextManager {
       );
 
       if (result.objectId) {
-        const { node } = await chromeAsync.debugger.sendCommand(
-          { tabId },
-          "DOM.describeNode",
-          { objectId: result.objectId }
-        );
+        const { node } = await sendCdp(tabId, "DOM.describeNode", { objectId: result.objectId });
         return node?.nodeId || null;
       }
 

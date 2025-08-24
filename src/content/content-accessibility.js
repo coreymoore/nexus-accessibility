@@ -60,10 +60,10 @@
    * @param {number} maxAttempts - Maximum number of retry attempts
    * @returns {Promise<Object>} Accessibility information
    */
-  async function waitForAccessibilityUpdate(
+    async function waitForAccessibilityUpdate(
     target,
-    maxAttempts = window.NexusConstants?.RETRY_ATTEMPTS?.ACCESSIBILITY_UPDATE ||
-      8
+    maxAttempts = window.NexusConstants?.RETRY_ATTEMPTS?.ACCESSIBILITY_UPDATE || 8,
+    opts = {}
   ) {
     const cache = CE.cache;
 
@@ -128,6 +128,12 @@
       cache.setPendingRequest(currentRequest);
     }
 
+    // Short stabilization delays to allow CDP to settle for rapidly changing DOM.
+    // Prefer explicit short retries for the first few attempts.
+    const shortRetryDelays =
+      (window.NexusConstants && window.NexusConstants.TIMEOUTS && window.NexusConstants.TIMEOUTS.ACCESSIBILITY_SHORT_RETRY_DELAYS) ||
+      [0, 40, 120];
+
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       // Check if this request was cancelled
       if (currentRequest.cancelled) {
@@ -139,15 +145,15 @@
         // Use CDP approach with direct element reference
         const selector = CE.utils.getUniqueSelector(target);
 
-        const response = await validatedSend(
-          {
+          const msg = {
             action: "getBackendNodeIdAndAccessibleInfo",
             useDirectReference: true,
             elementSelector: selector,
             frameId: 0, // Background script will determine the correct frame
-          },
-          "getBackendNodeIdAndAccessibleInfo"
-        );
+          };
+          if (opts && opts.correlationId) msg.correlationId = opts.correlationId;
+
+          const response = await validatedSend(msg, "getBackendNodeIdAndAccessibleInfo");
 
         console.log("[NEXUS] CDP Response:", {
           role: response?.role,
@@ -177,21 +183,32 @@
           return response;
         }
 
-        // Short backoff: 50ms, 100ms, 150ms, ...
+        // Use explicit short delays for the first few attempts, then fall back
+        // to the previous incremental delay behaviour.
         if (attempt < maxAttempts - 1) {
-          const delay =
-            (window.NexusConstants?.TIMEOUTS?.ACCESSIBILITY_RETRY_BASE || 50) *
-            (attempt + 1);
+          let delay = null;
+          if (attempt < shortRetryDelays.length) {
+            delay = shortRetryDelays[attempt];
+          } else {
+            delay =
+              (window.NexusConstants?.TIMEOUTS?.ACCESSIBILITY_RETRY_BASE || 50) *
+              (attempt + 1);
+          }
+
           console.log(
-            `No meaningful data on attempt ${
-              attempt + 1
-            }, waiting ${delay}ms...`,
+            `No meaningful data on attempt ${attempt + 1}, waiting ${delay}ms...`,
             {
               role: response?.role,
               name: response?.name,
             }
           );
-          await new Promise((resolve) => setTimeout(resolve, delay));
+
+          if (delay > 0) {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          } else {
+            // zero delay - yield to event loop
+            await Promise.resolve();
+          }
         }
       } catch (error) {
         if (currentRequest.cancelled) return null;
@@ -218,15 +235,15 @@
     try {
       const selector = CE.utils.getUniqueSelector(target);
 
-      const response = await validatedSend(
-        {
-          action: "getBackendNodeIdAndAccessibleInfo",
-          useDirectReference: true,
-          elementSelector: selector,
-          frameId: 0, // Background script will determine the correct frame
-        },
-        "finalAttempt-getBackendNodeIdAndAccessibleInfo"
-      );
+      const msgFinal = {
+        action: "getBackendNodeIdAndAccessibleInfo",
+        useDirectReference: true,
+        elementSelector: selector,
+        frameId: 0,
+      };
+      if (opts && opts.correlationId) msgFinal.correlationId = opts.correlationId;
+
+      const response = await validatedSend(msgFinal, "finalAttempt-getBackendNodeIdAndAccessibleInfo");
 
       console.log("Final attempt result:", {
         role: response?.role,
@@ -245,7 +262,7 @@
    * @param {boolean} forceUpdate - Whether to force update ignoring cache
    * @returns {Promise<Object>} Accessibility information
    */
-  async function getAccessibleInfo(target, forceUpdate = false) {
+  async function getAccessibleInfo(target, forceUpdate = false, opts = {}) {
     console.log(
       "getAccessibleInfo called with:",
       target,
@@ -297,7 +314,7 @@
       console.log("DOM aria-expanded value before fetch:", domExpanded);
 
       try {
-        const info = await waitForAccessibilityUpdate(target);
+  const info = await waitForAccessibilityUpdate(target, undefined, opts);
 
         // Handle structured error response
         if (info && info.error) {
@@ -426,6 +443,16 @@
       ignored: info?.ignored || false,
       ignoredReasons: info?.ignoredReasons || [],
     };
+
+    // Preserve raw activedescendant AXValue structure (if any) so observers can try
+    // to resolve it without immediately performing a second round-trip.
+    // We intentionally do NOT mutate the states entry (so inspector shows the
+    // original AX state), but expose a dedicated field for downstream logic.
+    // Shape example from CDP:
+    // states.activedescendant = { type: 'idref', relatedNodes: [{ idref: 'combo1-1', backendDOMNodeId: 600485 }] }
+    if (states && states.activedescendant && !result.activeDescendantRaw) {
+      result.activeDescendantRaw = states.activedescendant;
+    }
 
     // Normalize checkbox states
     normalizeCheckboxStates(result, target);

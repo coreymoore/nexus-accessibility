@@ -26,6 +26,8 @@
       this._onFocusInCapture = null;
       this._focusTrapKeydown = null;
       this._originalFocus = null;
+      this._selectionActive = false;
+      this._selectionMouseUpHandler = null;
     }
 
     /**
@@ -48,33 +50,44 @@
 
       this._onFocusInCapture = (e) => {
         try {
-          if (
-            !this._acceptingFocus &&
-            this.core.inspector &&
-            this.core.inspector.style.display === "block" &&
-            this.core.inspector.contains(e.target)
-          ) {
-            e.stopPropagation();
+          const inspector = this.core.inspector;
+          if (!inspector || inspector.style.display !== "block") return;
 
-            // Return focus to the inspected element if possible
+          const inside = inspector.contains(e.target);
+          if (!inside) return; // ignore outside events
+
+          if (this._acceptingFocus) return; // user explicitly enabled focus
+
+          // Allow selection gesture to proceed without interference
+          if (this._selectionActive) return;
+
+          // If focus moved into inspector unintentionally, redirect it back to last target
+          e.stopPropagation();
+          e.preventDefault();
+
+          // Preserve any existing text selection – don't collapse ranges
+          const sel = window.getSelection && window.getSelection();
+          if (sel && sel.rangeCount > 0) {
+            // Leave selection as-is (no action) so copy works
+          }
+
+          // Attempt to restore focus to last target element
+          if (
+            this.core._lastTarget &&
+            typeof this.core._lastTarget.focus === "function"
+          ) {
+            try {
+              this.core._lastTarget.focus({ preventScroll: true });
+            } catch {}
+          } else {
+            // Fallback: blur active element to avoid sticky focus on inspector
             if (
-              this.core._lastTarget &&
-              typeof this.core._lastTarget.focus === "function"
+              document.activeElement &&
+              document.activeElement !== document.body
             ) {
               try {
-                this.core._lastTarget.focus({ preventScroll: true });
-              } catch (error) {
-                console.warn("Failed to restore focus to target:", error);
-              }
-            }
-
-            // Blur the node inside inspector to avoid sticky focus
-            if (e.target && typeof e.target.blur === "function") {
-              try {
-                e.target.blur();
-              } catch (error) {
-                console.warn("Failed to blur inspector element:", error);
-              }
+                document.activeElement.blur();
+              } catch {}
             }
           }
         } catch (error) {
@@ -83,6 +96,35 @@
       };
 
       document.addEventListener("focusin", this._onFocusInCapture, true);
+
+      // Install selection gesture listeners (capture to run early)
+      const inspector = this.core.inspector;
+      if (inspector) {
+        inspector.addEventListener(
+          "mousedown",
+          (e) => {
+            if (e.button !== 0) return;
+            this._selectionActive = true;
+            // Clear existing selection state gracefully (not mandatory)
+          },
+          true
+        );
+
+        // Mouseup on document to ensure cleanup even if mouse leaves inspector
+        this._selectionMouseUpHandler = (e) => {
+          if (this._selectionActive) {
+            // Defer clearing flag slightly to let selection finalize
+            setTimeout(() => {
+              this._selectionActive = false;
+            }, 0);
+          }
+        };
+        document.addEventListener(
+          "mouseup",
+          this._selectionMouseUpHandler,
+          true
+        );
+      }
     }
 
     /**
@@ -334,10 +376,19 @@
         document.removeEventListener("focusin", this._onFocusInCapture, true);
         this._onFocusInCapture = null;
       }
+      if (this._selectionMouseUpHandler) {
+        document.removeEventListener(
+          "mouseup",
+          this._selectionMouseUpHandler,
+          true
+        );
+        this._selectionMouseUpHandler = null;
+      }
 
       // Reset state
       this._acceptingFocus = false;
       this._originalFocus = null;
+      this._selectionActive = false;
 
       // Restore focus using accessibility utilities
       const accessibility = utils.getAccessibility();

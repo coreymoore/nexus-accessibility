@@ -53,6 +53,12 @@
   overflow-y: auto;
 }
 
+/* Allow text selection only for the main body content (not global * to keep tighter control) */
+.nexus-accessibility-ui-inspector .nexus-accessibility-ui-inspector-body {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nexus-accessibility-ui-inspector {
     transition: none !important;
@@ -137,7 +143,7 @@
   font-family: inherit;
   font-weight: 500;
   letter-spacing: 0.01em;
-  user-select: none;
+  user-select: none; /* Keep shortcuts legend from being selectable */
   line-height: 1.4;
   white-space: nowrap;
   overflow-x: auto;
@@ -262,12 +268,40 @@
   color: #d73a49;
 }
 
-/* Spinner */
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* --- Inspector: static skeleton loader (no animations) --- */
+/* Static skeleton shapes used by the loading inspector. No animations to respect prefers-reduced-motion */
+.nexus-accessibility-ui-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
 }
+
+/* Skeleton container */
+.nexus-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Skeleton bars */
+.nexus-skeleton .bar {
+  /* Original subtle fill preserved, with a stronger dark border to meet 3:1 contrast.
+     Border alpha chosen as the minimum required so the overall element is perceivable.
+     Note: the border composite over the background is what brings contrast up to 3:1. */
+  background: rgba(0, 0, 0, 0.06);
+  height: 12px;
+  border-radius: 4px;
+  /* Stronger border to ensure perceptibility against the light inspector background */
+  border: 1px solid rgba(0, 0, 0, 0.43);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+/* Width variants */
+.nexus-skeleton .bar.short { width: 40%; }
+.nexus-skeleton .bar.medium { width: 70%; }
+.nexus-skeleton .bar.long { width: 95%; }

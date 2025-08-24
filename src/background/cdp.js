@@ -2,15 +2,26 @@ import { CDP_VERSION, CONTEXT_TTL_MS } from "./constants.js";
 import { contextCache } from "./state.js";
 import { chromeAsync } from "../utils/chromeAsync.js";
 
-export async function sendCdp(tabId, method, params) {
-  return chromeAsync.debugger.sendCommand({ tabId }, method, params);
+export async function sendCdp(tabId, method, params, opts = {}) {
+  // Determine correlationId from opts or global marker set by connection manager
+  const corr = (opts && opts.correlationId) || globalThis.__NEXUS_LAST_CORR;
+  try {
+    if (corr) {
+      console.log(`sendCdp: ${method} for tab ${tabId} [corr=${corr}]`, params);
+    }
+    return await chromeAsync.debugger.sendCommand({ tabId }, method, params);
+  } finally {
+    if (corr) {
+      console.log(`sendCdp: ${method} completed for tab ${tabId} [corr=${corr}]`);
+    }
+  }
 }
 
-export async function ensureDomains(tabId) {
-  await sendCdp(tabId, "Page.enable");
-  await sendCdp(tabId, "DOM.enable");
-  await sendCdp(tabId, "Runtime.enable");
-  await sendCdp(tabId, "Accessibility.enable");
+export async function ensureDomains(tabId, opts = {}) {
+  await sendCdp(tabId, "Page.enable", {}, opts);
+  await sendCdp(tabId, "DOM.enable", {}, opts);
+  await sendCdp(tabId, "Runtime.enable", {}, opts);
+  await sendCdp(tabId, "Accessibility.enable", {}, opts);
 }
 
 export async function getFrameTree(tabId) {

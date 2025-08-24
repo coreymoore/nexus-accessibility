@@ -21,14 +21,45 @@ window.formatAccessibilityInfo = function (info) {
         .filter((x) => x != null && x !== "")
         .join(" ");
     if ("value" in v) return deepUnwrap(v.value);
-    if (v.type === "nodeList" && Array.isArray(v.relatedNodes)) {
+    // Handle nodeList & idref (activedescendant) structures with relatedNodes
+    if (
+      Array.isArray(v.relatedNodes) &&
+      (v.type === "nodeList" || v.type === "idref")
+    ) {
       const texts = v.relatedNodes
-        .map(
-          (n) =>
-            n && (n.text ?? n.name ?? n.label ?? n.innerText ?? n.nodeValue)
-        )
+        .map((n) => {
+          if (!n) return null;
+          // Prefer provided textual fields from CDP first
+          let textCandidate =
+            n.text ?? n.name ?? n.label ?? n.innerText ?? n.nodeValue;
+          // If none, try resolving by idref in current document
+          if (!textCandidate && n.idref && typeof document !== "undefined") {
+            try {
+              const el = document.getElementById(n.idref);
+              if (el) {
+                textCandidate = (
+                  el.getAttribute("aria-label") ||
+                  el.textContent ||
+                  ""
+                )
+                  .trim()
+                  .substring(0, 80);
+              }
+            } catch (e) {
+              // Ignore DOM access errors safely
+            }
+          }
+          // Final fallback: idref itself
+          if (!textCandidate && n.idref) textCandidate = n.idref;
+          return textCandidate && textCandidate !== "" ? textCandidate : null;
+        })
         .filter((t) => t != null && t !== "");
       if (texts.length) return texts.join(" ");
+      // If still nothing and it's an idref type, show list of idrefs to avoid raw JSON
+      if (v.type === "idref") {
+        const idrefs = v.relatedNodes.map((n) => n && n.idref).filter(Boolean);
+        if (idrefs.length) return idrefs.join(" ");
+      }
     }
     if ("text" in v) return deepUnwrap(v.text);
     if ("name" in v) return deepUnwrap(v.name);
@@ -44,11 +75,47 @@ window.formatAccessibilityInfo = function (info) {
 
   let dl = "<dl>";
 
-  // Basic properties
-  if (info.role) dl += `<dt>Role</dt><dd>${info.role}</dd>`;
-  if (info.name) dl += `<dt>Name</dt><dd>${info.name}</dd>`;
+  // Basic properties (unwrap complex AX values to readable text)
+  if (info.role) dl += `<dt>Role</dt><dd>${deepUnwrap(info.role)}</dd>`;
+  if (info.name) dl += `<dt>Name</dt><dd>${deepUnwrap(info.name)}</dd>`;
   if (info.description && info.description !== "(no description)")
-    dl += `<dt>Description</dt><dd>${info.description}</dd>`;
+    dl += `<dt>Description</dt><dd>${deepUnwrap(info.description)}</dd>`;
+
+  // Active Descendant (placed immediately after Name/Description block per request)
+  if (info.activeDescendant) {
+    try {
+      const ad = info.activeDescendant;
+      let adText = "";
+      if (ad.role) adText += ad.role;
+      if (ad.name) {
+        const n = deepUnwrap(ad.name);
+        adText += adText ? ` "${n}"` : `"${n}"`;
+      }
+      if (ad.states && Array.isArray(ad.states) && ad.states.length) {
+        adText += adText ? ` (${ad.states.join(", ")})` : ad.states.join(", ");
+      }
+      if (adText) {
+        // Match styling of Name and Description: no extra class
+        dl += `<dt>Active Descendant</dt><dd>${adText}</dd>`;
+      }
+    } catch (e) {
+      // Fail silently; do not break overall formatting
+      console.warn("[Formatter] Failed to render active descendant entry", e);
+    }
+  } else {
+    // Fallback: try to extract a human-friendly active descendant from raw state data
+    try {
+      const raw = info?.states?.activedescendant || info?.activeDescendantRaw || info?.ariaProperties?.activedescendant;
+      if (raw) {
+        const rawText = deepUnwrap(raw);
+        if (rawText) {
+          dl += `<dt>Active Descendant</dt><dd>${rawText}</dd>`;
+        }
+      }
+    } catch (e) {
+      // Silent fallback - don't break formatting
+    }
+  }
   // Group (immediately after Description)
   if (info.group && info.group.role) {
     let groupText = info.group.role;
@@ -69,14 +136,9 @@ window.formatAccessibilityInfo = function (info) {
   }
 
   // ARIA properties section
-  if (info.ariaProperties && Object.keys(info.ariaProperties).length > 0) {
-    dl += '<dt>ARIA</dt><dd class="aria-list">';
-    for (const [prop, value] of Object.entries(info.ariaProperties)) {
-      const v = deepUnwrap(value);
-      dl += `<span class="aria-badge">${prop}: ${v}</span>`;
-    }
-    dl += "</dd>";
-  }
+  // Note: we intentionally do not render a dedicated 'ARIA' properties block here
+  // to keep the inspector concise. Individual ARIA-derived states and values are
+  // surfaced elsewhere (screen reader preview, states, properties list).
 
   dl += "</dl>";
   return dl;

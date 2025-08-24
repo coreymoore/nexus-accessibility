@@ -3,15 +3,19 @@ export class MessageValidator {
     "getAccessibilityTree",
     "getBackendNodeIdAndAccessibleInfo",
     "AX_INSPECTOR_SHOWN",
+    "NEXUS_TAB_INIT",
     "INSPECTOR_STATE_CHANGE",
+    "CLEAR_CACHES",
     "keepAlive",
     "detachDebugger",
     "invalidateAccessibilityCache",
   ];
 
   static validate(msg, sender) {
-    // Verify sender is from our extension
-    if (sender.id !== chrome.runtime.id) {
+    // For messages coming from other extension contexts (popup, background)
+    // we expect sender.id to match. Content scripts will not have sender.id
+    // set, so only validate sender.id when present.
+    if (sender && sender.id && sender.id !== chrome.runtime.id) {
       throw new Error("Invalid sender");
     }
 
@@ -28,6 +32,9 @@ export class MessageValidator {
 
     // Validate specific fields based on action
     switch (action) {
+      case "NEXUS_TAB_INIT":
+        // Content script initialization message. No extra fields required.
+        break;
       case "INSPECTOR_STATE_CHANGE":
         if (!msg.inspectorState || typeof msg.inspectorState !== "string") {
           throw new Error("Invalid inspectorState");
@@ -68,6 +75,23 @@ export class MessageValidator {
         }
         if (msg.frameId !== undefined && typeof msg.frameId !== "number") {
           throw new Error("Invalid frameId for cache invalidation");
+        }
+        if (msg.mode !== undefined && !["direct", "selector"].includes(msg.mode)) {
+          throw new Error("Invalid mode for cache invalidation");
+        }
+        break;
+      case "CLEAR_CACHES":
+        if (msg.correlationId !== undefined) {
+          if (typeof msg.correlationId !== "string" || !/^[0-9a-fA-F]{6,16}$/.test(msg.correlationId)) {
+            throw new Error("Invalid correlationId format for CLEAR_CACHES");
+          }
+        }
+        break;
+      case "getBackendNodeIdAndAccessibleInfo":
+        if (msg.correlationId !== undefined) {
+          if (typeof msg.correlationId !== 'string' || !/^[0-9a-fA-F]{6,16}$/.test(msg.correlationId)) {
+            throw new Error('Invalid correlationId format');
+          }
         }
         break;
     }

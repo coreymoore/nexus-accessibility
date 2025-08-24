@@ -24,6 +24,36 @@
   let currentShadowHost = null;
   let shadowActiveElementObserver = null;
   let lastProcessedElement = null; // Track the last element we processed
+  // Simple trigger counter for retrieval attribution
+  let __retrievalCounter = 0;
+
+  /**
+   * Call getAccessibleInfo with a lightweight trigger log so we can attribute
+   * the origin of retrievals (focus|mutation|key|click|value-change).
+   */
+  function logAndCallGetAccessibleInfo(target, forceUpdate, source) {
+    __retrievalCounter++;
+    const id = __retrievalCounter;
+    console.log(
+      `[RETRIEVAL] id=${id} source=${source} target=${target?.tagName} id=${
+        target?.id || "(no id)"
+      }`
+    );
+    // Prefer the centralized dispatcher if available
+    try {
+      if (CE.retrievalDispatcher && typeof CE.retrievalDispatcher.request === "function") {
+        return CE.retrievalDispatcher.request(target, forceUpdate, source);
+      }
+    } catch (e) {
+      // fall through to direct call
+    }
+
+    if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
+      return CE.accessibility.getAccessibleInfo(target, forceUpdate);
+    }
+
+    return Promise.resolve(null);
+  }
   /**
    * Monitor shadow DOM active element changes
    */
@@ -150,73 +180,6 @@
     chrome.runtime.onMessage.addListener(messageListener);
   }
 
-  /**
-   * Monitor shadow DOM active element changes
-   */
-  function monitorShadowActiveElement(shadowHost) {
-    // Clean up previous observer
-    if (shadowActiveElementObserver) {
-      shadowActiveElementObserver.disconnect();
-      shadowActiveElementObserver = null;
-    }
-
-    if (!shadowHost || !shadowHost.shadowRoot) {
-      currentShadowHost = null;
-      return;
-    }
-
-    currentShadowHost = shadowHost;
-    let lastActiveElement = shadowHost.shadowRoot.activeElement;
-
-    // Poll for activeElement changes since MutationObserver can't detect focus changes
-    const checkInterval = setInterval(() => {
-      if (!currentShadowHost || currentShadowHost !== shadowHost) {
-        clearInterval(checkInterval);
-        return;
-      }
-
-      const currentActiveElement = shadowHost.shadowRoot.activeElement;
-      if (currentActiveElement !== lastActiveElement && currentActiveElement) {
-        console.log(
-          "[ContentExtension.events] Shadow DOM activeElement changed"
-        );
-        console.log(
-          "Previous:",
-          lastActiveElement?.tagName,
-          lastActiveElement?.id
-        );
-        console.log(
-          "Current:",
-          currentActiveElement.tagName,
-          currentActiveElement.id
-        );
-
-        lastActiveElement = currentActiveElement;
-
-        // Store the shadow host for CDP (since focus events target the host)
-        CE.utils.storeElementForCDP(shadowHost, "shadow-active-change");
-
-        // Trigger accessibility info retrieval
-        handleElementInspection(shadowHost, currentActiveElement);
-      }
-    }, 50); // Check every 50ms
-
-    // Store the interval ID so we can clean it up
-    shadowActiveElementObserver = {
-      disconnect: () => clearInterval(checkInterval),
-    };
-  }
-
-  /**
-   * Clean up shadow monitoring
-   */
-  function cleanupShadowMonitoring() {
-    if (shadowActiveElementObserver) {
-      shadowActiveElementObserver.disconnect();
-      shadowActiveElementObserver = null;
-    }
-    currentShadowHost = null;
-  }
 
   /**
    * Handle focus in events
@@ -398,26 +361,21 @@
 
     // Function to actually fetch the accessibility info
     const fetchAccessibilityInfo = () => {
-      if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-        CE.accessibility
-          .getAccessibleInfo(targetForInspect, true)
-          .then((info) => {
-            clearTimeout(loadingTimeout);
-            if (lastFocusedElement === targetElement && CE.inspector) {
-              CE.inspector.showInspector(info, targetForInspect);
-            }
-          })
-          .catch((error) => {
-            clearTimeout(loadingTimeout);
-            console.error(
-              "[ContentExtension.events] Error showing inspector:",
-              error
-            );
-            if (CE.inspector) {
-              CE.inspector.hideInspector();
-            }
-          });
-      }
+      logAndCallGetAccessibleInfo(targetForInspect, true, "focus").then(
+        (info) => {
+          clearTimeout(loadingTimeout);
+          if (lastFocusedElement === targetElement && CE.inspector) {
+            CE.inspector.showInspector(info, targetForInspect);
+          }
+        }
+      )
+        .catch((error) => {
+          clearTimeout(loadingTimeout);
+          console.error("[ContentExtension.events] Error showing inspector:", error);
+          if (CE.inspector) {
+            CE.inspector.hideInspector();
+          }
+        });
     };
 
     // Fetch accessibility info immediately - timing is now handled in background script
@@ -550,8 +508,7 @@
         }
 
         if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-          CE.accessibility
-            .getAccessibleInfo(target, true)
+          logAndCallGetAccessibleInfo(target, true, "shift-escape")
             .then((info) => {
               if (CE.inspector) {
                 CE.inspector.showInspector(info, target);
@@ -564,7 +521,172 @@
               );
             });
         }
+        // Background cache invalidation (reason: shift-escape)
+        try {
+          const selector = CE.utils.getUniqueSelector(target);
+          chrome.runtime.sendMessage({
+            action: "invalidateAccessibilityCache",
+            elementSelector: selector,
+            frameId: 0,
+            reason: "shift-escape",
+            mode: "selector",
+          });
+        } catch (_) {}
       }
+      return;
+    }
+
+    // Arrow keys / Enter / Space trigger cache invalidation + delayed refetch
+    const key = e.key;
+    const isNavKey =
+      key === "ArrowUp" ||
+      key === "ArrowDown" ||
+      key === "ArrowLeft" ||
+      key === "ArrowRight" ||
+      key === "Enter" ||
+      key === " " ||
+      key === "Spacebar" ||
+      key === "Space"; // various space representations
+    if (isNavKey) {
+      const target = lastFocusedElement || document.activeElement;
+      if (target && target !== document.body) {
+        // Invalidate local cache
+        if (CE.cache) {
+          CE.cache.deleteCached(target);
+        }
+        // Invalidate background cache (best-effort) only when we can't
+        // resolve the active item locally via aria-activedescendant.
+        try {
+          const activeDescId = CE.utils.safeGetAttribute(target, "aria-activedescendant");
+          if (!activeDescId) {
+            const selector = CE.utils.getUniqueSelector(target);
+            chrome.runtime.sendMessage({
+              action: "invalidateAccessibilityCache",
+              elementSelector: selector,
+              frameId: 0,
+              reason: `key-${key}`,
+              mode: "selector",
+            });
+          } else {
+            // If aria-activedescendant is present, prefer local quick updates
+            // and avoid SW invalidation to reduce CDP churn.
+            console.log('[ContentExtension.events] Skipping SW invalidate for nav key because aria-activedescendant present');
+          }
+        } catch (_) {}
+        // Schedule refetch after DOM updates from key handlers
+        if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
+          setTimeout(() => {
+            // Store the target element for CDP access before inspection
+            if (target && CE.utils && CE.utils.storeElementForCDP) {
+              CE.utils.storeElementForCDP(target, "key-event-target");
+            }
+            
+            logAndCallGetAccessibleInfo(target, true, "key-event")
+              .then((info) => {
+                if (
+                  (lastFocusedElement === target ||
+                    document.activeElement === target) &&
+                  CE.inspector
+                ) {
+                  CE.inspector.showInspector(info, target);
+                }
+              })
+              .catch(() => {});
+          }, 40);
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle click interactions (invalidate & refetch)
+   */
+  function onClick(e) {
+    if (!CE.main || !CE.main.isEnabled()) return;
+    const rawTarget = e.target;
+
+    // Ignore clicks inside the inspector itself so selecting/clicking there
+    // does not trigger a new inspection cycle.
+    if (
+      CE.inspector &&
+      CE.inspector.inspector &&
+      rawTarget instanceof Element &&
+      CE.inspector.inspector.contains(rawTarget)
+    ) {
+      return;
+    }
+
+    // We no longer auto-show the inspector on generic clicks. This prevents
+    // unwanted element switching while selecting text or interacting with the page.
+    // Cache invalidation still happens so subsequent focus/key navigation picks up fresh AX data.
+    const target =
+      document.activeElement && document.activeElement !== document.body
+        ? document.activeElement
+        : rawTarget;
+    if (!(target instanceof Element)) return;
+
+    if (CE.cache) CE.cache.deleteCached(target);
+    try {
+      const selector = CE.utils.getUniqueSelector(target);
+      chrome.runtime.sendMessage({
+        action: "invalidateAccessibilityCache",
+        elementSelector: selector,
+        frameId: 0,
+        reason: "click",
+        mode: "selector",
+      });
+    } catch (_) {}
+
+    // Intentionally NOT calling showInspector here anymore.
+  }
+
+  /**
+   * Handle drag start
+   */
+  function onDragStart(e) {
+    if (!CE.main || !CE.main.isEnabled()) return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target) return;
+    if (CE.cache) CE.cache.deleteCached(target);
+    try {
+      const selector = CE.utils.getUniqueSelector(target);
+      chrome.runtime.sendMessage({
+        action: "invalidateAccessibilityCache",
+        elementSelector: selector,
+        frameId: 0,
+        reason: "dragstart",
+        mode: "selector",
+      });
+    } catch (_) {}
+  }
+
+  /**
+   * Handle drag end (dragend or drop)
+   */
+  function onDragEnd(e) {
+    if (!CE.main || !CE.main.isEnabled()) return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target) return;
+    if (CE.cache) CE.cache.deleteCached(target);
+    try {
+      const selector = CE.utils.getUniqueSelector(target);
+      chrome.runtime.sendMessage({
+        action: "invalidateAccessibilityCache",
+        elementSelector: selector,
+        frameId: 0,
+        reason: "dragend",
+        mode: "selector",
+      });
+    } catch (_) {}
+    if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
+      setTimeout(() => {
+        CE.accessibility
+          .getAccessibleInfo(target, true)
+          .then((info) => {
+            if (CE.inspector) CE.inspector.showInspector(info, target);
+          })
+          .catch(() => {});
+      }, 50);
     }
   }
 
@@ -582,8 +704,7 @@
     // Create debounced update function
     const updateInspector = () => {
       if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-        CE.accessibility
-          .getAccessibleInfo(el, true)
+        logAndCallGetAccessibleInfo(el, true, "value-change")
           .then((info) => {
             if (lastFocusedElement === el && CE.inspector) {
               CE.inspector.showInspector(info, el);
@@ -622,8 +743,7 @@
     }
 
     if (CE.accessibility && CE.accessibility.getAccessibleInfo) {
-      CE.accessibility
-        .getAccessibleInfo(el, true)
+      logAndCallGetAccessibleInfo(el, true, "native-checkbox")
         .then((info) => {
           if (lastFocusedElement === el && CE.inspector) {
             CE.inspector.showInspector(info, el);
@@ -647,6 +767,10 @@
     document.addEventListener("focusin", onFocusIn, true);
     document.addEventListener("focusout", onFocusOut, true);
     document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("dragstart", onDragStart, true);
+    document.addEventListener("dragend", onDragEnd, true);
+    document.addEventListener("drop", onDragEnd, true);
 
     listenersRegistered = true;
     console.log("[ContentExtension.events] Event listeners enabled");
@@ -664,6 +788,10 @@
     document.removeEventListener("focusin", onFocusIn, true);
     document.removeEventListener("focusout", onFocusOut, true);
     document.removeEventListener("keydown", onKeyDown, true);
+    document.removeEventListener("click", onClick, true);
+    document.removeEventListener("dragstart", onDragStart, true);
+    document.removeEventListener("dragend", onDragEnd, true);
+    document.removeEventListener("drop", onDragEnd, true);
 
     listenersRegistered = false;
     console.log("[ContentExtension.events] Event listeners disabled");
@@ -750,6 +878,9 @@
     onFocusIn,
     onFocusOut,
     onKeyDown,
+    onClick,
+    onDragStart,
+    onDragEnd,
     onValueChanged,
     onNativeCheckboxChange,
   };

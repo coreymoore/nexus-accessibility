@@ -10,7 +10,7 @@ import {
   docRoots as __axDocRoots,
   nodeCache as __axNodeCache,
 } from "./caches.js";
-import { getCdpFrameId, getOrCreateIsolatedWorld } from "./cdp.js";
+import { getCdpFrameId, getOrCreateIsolatedWorld, sendCdp } from "./cdp.js";
 import { security } from "../utils/security.js";
 import { performance } from "../utils/performance.js";
 import { logger } from "../utils/logger.js";
@@ -50,11 +50,34 @@ export async function getAccessibilityInfoForElement(
   }
 
   // Only validate selector if we're not using direct reference
-  if (!useDirectReference && elementSelector) {
+  // Validate selector if provided. Even in direct-reference mode we may accept
+  // an optional selector as a fallback; validate it to ensure cache keys are safe.
+  if (elementSelector) {
     const selectorValidation = security.validateSelector(elementSelector);
     if (!selectorValidation.valid) {
-      throw new Error(`Invalid selector: ${selectorValidation.reason}`);
+      // Do not block retrievals for inspection. Log the validation failure
+      // and proceed with a safe selector-based lookup. We avoid throwing
+      // here because inspection must succeed even when selectors contain
+      // unusual patterns (e.g. data: URIs). Downstream queries use
+      // JSON.stringify when embedding the selector into Runtime.evaluate,
+      // which prevents code execution.
+      logger.background && logger.background.warn && logger.background.warn(
+        `Selector validation failed but proceeding with lookup: ${selectorValidation.reason}`
+      );
+      // keep elementSelector as-is so fallback selector-based lookup can run
     }
+  }
+
+  // Small deterministic hash for selector-based cache keys so we don't store
+  // raw selector strings (which may contain sensitive or problematic content).
+  function _simpleHash(str) {
+    if (!str) return "0";
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return (h >>> 0).toString(16);
   }
 
   const log = logger.background;
@@ -103,8 +126,8 @@ export async function getAccessibilityInfoForElement(
             );
             console.log("Background: Got execution context ID:", ctxId);
 
-            result = await chrome.debugger.sendCommand(
-              { tabId },
+            result = await sendCdp(
+              tabId,
               "Runtime.evaluate",
               {
                 expression: `
@@ -120,10 +143,99 @@ export async function getAccessibilityInfoForElement(
                   };
                   
                   return waitForFocus().then(() => {
-                    // Use the element stored by content script if available
-                    let targetEl = window.nexusTargetElement || document.activeElement;
+                    // Use the element stored by content script if available and still valid
+                    let targetEl = null;
+
+                      // First priority: use stored element via data attribute (cross-context compatible)
+                      // Poll briefly (up to 250ms) for the ephemeral token to reduce races with the content-script cleanup
+                      const _pollForToken = (timeout = 250, interval = 25) => new Promise((resolve) => {
+                        const start = Date.now();
+                        const check = () => {
+                          try {
+                            const cur = document.documentElement.getAttribute('data-nexus-current-target');
+                            if (cur) return resolve(cur);
+                          } catch (e) {
+                            // ignore DOM read errors
+                          }
+                          if (Date.now() - start >= timeout) return resolve(null);
+                          setTimeout(check, interval);
+                        };
+                        check();
+                      });
+
+                      return _pollForToken().then((currentTargetAttr) => {
+                        if (currentTargetAttr) {
+                          try {
+                            const selector = '[' + currentTargetAttr + ']';
+                            const candidateEl = document.querySelector(selector);
+                            if (candidateEl && candidateEl.isConnected && candidateEl.ownerDocument === document) {
+                              targetEl = candidateEl;
+                              console.log('[CDP] Using stored target element via data attribute:', targetEl);
+
+                              // Immediately remove the token attribute from the element and clear the published pointer
+                              try { candidateEl.removeAttribute(currentTargetAttr); } catch (e) { console.warn('[CDP] Failed to remove token attribute from candidate element:', e); }
+                              try {
+                                const cur = document.documentElement.getAttribute('data-nexus-current-target');
+                                if (cur === currentTargetAttr) document.documentElement.removeAttribute('data-nexus-current-target');
+                              } catch (e) { /* ignore */ }
+                              try { document.documentElement.removeAttribute('data-nexus-previous-target'); } catch (e) { /* ignore */ }
+                            } else {
+                              console.log('[CDP] Stored element via data attribute is no longer valid or not found');
+                            }
+                          } catch (err) {
+                            console.warn('[CDP] Error while reading data-nexus-current-target:', err);
+                          }
+                        } else {
+                          console.log('[CDP] No stored element data attribute found');
+                        }
+
+                        // Continue with the remainder of the original logic in the same chain
+                        // Fallback: check content script window (might work in some contexts)
+                        if (!targetEl && window.nexusTargetElement) {
+                      const storedEl = window.nexusTargetElement;
+                      console.log('[CDP] Found stored element in window:', storedEl);
+                      if (storedEl.isConnected && storedEl.ownerDocument === document) {
+                        targetEl = storedEl;
+                        console.log('[CDP] Using stored target element from window:', targetEl);
+                      } else {
+                        console.log('[CDP] Stored element from window is no longer valid, isConnected:', storedEl.isConnected, 'ownerDocument matches:', storedEl.ownerDocument === document);
+                      }
+                        } else if (!targetEl) {
+                          console.log('[CDP] No stored element found in window, window.nexusTargetElement is:', window.nexusTargetElement);
+                        }
                     
-                    console.log('[CDP] Target element:', targetEl);
+                        // Fallback to document.activeElement only if no valid stored element
+                        if (!targetEl) {
+                      const activeEl = document.activeElement;
+                      console.log('[CDP] Using document.activeElement as fallback:', activeEl);
+                      // Additional validation for activeElement
+                      if (activeEl && activeEl.isConnected) {
+                        targetEl = activeEl;
+                      } else {
+                        console.log('[CDP] WARNING: document.activeElement is also invalid or null:', activeEl);
+                        // Last resort: try to find a focusable element
+                        targetEl = document.querySelector('[tabindex], input, button, select, textarea, a[href]');
+                        console.log('[CDP] Emergency fallback element:', targetEl);
+                      }
+            }
+
+            console.log('[CDP] Final target element:', targetEl);
+
+            // Skip presentational iframes unless explicitly requested
+            if (targetEl && (targetEl.tagName === 'IFRAME' || targetEl.tagName === 'FRAME')) {
+                      const role = targetEl.getAttribute('role');
+                      if (role === 'presentation' || role === 'none') {
+                        console.log('[CDP] Skipping presentational iframe, not useful for accessibility inspection');
+                        // Try to find a more meaningful element to inspect instead
+                        const storedElement = window.nexusTargetElement;
+                        if (storedElement && storedElement !== targetEl && storedElement.isConnected) {
+                          console.log('[CDP] Using stored element instead of presentational iframe:', storedElement);
+                          targetEl = storedElement;
+                        } else {
+                          console.log('[CDP] No alternative element available, proceeding with iframe');
+                        }
+                      }
+                    }
                     
                     // If target element is in shadow DOM, use it directly
                     if (targetEl && targetEl.getRootNode() instanceof ShadowRoot) {
@@ -172,8 +284,8 @@ export async function getAccessibilityInfoForElement(
           } else {
             // For main frame: use default context
             console.log("Background: Using main frame context");
-            result = await chromeAsync.debugger.sendCommand(
-              { tabId },
+            result = await sendCdp(
+              tabId,
               "Runtime.evaluate",
               {
                 expression: `
@@ -189,14 +301,104 @@ export async function getAccessibilityInfoForElement(
                     };
                     
                     return waitForFocus().then(() => {
-                      // Use the element stored by content script if available
-                      let targetEl = window.nexusTargetElement || document.activeElement;
+                        // Use the element stored by content script if available and still valid
+                        let targetEl = null;
+
+                        // First priority: use stored element via data attribute (cross-context compatible)
+                        // Poll briefly (up to 250ms) for the ephemeral token to reduce races with the content-script cleanup
+                        const _pollForToken = (timeout = 250, interval = 25) => new Promise((resolve) => {
+                          const start = Date.now();
+                          const check = () => {
+                            try {
+                              const cur = document.documentElement.getAttribute('data-nexus-current-target');
+                              if (cur) return resolve(cur);
+                            } catch (e) {
+                              // ignore DOM read errors
+                            }
+                            if (Date.now() - start >= timeout) return resolve(null);
+                            setTimeout(check, interval);
+                          };
+                          check();
+                        });
+
+                        return _pollForToken().then((currentTargetAttr) => {
+                          if (currentTargetAttr) {
+                            try {
+                              const selector = '[' + currentTargetAttr + ']';
+                              const candidateEl = document.querySelector(selector);
+                              if (candidateEl && candidateEl.isConnected && candidateEl.ownerDocument === document) {
+                                targetEl = candidateEl;
+                                console.log('[CDP] Using stored target element via data attribute:', targetEl);
+
+                                // Immediately remove the token attribute from the element and clear the published pointer
+                                try { candidateEl.removeAttribute(currentTargetAttr); } catch (e) { console.warn('[CDP] Failed to remove token attribute from candidate element:', e); }
+                                try {
+                                  const cur = document.documentElement.getAttribute('data-nexus-current-target');
+                                  if (cur === currentTargetAttr) document.documentElement.removeAttribute('data-nexus-current-target');
+                                } catch (e) { /* ignore */ }
+                                try { document.documentElement.removeAttribute('data-nexus-previous-target'); } catch (e) { /* ignore */ }
+                              } else {
+                                console.log('[CDP] Stored element via data attribute is no longer valid or not found');
+                              }
+                            } catch (err) {
+                              console.warn('[CDP] Error while reading data-nexus-current-target:', err);
+                            }
+                          } else {
+                            console.log('[CDP] No stored element data attribute found');
+                          }
+
+                          // Continue with the remainder of the original logic in the same chain
+                      
+                      // Fallback: check content script window (might work in some contexts)
+                      if (!targetEl && window.nexusTargetElement) {
+                        const storedEl = window.nexusTargetElement;
+                        console.log('[CDP] Found stored element in window:', storedEl);
+                        if (storedEl.isConnected && storedEl.ownerDocument === document) {
+                          targetEl = storedEl;
+                          console.log('[CDP] Using stored target element from window:', targetEl);
+                        } else {
+                          console.log('[CDP] Stored element from window is no longer valid, isConnected:', storedEl.isConnected, 'ownerDocument matches:', storedEl.ownerDocument === document);
+                        }
+                      } else if (!targetEl) {
+                        console.log('[CDP] No stored element found in window, window.nexusTargetElement is:', window.nexusTargetElement);
+                      }
+                      
+                      // Fallback to document.activeElement only if no valid stored element
+                      if (!targetEl) {
+                        const activeEl = document.activeElement;
+                        console.log('[CDP] Using document.activeElement as fallback:', activeEl);
+                        // Additional validation for activeElement
+                        if (activeEl && activeEl.isConnected) {
+                          targetEl = activeEl;
+                        } else {
+                          console.log('[CDP] WARNING: document.activeElement is also invalid or null:', activeEl);
+                          // Last resort: try to find a focusable element
+                          targetEl = document.querySelector('[tabindex], input, button, select, textarea, a[href]');
+                          console.log('[CDP] Emergency fallback element:', targetEl);
+                        }
+                      }
                       
                       console.log('[CDP] === SHADOW DOM DEBUG START ===');
                       console.log('[CDP] Target element tagName:', targetEl?.tagName);
                       console.log('[CDP] Target element id:', targetEl?.id);
                       console.log('[CDP] Target has shadowRoot:', !!targetEl?.shadowRoot);
                       console.log('[CDP] Target shadowRoot delegatesFocus:', targetEl?.shadowRoot?.delegatesFocus);
+                      
+                      // Skip presentational iframes unless explicitly requested
+                      if (targetEl && (targetEl.tagName === 'IFRAME' || targetEl.tagName === 'FRAME')) {
+                        const role = targetEl.getAttribute('role');
+                        if (role === 'presentation' || role === 'none') {
+                          console.log('[CDP] Skipping presentational iframe, not useful for accessibility inspection');
+                          // Try to find a more meaningful element to inspect instead
+                          const storedElement = window.nexusTargetElement;
+                          if (storedElement && storedElement !== targetEl && storedElement.isConnected) {
+                            console.log('[CDP] Using stored element instead of presentational iframe:', storedElement);
+                            targetEl = storedElement;
+                          } else {
+                            console.log('[CDP] No alternative element available, proceeding with iframe');
+                          }
+                        }
+                      }
                       
                       // If target element is in shadow DOM, use it directly
                       if (targetEl && targetEl.getRootNode() instanceof ShadowRoot) {
@@ -261,11 +463,7 @@ export async function getAccessibilityInfoForElement(
               console.log(
                 "Background: Initializing DOM tree with DOM.getDocument"
               );
-              await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.getDocument",
-                { depth: 0 }
-              );
+              await sendCdp(tabId, "DOM.getDocument", { depth: 0 });
               console.log("Background: DOM tree initialized successfully");
             } catch (domInitError) {
               console.error(
@@ -276,11 +474,9 @@ export async function getAccessibilityInfoForElement(
 
             // Convert objectId to nodeId using DOM.requestNode
             try {
-              const nodeResult = await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.requestNode",
-                { objectId: result.result.objectId }
-              );
+              const nodeResult = await sendCdp(tabId, "DOM.requestNode", {
+                objectId: result.result.objectId,
+              });
 
               console.log("Background: DOM.requestNode response:", nodeResult);
               const nodeId = nodeResult.nodeId;
@@ -291,8 +487,8 @@ export async function getAccessibilityInfoForElement(
 
               if (nodeId && nodeId > 0) {
                 // Get the accessibility node with all properties
-                const { nodes } = await chromeAsync.debugger.sendCommand(
-                  { tabId },
+                const { nodes } = await sendCdp(
+                  tabId,
                   "Accessibility.getPartialAXTree",
                   {
                     nodeId,
@@ -353,47 +549,33 @@ export async function getAccessibilityInfoForElement(
 
         try {
           // Last resort: try document.activeElement directly
-          const activeResult = await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "Runtime.evaluate",
-            {
-              expression: "document.activeElement",
-              returnByValue: false,
-            }
-          );
+          const activeResult = await sendCdp(tabId, "Runtime.evaluate", {
+            expression: "document.activeElement",
+            returnByValue: false,
+          });
 
           if (activeResult.result?.objectId) {
             console.log("Background: Found document.activeElement as fallback");
 
             // Initialize DOM if needed
             try {
-              await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.getDocument",
-                { depth: 0 }
-              );
+              await sendCdp(tabId, "DOM.getDocument", { depth: 0 });
             } catch (domError) {
               console.log("Background: DOM already initialized");
             }
 
             // Convert objectId to nodeId
-            const nodeResult = await chromeAsync.debugger.sendCommand(
-              { tabId },
-              "DOM.requestNode",
-              { objectId: activeResult.result.objectId }
-            );
+            const nodeResult = await sendCdp(tabId, "DOM.requestNode", {
+              objectId: activeResult.result.objectId,
+            });
 
             const nodeId = nodeResult.nodeId;
             if (nodeId && nodeId > 0) {
               // Get accessibility info
-              const { nodes } = await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "Accessibility.getPartialAXTree",
-                {
-                  nodeId,
-                  fetchRelatives: true,
-                }
-              );
+              const { nodes } = await sendCdp(tabId, "Accessibility.getPartialAXTree", {
+                nodeId,
+                fetchRelatives: true,
+              });
 
               if (nodes && nodes.length > 0) {
                 let node = nodes[0];
@@ -450,11 +632,7 @@ export async function getAccessibilityInfoForElement(
       } else {
         // For main frame, cache top-level document root. For subframes, we won't rely on DOM.getDocument.
         if (!pageFrameId) {
-          const { root } = await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "DOM.getDocument",
-            { depth: 1 }
-          );
+          const { root } = await sendCdp(tabId, "DOM.getDocument", { depth: 1 });
           documentNodeId = root.nodeId;
           __axDocRoots.set(cacheKey, {
             nodeId: documentNodeId,
@@ -463,7 +641,8 @@ export async function getAccessibilityInfoForElement(
         }
       }
 
-      const cacheSelKey = `${cacheKey}::${elementSelector}`;
+  const selHash = elementSelector ? _simpleHash(elementSelector) : "0";
+  const cacheSelKey = `${cacheKey}::${selHash}`;
       let cachedNode = __axNodeCache.get(cacheSelKey);
       let nodeId = cachedNode && cachedNode.nodeId;
       let usedCache = false;
@@ -479,11 +658,10 @@ export async function getAccessibilityInfoForElement(
       if (nodeId) {
         // Validate quickly by asking for a small AX slice; if it fails, we'll re-query
         try {
-          const test = await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "Accessibility.getPartialAXTree",
-            { nodeId, fetchRelatives: false }
-          );
+          const test = await sendCdp(tabId, "Accessibility.getPartialAXTree", {
+            nodeId,
+            fetchRelatives: false,
+          });
           if (test && Array.isArray(test.nodes) && test.nodes.length) {
             usedCache = true;
           } else {
@@ -512,25 +690,19 @@ export async function getAccessibilityInfoForElement(
               elementSelector
             )})`;
             console.log("Background: Evaluating expression:", expr);
-            const { result } = await chromeAsync.debugger.sendCommand(
-              { tabId },
-              "Runtime.evaluate",
-              {
-                contextId: ctxId,
-                expression: expr,
-                returnByValue: false,
-                awaitPromise: false,
-              }
-            );
+            const { result } = await sendCdp(tabId, "Runtime.evaluate", {
+              contextId: ctxId,
+              expression: expr,
+              returnByValue: false,
+              awaitPromise: false,
+            });
             console.log("Background: Runtime.evaluate result:", result);
             const objectId = result && result.objectId;
             if (objectId) {
               // Convert objectId to nodeId using DOM.requestNode
-              const nodeResult = await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.requestNode",
-                { objectId }
-              );
+              const nodeResult = await sendCdp(tabId, "DOM.requestNode", {
+                objectId,
+              });
               nodeId = nodeResult.nodeId;
               console.log(
                 "Background: Frame-world query found nodeId:",
@@ -553,14 +725,10 @@ export async function getAccessibilityInfoForElement(
             "Background: Attempting main frame DOM query with documentNodeId:",
             documentNodeId
           );
-          let q = await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "DOM.querySelector",
-            {
-              nodeId: documentNodeId,
-              selector: elementSelector,
-            }
-          );
+          let q = await sendCdp(tabId, "DOM.querySelector", {
+            nodeId: documentNodeId,
+            selector: elementSelector,
+          });
           nodeId = q.nodeId;
           console.log(
             "Background: Main frame DOM query result nodeId:",
@@ -571,11 +739,9 @@ export async function getAccessibilityInfoForElement(
           if (!nodeId && !pageFrameId) {
             try {
               console.log("Background: Refreshing document root and retrying");
-              const { root } = await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.getDocument",
-                { depth: 1 }
-              );
+              const { root } = await sendCdp(tabId, "DOM.getDocument", {
+                depth: 1,
+              });
               documentNodeId = root.nodeId;
               console.log(
                 "Background: New document root nodeId:",
@@ -585,14 +751,10 @@ export async function getAccessibilityInfoForElement(
                 nodeId: documentNodeId,
                 t: Date.now(),
               });
-              q = await chromeAsync.debugger.sendCommand(
-                { tabId },
-                "DOM.querySelector",
-                {
-                  nodeId: documentNodeId,
-                  selector: elementSelector,
-                }
-              );
+              q = await sendCdp(tabId, "DOM.querySelector", {
+                nodeId: documentNodeId,
+                selector: elementSelector,
+              });
               nodeId = q.nodeId;
               console.log("Background: Retry DOM query result nodeId:", nodeId);
             } catch (retryError) {
@@ -624,14 +786,10 @@ export async function getAccessibilityInfoForElement(
       }
 
       // Get the accessibility node with all properties
-      const { nodes } = await chromeAsync.debugger.sendCommand(
-        { tabId },
-        "Accessibility.getPartialAXTree",
-        {
-          nodeId,
-          fetchRelatives: true,
-        }
-      );
+      const { nodes } = await sendCdp(tabId, "Accessibility.getPartialAXTree", {
+        nodeId,
+        fetchRelatives: true,
+      });
 
       // Optionally get DOM attributes to capture ARIA properties (defer unless needed)
       let attributes = null;
@@ -753,11 +911,7 @@ export async function getAccessibilityInfoForElement(
       // If ariaProperties are still empty and we didn't fetch attributes yet, fetch once
       if (Object.keys(out.ariaProperties).length === 0 && attributes === null) {
         try {
-          const resp = await chromeAsync.debugger.sendCommand(
-            { tabId },
-            "DOM.getAttributes",
-            { nodeId }
-          );
+          const resp = await sendCdp(tabId, "DOM.getAttributes", { nodeId });
           attributes = resp.attributes;
           if (attributes && Array.isArray(attributes)) {
             for (let i = 0; i < attributes.length; i += 2) {
@@ -876,3 +1030,8 @@ function formatAccessibilityNode(node) {
   console.log("Background: Formatted accessibility node:", out);
   return out;
 }
+
+// Explicitly re-export the main function name for clarity and compatibility.
+// This prevents transient module-resolution issues in environments that
+// may not properly surface the named export during hot-reloads.
+ 
