@@ -391,10 +391,8 @@
       }
 
       if (USE_SHADOW_DOM && !canReuse) {
-        // Link shared + inspector styles directly into shadow root (single source); avoid duplicate global injection
-        if (!this._shadow) {
-          this._shadow = this.inspector.attachShadow({ mode: 'closed' });
-        }
+        // Shadow root already created in _createInspectorElement when USE_SHADOW_DOM is true.
+        // Never call attachShadow() twice (throws). We simply populate the existing closed root.
         const linkShared = document.createElement('link');
         linkShared.rel = 'stylesheet';
         linkShared.href = chrome.runtime.getURL('src/assets/shared.css');
@@ -860,6 +858,8 @@
             const inspParent = this.inspector.parentNode;
             if (inspParent) inspParent.removeChild(this.inspector);
             this.inspector = null;
+            // Clear shadow reference so a fresh host creates a new one next render
+            this._shadow = null;
           }
         } catch (e) {}
         try {
