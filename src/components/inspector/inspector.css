@@ -31,7 +31,9 @@
 }
 /* Inspector container */
 .nexus-accessibility-ui-inspector {
-  position: absolute;
+  /* Removed position:absolute so the shadow host (which is positioned via JS) can size to content.
+     Previously the host had zero size because the only child was absolutely positioned, causing
+     visibility diagnostics to force a fallback top/left of 12px. */
   background: #f3f0fa;
   color: #2d1958;
   padding: 12px 32px 12px 16px; /* Do not change */
@@ -91,11 +93,7 @@
 }
 
 /* Only show transition for users who don't prefer reduced motion */
-@media (prefers-reduced-motion: no-preference) {
-  .nexus-accessibility-ui-inspector-close {
-    transition: all 0.2s ease;
-  }
-}
+/* Removed transition: Inspector surfaces must not animate (rules §2.7). */
 
 /* Screen reader output block */
 .nexus-accessibility-ui-inspector-sr {

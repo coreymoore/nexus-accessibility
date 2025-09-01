@@ -53,7 +53,10 @@
           const inspector = this.core.inspector;
           if (!inspector || inspector.style.display !== "block") return;
 
-          const inside = inspector.contains(e.target);
+          // Use composedPath to correctly identify target inside shadow DOM
+          const target = e.composedPath ? e.composedPath()[0] : e.target;
+          const inside = inspector.contains(target) || (this.core._shadow && this.core._shadow.contains(target));
+
           if (!inside) return; // ignore outside events
 
           if (this._acceptingFocus) return; // user explicitly enabled focus
@@ -100,7 +103,8 @@
       // Install selection gesture listeners (capture to run early)
       const inspector = this.core.inspector;
       if (inspector) {
-        inspector.addEventListener(
+        const listenTarget = this.core._shadow || inspector;
+        listenTarget.addEventListener(
           "mousedown",
           (e) => {
             if (e.button !== 0) return;
@@ -200,7 +204,8 @@
      * @param {KeyboardEvent} e - Keyboard event
      */
     _handleTabNavigation(e) {
-      const focusables = utils.getFocusableElements(this.core.inspector);
+      const queryRoot = this.core._shadow || this.core.inspector;
+      const focusables = utils.getFocusableElements(queryRoot);
 
       if (focusables.length === 0) {
         // If nothing is focusable, do nothing (do not make inspector itself focusable)
@@ -264,8 +269,9 @@
      */
     focusFirstElement() {
       if (!this.core.inspector) return false;
+      const queryRoot = this.core._shadow || this.core.inspector;
 
-      const focusables = utils.getFocusableElements(this.core.inspector);
+      const focusables = utils.getFocusableElements(queryRoot);
       if (focusables.length > 0) {
         try {
           focusables[0].focus({ preventScroll: true });
@@ -282,8 +288,9 @@
      */
     focusScreenReaderSection() {
       if (!this.core.inspector) return false;
+      const queryRoot = this.core._shadow || this.core.inspector;
 
-      const srNode = this.core.inspector.querySelector(
+      const srNode = queryRoot.querySelector(
         ".nexus-accessibility-ui-inspector-sr"
       );
       if (srNode) {
@@ -305,7 +312,8 @@
 
       // Remove inert attribute from inspector body
       if (this.core.inspector) {
-        const body = this.core.inspector.querySelector(
+        const queryRoot = this.core._shadow || this.core.inspector;
+        const body = queryRoot.querySelector(
           ".nexus-accessibility-ui-inspector-body"
         );
         if (body) {
@@ -324,17 +332,18 @@
     disableFocusAcceptance() {
       this._acceptingFocus = false;
 
-      // Add inert attribute to inspector body
+      // Add inert attribute to inspector body (correct class name)
       if (this.core.inspector) {
-        const body = this.core.inspector.querySelector(
-          ".chrome-ax-inspector-body"
+        const queryRoot = this.core._shadow || this.core.inspector;
+        const body = queryRoot.querySelector(
+          ".nexus-accessibility-ui-inspector-body"
         );
         if (body) {
           body.setAttribute("inert", "");
           body.style.pointerEvents = "none";
         }
 
-        // Hide inspector from assistive technology
+        // Hide inspector from assistive technology until user explicitly re-enables
         this.core.inspector.setAttribute("aria-hidden", "true");
       }
     }

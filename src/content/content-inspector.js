@@ -28,7 +28,8 @@
    * @returns {Element|null} The inspector element or null
    */
   function getInspectorElement() {
-    return document.querySelector(".nexus-accessibility-ui-inspector");
+    // Shadow DOM aware: host has fixed id. Fallback to legacy class for non-shadow mode.
+    return document.getElementById('nexus-accessibility-ui-inspector') || document.querySelector('.nexus-accessibility-ui-inspector');
   }
 
   /**
@@ -70,7 +71,9 @@
       enabled: () => (CE.main ? CE.main.isEnabled() : true),
     };
 
-    window.nexusAccessibilityUiInspector.showInspector(info, target, options);
+  window.nexusAccessibilityUiInspector.showInspector(info, target, options);
+  // Persist last options so Shift+Escape reopen cycle can reuse consistent callbacks
+  try { CE.inspector._lastShowOptions = options; } catch (_) {}
 
     // Broadcast that this frame is showing a inspector
     broadcastInspectorShown();
@@ -176,7 +179,13 @@
    */
   function isInspectorVisible() {
     const inspector = getInspectorElement();
-    return !!(inspector && inspector.offsetParent);
+    if (!inspector) return false;
+    // Consider it visible if in DOM and not display:none
+    if (inspector.style && inspector.style.display === 'none') return false;
+    // Check attachment
+    if (!document.documentElement.contains(inspector)) return false;
+    const rect = inspector.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0; // zero size only during initial offscreen setup
   }
 
   /**
@@ -281,6 +290,7 @@
     getInspectorInfo,
     isInspectorComponentAvailable,
     waitForInspectorComponent,
+  _lastShowOptions: null,
 
     // Internal functions (exposed for testing)
     createCloseHandler,
