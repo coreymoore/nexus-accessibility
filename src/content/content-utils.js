@@ -285,7 +285,12 @@
    * @returns {Element|null} The inspector element or null
    */
   function getInspectorElement() {
-    return document.querySelector(".nexus-accessibility-ui-inspector");
+    // Updated for Shadow DOM: the visual wrapper class now lives inside a closed shadow root,
+    // so we can no longer rely on querying the class in the light DOM. Use the known host id
+    // when present; fall back to the legacy class selector for non-shadow fallback mode.
+    const host = document.getElementById('nexus-accessibility-ui-inspector');
+    if (host) return host;
+    return document.querySelector('.nexus-accessibility-ui-inspector');
   }
 
   /**

@@ -222,8 +222,12 @@
 
     // Don't inspect the close button or anything inside the inspector
     const inspectorEl = utils.getInspectorElement();
-    if (inspectorEl && utils.safeContains(inspectorEl, e.target)) {
-      return;
+    if (inspectorEl) {
+      // Detect focus entering the shadow-wrapped inspector: composedPath will include the host
+      const path = (typeof e.composedPath === 'function') ? e.composedPath() : [];
+      if (path.includes(inspectorEl) || utils.safeContains(inspectorEl, e.target)) {
+        return; // do not inspect the inspector itself
+      }
     }
 
     const element = e.target;
@@ -511,7 +515,7 @@
           logAndCallGetAccessibleInfo(target, true, "shift-escape")
             .then((info) => {
               if (CE.inspector) {
-                CE.inspector.showInspector(info, target);
+                CE.inspector.showInspector(info, target, { forceRender: true });
               }
             })
             .catch((error) => {
@@ -607,14 +611,18 @@
 
     // Ignore clicks inside the inspector itself so selecting/clicking there
     // does not trigger a new inspection cycle.
-    if (
-      CE.inspector &&
-      CE.inspector.inspector &&
-      rawTarget instanceof Element &&
-      CE.inspector.inspector.contains(rawTarget)
-    ) {
-      return;
-    }
+    try {
+      const host = CE.utils.getInspectorElement();
+      if (host) {
+        // Use composedPath to detect events coming from inside the closed shadow root wrapper
+        const path = (typeof e.composedPath === 'function') ? e.composedPath() : [];
+        const insideViaPath = path.includes(host);
+        const insideViaContains = rawTarget instanceof Element && host.contains(rawTarget);
+        if (insideViaPath || insideViaContains) {
+          return; // click originated from inspector UI
+        }
+      }
+    } catch (_) {}
 
     // We no longer auto-show the inspector on generic clicks. This prevents
     // unwanted element switching while selecting text or interacting with the page.

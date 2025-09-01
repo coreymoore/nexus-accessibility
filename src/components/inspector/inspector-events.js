@@ -158,8 +158,10 @@
      * @param {KeyboardEvent} e - Keyboard event
      */
     _handleFocusShortcut(e) {
+      const queryRoot = this.core._shadow || this.core.inspector;
+
       // Allow focus into inspector content only when user intentionally invokes the shortcut
-      const body = this.core.inspector.querySelector(
+      const body = queryRoot.querySelector(
         ".nexus-accessibility-ui-inspector-body"
       );
       if (body) {
@@ -167,10 +169,10 @@
         body.style.pointerEvents = "";
       }
 
-      const srNode = this.core.inspector.querySelector(
+      const srNode = queryRoot.querySelector(
         ".nexus-accessibility-ui-inspector-sr"
       );
-      const closeButton = this.core.inspector.querySelector(
+      const closeButton = queryRoot.querySelector(
         ".nexus-accessibility-ui-inspector-close"
       );
 

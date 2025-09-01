@@ -17,11 +17,25 @@
 (function () {
   "use strict";
 
+  const USE_SHADOW_DOM = true; // Set to false for instant rollback
+
   // Quick runtime signal for debugging: this will appear in the page console
   // when the content script is injected. Leave as info so it doesn't alarm.
   try {
     console.info('[NEXUS] inspector-core content script loaded', { href: location.href });
   } catch (e) {}
+
+  // Module-level cache to avoid repeated fetches
+  const CSS_CACHE = {};
+
+  /**
+   * Deprecated: consolidated runtime CSS builder (was used to inline fonts + styles).
+   * Kept as a no-op shim for backward compatibility in case other modules still call it.
+   * New approach: link authoritative CSS files directly inside the shadow root to ensure a single source of truth.
+   */
+  async function loadConsolidatedInspectorCSS() {
+    return '/* deprecated: consolidated CSS not used */';
+  }
 
   // Access global dependencies
   const utils = window.NexusInspector.Utils;
@@ -38,6 +52,7 @@
         (() => {});
       this.inspector = null;
       this.connector = null;
+      this._shadow = null;
       this.miniMode = false;
       this._mutObserver = null;
       this._isHiding = false;
@@ -53,6 +68,8 @@
       this.events = new events.EventManager(this);
       this.focus = new focus.FocusManager(this);
       this.positioning = new positioning.PositioningManager(this);
+  // Track last render signature for duplicate suppression
+  this._lastRenderSignature = null;
 
       // Load saved preferences
       this._loadPreferences();
@@ -107,18 +124,64 @@
       if (this.inspector) this.inspector.remove();
 
       this.inspector = document.createElement("div");
-      this.inspector.className = "nexus-accessibility-ui-inspector";
       this.inspector.setAttribute("role", "group");
       this.inspector.setAttribute(
         "aria-roledescription",
         "Accessibility Inspector"
       );
       this.inspector.setAttribute("id", "nexus-accessibility-ui-inspector");
+      this.inspector.style.position = 'fixed';
+      this.inspector.style.left = '-9999px';
+      this.inspector.style.top = '-9999px';
+      this.inspector.style.setProperty('z-index', '2147483648', 'important');
+      this.inspector.style.setProperty('display', 'block', 'important');
 
-      // Create safe loading content
-      const loadingHtml = content.createLoadingContent();
-      this.inspector.innerHTML = loadingHtml;
-      this.inspector.style.display = "block";
+      // If using shadow DOM, build a wrapper with the styling class
+      if (USE_SHADOW_DOM) {
+        this._shadow = this.inspector.attachShadow({ mode: 'closed' });
+
+        // Link shared + inspector styles (single source of truth; no inline duplication)
+        try {
+          const linkShared = document.createElement('link');
+          linkShared.rel = 'stylesheet';
+          linkShared.href = chrome.runtime.getURL('src/assets/shared.css');
+          const linkInspector = document.createElement('link');
+          linkInspector.rel = 'stylesheet';
+          linkInspector.href = chrome.runtime.getURL('src/components/inspector/inspector.css');
+          this._shadow.append(linkShared, linkInspector);
+
+          const wrapper = document.createElement('div');
+            // Hide until inspector stylesheet loads to avoid FOUC
+          wrapper.style.visibility = 'hidden';
+          wrapper.className = 'nexus-accessibility-ui-inspector';
+          wrapper.innerHTML = content.createLoadingContent();
+          this._shadow.appendChild(wrapper);
+          // Initial focus guard state
+          try {
+            const body = this._shadow.querySelector('.nexus-accessibility-ui-inspector-body');
+            if (body) {
+              body.setAttribute('inert', '');
+              body.style.pointerEvents = 'none';
+            }
+            this.inspector.setAttribute('aria-hidden', 'true');
+          } catch (e) {}
+          const reveal = () => { wrapper.style.visibility = 'visible'; };
+          linkInspector.addEventListener('load', reveal, { once: true });
+          // Fallback reveal in case load event is missed (cached synchronous load scenarios)
+          setTimeout(reveal, 300);
+        } catch (e) {}
+      } else {
+        this.inspector.className = 'nexus-accessibility-ui-inspector';
+        this.inspector.innerHTML = content.createLoadingContent();
+        try {
+          const body = this.inspector.querySelector('.nexus-accessibility-ui-inspector-body');
+          if (body) {
+            body.setAttribute('inert', '');
+            body.style.pointerEvents = 'none';
+          }
+          this.inspector.setAttribute('aria-hidden', 'true');
+        } catch (e) {}
+      }
 
       // Attempt to render the inspector in the top-level document when the target
       // is inside a same-origin iframe. If that succeeds, the inspector and any
@@ -139,8 +202,8 @@
       }
     }
 
-    showInspector(info, target, options = {}) {
-      const { onClose, enabled } = options;
+    async showInspector(info, target, options = {}) {
+  const { onClose, enabled, forceRender } = options;
 
       // Debug logging
       try {
@@ -149,7 +212,7 @@
 
       // Generate render signature for deduplication
       const renderSignature = this._generateRenderSignature(info, target, options);
-      if (this._lastRenderSignature === renderSignature) {
+      if (!forceRender && this._lastRenderSignature === renderSignature) {
         console.debug("[AX Inspector] Skipping duplicate render, signature matches:", renderSignature);
         return;
       }
@@ -160,17 +223,18 @@
       this._lastTarget = target;
       this._lastOptions = options;
 
-      this.ensureStylesInjected();
       if (!info) return;
 
-      // Clean up existing inspector
-      if (this.inspector) {
-        this.focus.cleanup();
-        this.inspector.remove();
+      const canReuse = !!this.inspector && !!this._shadow && this._lastTarget === target && this.inspector.isConnected;
+      if (!canReuse) {
+        // Clean up existing inspector fully when we can't reuse
+        if (this.inspector) {
+          this.focus.cleanup();
+          try { this.inspector.remove(); } catch (e) {}
+        }
+        // Create new inspector host
+        this._createInspectorElement(target);
       }
-
-      // Create new inspector element
-      this._createInspectorElement(target);
 
       // Generate and set content
       const inspectorContent = content.generateInspectorContent(
@@ -325,7 +389,81 @@
         // Do not allow diagnostics to break inspector rendering
         try { console.warn('[AX Inspector] diagnostic logging failed', diagErr); } catch (e) {}
       }
-      this.inspector.innerHTML = inspectorContent;
+
+      if (USE_SHADOW_DOM && !canReuse) {
+        // Shadow root already created in _createInspectorElement when USE_SHADOW_DOM is true.
+        // Never call attachShadow() twice (throws). We simply populate the existing closed root.
+        const linkShared = document.createElement('link');
+        linkShared.rel = 'stylesheet';
+        linkShared.href = chrome.runtime.getURL('src/assets/shared.css');
+        const linkInspector = document.createElement('link');
+        linkInspector.rel = 'stylesheet';
+        linkInspector.href = chrome.runtime.getURL('src/components/inspector/inspector.css');
+        this._shadow.append(linkShared, linkInspector);
+
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'nexus-accessibility-ui-inspector';
+        contentWrapper.style.visibility = 'hidden'; // prevent FOUC until stylesheet applies
+        contentWrapper.innerHTML = inspectorContent;
+        this._shadow.appendChild(contentWrapper);
+        // Initialize focus guard state: body inert + inspector aria-hidden until user opts in (Alt+[ shortcut)
+        try {
+          const body = this._shadow.querySelector('.nexus-accessibility-ui-inspector-body');
+          if (body) {
+            body.setAttribute('inert', '');
+            body.style.pointerEvents = 'none';
+          }
+          this.inspector.setAttribute('aria-hidden', 'true');
+        } catch (e) {}
+        const reveal = () => { contentWrapper.style.visibility = 'visible'; };
+        linkInspector.addEventListener('load', reveal, { once: true });
+        setTimeout(reveal, 300);
+
+        console.info('[NEXUS] Shadow DOM inspector enabled', {
+          shadowMode: 'closed',
+          tagName: this.inspector.tagName,
+          hasLinks: !!this._shadow.querySelector('link[rel="stylesheet"]'),
+          hasContent: !!this._shadow.querySelector('.nexus-accessibility-ui-inspector')
+        });
+      } else if (USE_SHADOW_DOM && canReuse) {
+        // Reuse existing wrapper: only replace inner content to avoid removal flicker
+        try {
+          const wrapper = this._shadow.querySelector('.nexus-accessibility-ui-inspector');
+          if (wrapper) {
+            // Preserve scroll position if user scrolled inside inspector
+            const prevScrollTop = wrapper.scrollTop;
+            wrapper.innerHTML = inspectorContent;
+            wrapper.scrollTop = prevScrollTop;
+          }
+        } catch (e) {}
+        // Rebind events for newly injected close button / interactive elements
+        this._setupInspectorEventHandlers(onClose, enabled);
+        // Re-run focus management (cleanup happened only on full rebuild; here we refresh state)
+        this.focus.setupFocusManagement({ onClose, enabled });
+        // Reposition after size change
+        try {
+          if (this._escapedToTop) {
+            this._repositionEscapedInspector(target);
+          } else {
+            this.positioning.repositionInspectorAndConnector(target);
+          }
+        } catch (e) {}
+        // Done; diagnostics optional
+        try { this._diagnoseVisibility && this._diagnoseVisibility(target, 'update'); } catch (e) {}
+        return; // Short-circuit: we handled in-place update
+      } else {
+        this.inspector.className = 'nexus-accessibility-ui-inspector';
+        this.inspector.innerHTML = inspectorContent;
+        // Non-shadow fallback: apply initial inert/aria-hidden for focus guard parity
+        try {
+          const body = this.inspector.querySelector('.nexus-accessibility-ui-inspector-body');
+          if (body) {
+            body.setAttribute('inert', '');
+            body.style.pointerEvents = 'none';
+          }
+          this.inspector.setAttribute('aria-hidden', 'true');
+        } catch (e) {}
+      }
 
       // Setup initial positioning (offscreen for measurement)
       this._setupInitialPosition();
@@ -380,7 +518,13 @@
           : true;
         const visibleByLayout = rect ? rect.width > 0 && rect.height > 0 : true;
 
-        console.debug('[AX Inspector] visibility diagnostic', { phase, inDoc, parentTag: parent && parent.tagName, visibleByStyle, visibleByLayout, rect, computed: comp && { display: comp.display, visibility: comp.visibility, opacity: comp.opacity, zIndex: comp.zIndex } });
+        const shadow = this._shadow;
+        const shadowDiagnostic = shadow ? {
+          hasStyles: !!shadow.querySelector('style'),
+          hasContent: !!shadow.querySelector('div'),
+        } : null;
+
+        console.debug('[AX Inspector] visibility diagnostic', { phase, inDoc, parentTag: parent && parent.tagName, visibleByStyle, visibleByLayout, rect, computed: comp && { display: comp.display, visibility: comp.visibility, opacity: comp.opacity, zIndex: comp.zIndex }, shadow: shadowDiagnostic });
 
         // If not visible by style or layout, apply a conservative inline fallback so it becomes visible
         if (!inDoc) {
@@ -393,31 +537,28 @@
           this.inspector.style.setProperty('left', '12px', 'important');
           this.inspector.style.setProperty('top', '12px', 'important');
           this.inspector.style.setProperty('z-index', '2147483648', 'important');
-          this.inspector.style.setProperty('background', '#f3f0fa', 'important');
-          this.inspector.style.setProperty('border', '1px solid #d1c4e9', 'important');
-          this.inspector.style.setProperty('padding', '12px 16px', 'important');
         }
       } catch (e) {
         // Ignore diagnostics failures
       }
     }
 
-    _createInspectorElement(target) {
-      this.inspector = document.createElement("div");
-      this.inspector.className = "nexus-accessibility-ui-inspector";
-      this.inspector.setAttribute("role", "group");
-      this.inspector.setAttribute(
-        "aria-roledescription",
-        "Accessibility Inspector"
-      );
-      this.inspector.setAttribute("id", "nexus-accessibility-ui-inspector");
-      // Per AI_CONTEXT_RULES: do NOT use aria-live / live regions in injected inspector.
-      // Also avoid aria-hidden on container; expose only on explicit focus interaction.
-      this.inspector.setAttribute("tabindex", "-1");
+            _createInspectorElement(target) {
+      // Create host element - regular div with direct Shadow DOM attachment
+      this.inspector = document.createElement('div');
+      this.inspector.id = 'nexus-accessibility-ui-inspector';
+      this.inspector.setAttribute('role', 'group');
+      this.inspector.setAttribute('aria-roledescription', 'Accessibility Inspector');
+      this.inspector.setAttribute('tabindex', '-1');
 
-      // Establish ARIA relationship with target element if it has an ID
+      // Preserve ARIA relationship with target
       if (target && target.id) {
-        this.inspector.setAttribute("aria-controls", target.id);
+        this.inspector.setAttribute('aria-controls', target.id);
+      }
+
+      if (USE_SHADOW_DOM) {
+        // Attach closed shadow root directly to div
+        this._shadow = this.inspector.attachShadow({ mode: 'closed' });
       }
     }
 
@@ -581,7 +722,7 @@
     }
 
     _setupInitialPosition() {
-      this.inspector.style.position = "fixed";
+  this.inspector.style.position = "fixed"; // host is the positioned element
       this.inspector.style.left = "-9999px";
       this.inspector.style.top = "-9999px";
       this.inspector.style.setProperty("z-index", "2147483648", "important");
@@ -619,7 +760,8 @@
       }
 
       // Setup close button functionality
-      const closeButton = this.inspector.querySelector(
+      const queryRoot = USE_SHADOW_DOM ? this._shadow : this.inspector;
+      const closeButton = queryRoot.querySelector(
         ".nexus-accessibility-ui-inspector-close"
       );
       if (closeButton) {
@@ -716,6 +858,8 @@
             const inspParent = this.inspector.parentNode;
             if (inspParent) inspParent.removeChild(this.inspector);
             this.inspector = null;
+            // Clear shadow reference so a fresh host creates a new one next render
+            this._shadow = null;
           }
         } catch (e) {}
         try {
@@ -735,6 +879,9 @@
       }
 
       if (onRefocus) onRefocus();
+
+      // Clear last render signature so a subsequent reopen with same info/target is not suppressed
+      this._lastRenderSignature = null;
     }
 
     toggleMiniMode() {
