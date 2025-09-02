@@ -759,13 +759,38 @@
         } catch (err) {}
       }
 
-      // Setup close button functionality
-      const queryRoot = USE_SHADOW_DOM ? this._shadow : this.inspector;
-      const closeButton = queryRoot.querySelector(
-        ".nexus-accessibility-ui-inspector-close"
-      );
-      if (closeButton) {
-        this.events.setupCloseButton(closeButton, onClose, enabled);
+  // Close button removed: Alt+T toggles inspector; ESC no longer closes.
+      // Install (once) a capture-phase keydown listener to intercept Escape and prevent page handlers.
+      if (!this._escapeListenerInstalled) {
+        this._escapeKeydownHandler = (e) => {
+          try {
+            if (!this.inspector) return;
+            const isEsc = e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27;
+            if (!isEsc) return;
+            // If inspector visible, always prevent page-level ESC handlers
+            if (this.inspector && this.inspector.isConnected) {
+              e.preventDefault();
+              e.stopPropagation();
+              // If focus is inside inspector, move focus back to inspected element
+              const active = document.activeElement;
+              const contains = this.inspector.contains(active);
+              if (contains) {
+                const target = this._lastTarget;
+                if (target) {
+                  try { target.focus({ preventScroll: false }); }
+                  catch (err) {
+                    try { target.setAttribute('tabindex','-1'); target.focus(); target.removeAttribute('tabindex'); } catch (_) {}
+                  }
+                }
+              }
+              // Never close inspector on ESC
+            }
+          } catch (err) {
+            try { console.warn('[NEXUS] ESC handler error', err); } catch (_) {}
+          }
+        };
+        document.addEventListener('keydown', this._escapeKeydownHandler, true);
+        this._escapeListenerInstalled = true;
       }
     }
 
@@ -890,6 +915,10 @@
       // Update the unified state
       const newState = this.miniMode ? "mini" : "on";
       chrome.storage.sync.set({ inspectorState: newState });
+      // Notify content-main so it updates currentInspectorState immediately (keeps previous-state capture accurate)
+      try {
+        chrome.runtime.sendMessage({ type: 'INSPECTOR_STATE_CHANGE', inspectorState: newState });
+      } catch (_) {}
 
       // Re-render current inspector if visible
       if (this.inspector && this.inspector.style.display === "block") {
@@ -962,6 +991,14 @@
         window.removeEventListener("scroll", this._scrollHandler, true);
         this._scrollHandler = null;
       }
+      // Remove Escape capture listener
+      try {
+        if (this._escapeListenerInstalled && this._escapeKeydownHandler) {
+          document.removeEventListener('keydown', this._escapeKeydownHandler, true);
+          this._escapeListenerInstalled = false;
+          this._escapeKeydownHandler = null;
+        }
+      } catch (e) {}
     }
 
     /**

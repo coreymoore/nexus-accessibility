@@ -172,16 +172,6 @@
       const srNode = queryRoot.querySelector(
         ".nexus-accessibility-ui-inspector-sr"
       );
-      const closeButton = queryRoot.querySelector(
-        ".nexus-accessibility-ui-inspector-close"
-      );
-
-      if (closeButton) {
-        // Upgrade close control to an accessible button
-        closeButton.setAttribute("role", "button");
-        closeButton.setAttribute("tabindex", "0");
-        closeButton.setAttribute("aria-hidden", "false");
-      }
 
       this.core.inspector.removeAttribute("aria-hidden");
       this.core.focus._acceptingFocus = true;
@@ -203,47 +193,6 @@
       e.stopPropagation();
     }
 
-    /**
-     * Setup close button event handlers
-     * @param {Element} closeButton - Close button element
-     * @param {Function} onClose - Close callback function
-     * @param {Function} enabled - Enabled check function
-     */
-    setupCloseButton(closeButton, onClose, enabled) {
-      if (!closeButton) return;
-
-      // Enhanced close button functionality
-      const handleClose = (e) => {
-        e.preventDefault();
-        try {
-          if (enabled && enabled()) {
-            onClose && onClose();
-          }
-        } catch (error) {
-          console.warn("Error in close handler:", error);
-        }
-      };
-
-      // Handle click events
-      closeButton.addEventListener("click", handleClose);
-
-      // Handle keyboard activation
-      closeButton.addEventListener("keydown", (e) => {
-        if (this._isEnterOrSpace(e)) {
-          e.preventDefault();
-          handleClose(e);
-        }
-      });
-
-      // Prevent mouse events from affecting focus
-      closeButton.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-      });
-
-      closeButton.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-      });
-    }
 
     /**
      * Check if Enter or Space key was pressed

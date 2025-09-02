@@ -51,3 +51,36 @@ try {
 } catch (e) {
   console.warn("[BACKGROUND-INDEX] Failed to attach connectionManager:", e);
 }
+
+// Keyboard command handler (Alt+T -> delegate toggle to content script so it shares logic with popup)
+try {
+  if (chrome && chrome.commands && chrome.commands.onCommand) {
+    chrome.commands.onCommand.addListener(async (command) => {
+      try { console.log('[NEXUS][CMD] onCommand fired', command, Date.now()); } catch(e) {}
+      if (command !== 'toggle-inspector') return;
+      try {
+        const tabs = await new Promise((resolve) => {
+          try { chrome.tabs.query({ active: true, lastFocusedWindow: true }, resolve); } catch (e) { resolve([]); }
+        });
+        const msg = { type: 'COMMAND_TOGGLE_INSPECTOR' };
+        for (const t of tabs) {
+          if (t && t.id != null) {
+            try { chrome.tabs.sendMessage(t.id, msg); } catch (e) {}
+          }
+        }
+      } catch (err) {
+        console.error('[NEXUS] Failed to delegate toggle command', err);
+      }
+    });
+    // Diagnostic: verify registration by querying commands list (async; optional)
+    try {
+      if (chrome.commands.getAll) {
+        chrome.commands.getAll((cmds) => {
+          try { console.log('[NEXUS][CMD] Registered commands:', cmds); } catch(e) {}
+        });
+      }
+    } catch(_) {}
+  }
+} catch (e) {
+  console.warn('[NEXUS] Failed to register commands listener', e);
+}

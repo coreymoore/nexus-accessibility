@@ -20,11 +20,6 @@
   const Templates = {
     // Loading spinner removed to comply with no-animation policy.
 
-    CLOSE_BUTTON_ICON: `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
-        <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
-      </svg>
-    `,
 
     ERROR_ICON: `
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
@@ -97,20 +92,6 @@
       `;
     },
 
-    /**
-     * Create close button HTML
-     * @returns {string} Close button HTML
-     */
-    createCloseButton() {
-      return `
-  <button class="nexus-accessibility-ui-inspector-close" 
-                aria-label="Close Nexus Inspector" 
-                type="button"
-                tabindex="-1">
-          ${Templates.CLOSE_BUTTON_ICON}
-        </button>
-      `;
-    },
 
     /**
      * Generate screen reader output HTML
@@ -483,7 +464,6 @@
       }
 
       try {
-        const closeButtonHtml = this.createCloseButton();
         const screenReaderSection = this.createScreenReaderSection(info);
 
         // Create inspector body wrapper
@@ -494,7 +474,6 @@
         if (miniMode) {
           // Mini mode: only screen reader output
           inspectorContent = `
-            ${closeButtonHtml}
             ${bodyOpen}
               ${screenReaderSection}
             ${bodyClose}
@@ -503,7 +482,6 @@
           // Full mode: screen reader output + properties
           const propertiesSection = this.createPropertiesSection(info);
           inspectorContent = `
-            ${closeButtonHtml}
             ${bodyOpen}
               ${screenReaderSection}
               ${propertiesSection}

@@ -69,28 +69,7 @@
 
 /* Intentionally no animation: inspector appears instantly per updated rules */
 
-/* Close button */
-.nexus-accessibility-ui-inspector-close {
-  position: relative;
-  float: right;
-  margin-right: -2rem;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: rgba(104, 58, 183, 0.1);
-  color: #683ab7;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.nexus-accessibility-ui-inspector-close:hover {
-  background: rgba(104, 58, 183, 0.2);
-  color: #683ab7;
-}
+/* (Close button removed: ESC no longer closes; Alt+T toggles inspector state) */
 
 /* Only show transition for users who don't prefer reduced motion */
 /* Removed transition: Inspector surfaces must not animate (rules §2.7). */
