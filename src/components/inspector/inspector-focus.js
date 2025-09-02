@@ -59,10 +59,22 @@
 
           if (!inside) return; // ignore outside events
 
-          if (this._acceptingFocus) return; // user explicitly enabled focus
+          // If user explicitly allowed focus (e.g. via temporary selection window) skip guard
+          if (this._acceptingFocus) return;
 
-          // Allow selection gesture to proceed without interference
-          if (this._selectionActive) return;
+          // Permit ongoing selection operations (mouse drag) without interruption
+            if (this._selectionActive) return;
+
+          // If there is an existing non-collapsed selection inside the inspector, do not steal focus
+          try {
+            const sel = window.getSelection && window.getSelection();
+            if (sel && sel.rangeCount > 0) {
+              const rng = sel.getRangeAt(0);
+              if (!rng.collapsed && inspector.contains(rng.commonAncestorContainer)) {
+                return; // allow user to adjust or copy selection
+              }
+            }
+          } catch (_) {}
 
           // If focus moved into inspector unintentionally, redirect it back to last target
           e.stopPropagation();
@@ -109,7 +121,17 @@
           (e) => {
             if (e.button !== 0) return;
             this._selectionActive = true;
-            // Clear existing selection state gracefully (not mandatory)
+            // Temporarily allow focus so focusin during selection isn't blocked
+            const prevAccepting = this._acceptingFocus;
+            this._acceptingFocus = true;
+            // Revoke temporary acceptance shortly after mouseup unless explicitly enabled elsewhere
+            const revoke = () => {
+              if (!prevAccepting) this._acceptingFocus = false;
+            };
+            // Schedule safety timeout in case mouseup listener missed
+            this._tempAcceptingTimer && clearTimeout(this._tempAcceptingTimer);
+            this._tempAcceptingTimer = setTimeout(revoke, 1500);
+            this._revokeTempAccepting = revoke;
           },
           true
         );
@@ -117,9 +139,11 @@
         // Mouseup on document to ensure cleanup even if mouse leaves inspector
         this._selectionMouseUpHandler = (e) => {
           if (this._selectionActive) {
-            // Defer clearing flag slightly to let selection finalize
             setTimeout(() => {
               this._selectionActive = false;
+              try {
+                if (this._revokeTempAccepting) this._revokeTempAccepting();
+              } catch (_) {}
             }, 0);
           }
         };
