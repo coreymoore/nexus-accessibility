@@ -62,7 +62,13 @@
               const current = getInspectorState();
               if (current === 'off') {
                 // Restore last non-off from storage (fallback 'on')
-                const data = await new Promise((resolve)=>{ try { chrome.storage.sync.get({ inspectorPreviousNonOffState: 'on' }, resolve); } catch(e){ resolve({ inspectorPreviousNonOffState:'on'});} });
+                let data;
+                try {
+                  // Use unified promise wrapper
+                  data = await (window.chromeAsync ? window.chromeAsync.storage.sync.get({ inspectorPreviousNonOffState: 'on' }) : new Promise((resolve)=> chrome.storage.sync.get({ inspectorPreviousNonOffState: 'on' }, resolve)));
+                } catch (e) {
+                  data = { inspectorPreviousNonOffState: 'on' };
+                }
                 let restore = data.inspectorPreviousNonOffState || 'on';
                 if (!['on','mini'].includes(restore)) restore = 'on';
                 await new Promise((resolve)=>{ try { chrome.storage.sync.set({ inspectorState: restore }, resolve); } catch(e){ resolve(); } });
@@ -71,7 +77,7 @@
                 // Turning off: capture effective state from storage (authoritative) to avoid race with async mini toggle UI
                 let effectiveState = current;
                 try {
-                  const data = await new Promise((resolve)=>{ try { chrome.storage.sync.get({ inspectorState: current }, resolve); } catch(e){ resolve({ inspectorState: current }); } });
+                  const data = await (window.chromeAsync ? window.chromeAsync.storage.sync.get({ inspectorState: current }) : new Promise((resolve)=> chrome.storage.sync.get({ inspectorState: current }, resolve)));
                   if (data && (data.inspectorState === 'on' || data.inspectorState === 'mini')) {
                     effectiveState = data.inspectorState;
                   }
