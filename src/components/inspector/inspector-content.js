@@ -107,193 +107,81 @@
         return '<span class="sr-error">Unable to generate screen reader output</span>';
       }
 
-      // Debug logging to understand the data structure
-      console.debug("[Inspector] Accessibility info received:", {
-        role: info.role,
-        name: info.name,
-        ariaProperties: info.ariaProperties,
-        normalizedExpanded: info.normalizedExpanded,
-        states: info.states,
-      });
-
-      // Base: role, name, description - always deepUnwrap to convert AX values to text
-      const base = [];
+      // Try sr-preview integration first
       try {
-        const roleText = info.role ? utils.deepUnwrap(info.role) : null;
-        const nameText = info.name ? utils.deepUnwrap(info.name) : null;
-        const descText = info.description ? utils.deepUnwrap(info.description) : null;
-
-        if (roleText) {
-          base.push(this.createSafeSpan("sr-role", roleText));
-        }
-        if (nameText && nameText !== "(no accessible name)") {
-          base.push(this.createSafeSpan("sr-name", nameText));
-        }
-        if (descText && descText !== "(no description)") {
-          base.push(this.createSafeSpan("sr-desc", descText));
-        }
-      } catch (e) {
-        // If deepUnwrap fails for any reason, fallback to original values
-        if (info.role) base.push(this.createSafeSpan("sr-role", String(info.role)));
-        if (info.name && info.name !== "(no accessible name)") base.push(this.createSafeSpan("sr-name", String(info.name)));
-        if (info.description && info.description !== "(no description)") base.push(this.createSafeSpan("sr-desc", String(info.description)));
-      }
-
-      // Extras: states, aria-derived states, group, value, required
-      const extras = [];
-
-      if (
-        info.ariaProperties ||
-        info.states ||
-        info.normalizedExpanded !== null
-      ) {
-        // Handle aria-expanded (prioritize normalizedExpanded field)
-        let expandedValue = null;
-
-        // First try the normalized expanded field (this is the canonical source)
-        if (
-          info.normalizedExpanded !== null &&
-          info.normalizedExpanded !== undefined
-        ) {
-          expandedValue = info.normalizedExpanded;
-        }
-        // Fallback to aria-expanded from ariaProperties
-        else if (
-          info.ariaProperties &&
-          "aria-expanded" in info.ariaProperties
-        ) {
-          expandedValue = utils.deepUnwrap(
-            info.ariaProperties["aria-expanded"]
-          );
-        }
-        // Fallback to expanded from states
-        else if (info.states && "expanded" in info.states) {
-          expandedValue = utils.deepUnwrap(info.states.expanded);
-        }
-
-        // Normalize and add expanded/collapsed state
-        const normalizedExpanded = this.normalizeBooleanValue(expandedValue);
-        if (normalizedExpanded === true) {
-          extras.push(`<span class="sr-state">expanded</span>`);
-        } else if (normalizedExpanded === false) {
-          extras.push(`<span class="sr-state">collapsed</span>`);
-        }
-
-        // Handle aria-pressed
-        if (info.ariaProperties && "aria-pressed" in info.ariaProperties) {
-          const prs = utils.deepUnwrap(info.ariaProperties["aria-pressed"]);
-          extras.push(
-            `<span class="sr-state">${
-              utils.isTrue(prs) ? "pressed" : "not pressed"
-            }</span>`
-          );
-        }
-
-        // Handle checked state
-        if (info.states && "checked" in info.states) {
-          const checked = utils.deepUnwrap(info.states.checked);
-          const normalizedChecked = this.normalizeBooleanValue(checked);
-          if (normalizedChecked === true) {
-            extras.push(`<span class="sr-state">checked</span>`);
-          } else if (normalizedChecked === false) {
-            extras.push(`<span class="sr-state">unchecked</span>`);
-          } else if (normalizedChecked === "mixed") {
-            extras.push(`<span class="sr-state">mixed</span>`);
-          } else {
-            // Fallback to unchecked for unrecognized values to match screen reader behavior
-            // Per ARIA spec, checkboxes without explicit aria-checked default to false/unchecked
-            extras.push(`<span class="sr-state">unchecked</span>`);
-          }
-        }
-
-        // Handle disabled state
-        if (info.states) {
-          const dis = utils.deepUnwrap(info.states.disabled);
-          if (utils.isTrue(dis)) {
-            extras.push(`<span class="sr-state">disabled</span>`);
-          }
-
-          // Handle required state
-          const ariaReq =
-            info.ariaProperties &&
-            utils.isTrue(
-              utils.deepUnwrap(info.ariaProperties["aria-required"])
-            );
-          const req = utils.deepUnwrap(info.states.required);
-          if (utils.isTrue(req) || ariaReq) {
-            extras.push(`<span class="sr-required">required</span>`);
-          }
-        }
-      }
-
-      // Value
-      if (info.value && info.value !== "(no value)") {
-        const v = utils.deepUnwrap(info.value);
-        extras.push(`<span class="sr-value">${String(v)}</span>`);
-      }
-
-      // Group
-      if (info.group && info.group.role) {
-        if (info.group.label) {
-          extras.push(
-            `<span class="sr-group">${info.group.role}, ${info.group.label}</span>`
-          );
-        } else {
-          extras.push(`<span class="sr-group">${info.group.role}</span>`);
-        }
-      }
-
-      // Compose: base joined by space; if extras exist, add a comma, then extras joined by ", "
-      const baseStr = base.join(" ");
-      let result = "";
-
-      if (extras.length > 0) {
-        result = (baseStr ? baseStr + ", " : "") + extras.join(", ");
-      } else {
-        result = baseStr;
-      }
-
-      // Active descendant (screen reader preview simplified to JUST the descendant's accessible name)
-      // Prefer enhanced `activeDescendant` object but fallback to raw states/aria data
-      try {
-        let nameOnly = null;
-        if (info.activeDescendant && info.activeDescendant.name) {
-          nameOnly = utils.deepUnwrap(info.activeDescendant.name);
-        } else {
-          // Fallback: try states.activedescendant, activeDescendantRaw, or ariaProperties
-          const raw = info?.states?.activedescendant || info?.activeDescendantRaw || info?.ariaProperties?.activedescendant;
-          if (raw) {
-            nameOnly = utils.deepUnwrap(raw);
-            // deepUnwrap may produce idrefs or roles; try to extract last quoted name if present
-            if (typeof nameOnly === 'string') {
-              // If the string contains idref tokens like combo1-1, it's okay; this is a best-effort fallback
+        const srPreview = window.NexusInspector && window.NexusInspector.SrPreview;
+        if (srPreview && typeof srPreview.renderPreview === 'function') {
+          const preview = srPreview.renderPreview(info, { mode: 'full' });
+          if (preview) {
+            // Handle preview result based on its type
+            if (typeof preview === 'string') {
+              // If it's HTML with token classes, sanitize and return
+              if (preview.includes('<span class="sr-')) {
+                return utils.createSafeInspectorContent(preview);
+              } else {
+                // Plain text - escape and return as-is
+                return utils.escapeHtml(preview);
+              }
+            } else if (Array.isArray(preview)) {
+              // If sr-preview returns segments array, map to token classes
+              const mappedSegments = preview.map(segment => {
+                const kind = segment.kind;
+                const text = segment.text;
+                if (!text) return '';
+                
+                // Map segment kinds to CSS token classes
+                let className;
+                switch (kind) {
+                  case 'role':
+                    className = 'sr-role';
+                    break;
+                  case 'name':
+                    className = 'sr-name';
+                    break;
+                  case 'desc':
+                  case 'description':
+                    className = 'sr-desc';
+                    break;
+                  case 'state':
+                    // Handle special required state
+                    if (text === 'required') {
+                      className = 'sr-required';
+                    } else {
+                      className = 'sr-state';
+                    }
+                    break;
+                  case 'required':
+                    className = 'sr-required';
+                    break;
+                  case 'value':
+                    className = 'sr-value';
+                    break;
+                  case 'meta':
+                  case 'group':
+                    className = 'sr-group';
+                    break;
+                  case 'active-descendant':
+                    className = 'sr-active-descendant';
+                    break;
+                  default:
+                    className = 'sr-state'; // Default fallback
+                }
+                
+                return this.createSafeSpan(className, text);
+              }).filter(Boolean);
+              
+              return mappedSegments.join(', ');
             }
           }
         }
-        if (nameOnly) {
-          let textVal = String(nameOnly).trim();
-          // Avoid showing raw serialized object JSON (heuristic: starts with { and contains "relatedNodes")
-          if (/^\{/.test(textVal) && /relatedNodes/.test(textVal)) {
-            // Attempt final fallback: if enhanced object exists now use its name
-            if (info.activeDescendant && info.activeDescendant.name) {
-              textVal = String(utils.deepUnwrap(info.activeDescendant.name)).trim();
-            } else {
-              // Drop instead of showing opaque structure
-              textVal = "";
-            }
-          }
-            // Also collapse multiple spaces
-          if (textVal) {
-            textVal = textVal.replace(/\s+/g, " ");
-            const span = `<span class="sr-active-descendant">${utils.escapeHtml(textVal)}</span>`;
-            result += result ? `, ${span}` : span;
-          }
-        }
-      } catch (e) {
-        console.warn("[Inspector] Failed rendering active descendant SR output", e);
+      } catch (err) {
+        console.warn('[NEXUS][SR-PREVIEW] sr-preview failed:', err);
+        return '<span class="sr-error">Screen reader preview unavailable</span>';
       }
 
-      return result;
+      // If we get here, sr-preview didn't return a result but didn't throw an error
+      console.warn('[NEXUS][SR-PREVIEW] sr-preview returned empty result');
+      return '<span class="sr-error">Screen reader preview unavailable</span>';
     },
 
     /**

@@ -325,6 +325,20 @@
 
         console.log("getAccessibleInfo: building return object from", info);
 
+        // If CDP returned null/undefined, fall back to cache or local without generating placeholders
+        if (!info) {
+          console.warn("[ACCESSIBILITY] Empty accessibility info returned from CDP");
+          if (cached) {
+            console.log("[ACCESSIBILITY] Using cached accessibility info instead of empty response");
+            return cached;
+          }
+            const localInfo = getLocalAccessibleInfo(target);
+            if (CE.inspector) {
+              CE.inspector.showInspector(localInfo, target);
+            }
+            return localInfo;
+        }
+
         // If we got an IframePresentational role when we expected element content,
         // it means CDP is seeing the iframe container instead of the focused element
         if (info?.role === "IframePresentational" && CE.utils.isInIframe()) {
@@ -341,9 +355,23 @@
         // Process accessibility information
         const result = processAccessibilityInfo(info, target);
 
+        // If result is only placeholders but we have a richer cached entry, keep the cached one
+        const isPlaceholder = (r, n) => (!r || r === "(no role)") && (!n || n === "(no accessible name)");
+        if (isPlaceholder(result.role, result.name) && cached && !isPlaceholder(cached.role, cached.name)) {
+          console.log("[ACCESSIBILITY] Preserving cached result over placeholder response");
+          return cached;
+        }
+
         // Cache the result if meaningful and not a force update
         if (!forceUpdate && cache && result) {
-          cache.setCached(target, result);
+          // Do not overwrite cache with pure placeholder result if cache has meaningful data
+          const cacheHasMeaning = cached && (cached.role !== "(no role)" || cached.name !== "(no accessible name)");
+          const resultMeaningful = (result.role !== "(no role)" || result.name !== "(no accessible name)");
+          if (resultMeaningful || !cacheHasMeaning) {
+            cache.setCached(target, result);
+          } else {
+            console.log("[ACCESSIBILITY] Skipping cache overwrite with placeholder result");
+          }
         } else if (cached && cache) {
           // Use cached data if current result is empty
           console.log("Using cached data instead of empty result");
