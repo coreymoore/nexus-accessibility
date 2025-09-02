@@ -149,10 +149,19 @@
         const isInside = active && this.core.inspector.contains(active);
         if (!isInside) return;
 
-        // Handle Escape to close
+        // Handle Escape: do NOT close inspector; only suppress when focus inside
         if (this._isEscapeKey(e)) {
           e.preventDefault();
-          this._handleEscapeClose(onClose, enabled);
+          e.stopPropagation();
+          try {
+            // Return focus to the previously inspected element if available
+            const target = this.core._lastTarget;
+            if (target && typeof target.focus === 'function') {
+              try { target.focus({ preventScroll: false }); } catch (_) {
+                try { target.setAttribute('tabindex','-1'); target.focus(); target.removeAttribute('tabindex'); } catch (_) {}
+              }
+            }
+          } catch (_) {}
           return;
         }
 
