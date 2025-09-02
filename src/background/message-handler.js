@@ -11,9 +11,8 @@ import {
 import { DIRECT_CACHE_TTL_MS } from "./constants.js";
 
 export class MessageHandler {
-  constructor(cacheManager, debuggerManager) {
+  constructor(cacheManager) {
     this.cache = cacheManager;
-    this.debugger = debuggerManager;
     // Micro-cache for direct-reference results to avoid CDP churn during rapid
     // key navigation. Keyed by `element-direct-${tabId}-${frameId}` and
     // stores { value, t } where t is timestamp in ms.
@@ -175,9 +174,17 @@ export class MessageHandler {
     }
 
     try {
-      const { nodes } = await this.debugger.sendCommand(
+      // Use connectionManager to ensure attachment & serialized access
+      const { nodes } = await connectionManager.executeWithDebugger(
         tabId,
-        "Accessibility.getFullAXTree"
+        async () => {
+          const { nodes } = await chrome.debugger.sendCommand(
+            { tabId },
+            "Accessibility.getFullAXTree",
+            {}
+          );
+          return { nodes };
+        }
       );
 
       const result = { nodes };
@@ -215,7 +222,9 @@ export class MessageHandler {
 
           // Ensure debugger is attached and get connection
           console.log("Background: attaching debugger to tab", tabId);
-          const connection = await this.debugger.attach(tabId);
+          // Use serialized path via connectionManager
+          await connectionManager.ensureAttached(tabId);
+          const connection = connectionManager.getConnectionState(tabId);
           console.log("Background: debugger attached, connection:", connection);
 
           // Get accessibility info using direct reference method
@@ -264,7 +273,8 @@ export class MessageHandler {
 
       // Ensure debugger is attached and get connection
       console.log("Background: attaching debugger to tab", tabId);
-      const connection = await this.debugger.attach(tabId);
+  await connectionManager.ensureAttached(tabId);
+  const connection = connectionManager.getConnectionState(tabId);
       console.log("Background: debugger attached, connection:", connection);
 
       // Get accessibility info using the debugger connection
@@ -319,11 +329,11 @@ export class MessageHandler {
       if (tabId) {
         // Schedule a detach rather than forcing immediate detach to avoid
         // attach/detach churn when users quickly refocus the page.
-        if (this.debugger && typeof this.debugger.scheduleDetach === "function") {
-          this.debugger.scheduleDetach(tabId);
-        } else if (this.debugger && typeof this.debugger.detach === "function") {
-          // Fallback to immediate detach if scheduling is not available
-          await this.debugger.detach(tabId);
+        // Delegate to connectionManager idle detach scheduling
+        if (typeof connectionManager.scheduleDetach === 'function') {
+          connectionManager.scheduleDetach(tabId);
+        } else if (typeof connectionManager.detach === 'function') {
+          await connectionManager.detach(tabId);
         }
         return { status: "scheduled_detach", tabId };
       }

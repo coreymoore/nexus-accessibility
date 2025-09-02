@@ -1,12 +1,11 @@
 import "./types.js";
+import { connectionManager } from "./connectionManager.js";
 
 export class AccessibilityService {
   /**
-   * @param {DebuggerManager} debuggerManager
    * @param {CacheManager} cacheManager
    */
-  constructor(debuggerManager, cacheManager) {
-    this.debugger = debuggerManager;
+  constructor(cacheManager) {
     this.cache = cacheManager;
   }
 
@@ -38,11 +37,11 @@ export class AccessibilityService {
    */
   async fetchFromDebugger(tabId, frameId, selector) {
     try {
-      await this.debugger.ensureAttached(tabId);
+  await connectionManager.ensureAttached(tabId);
 
       // Execute script to find element and get its backend node ID
-      const { result } = await this.debugger.sendCommand(
-        tabId,
+      const { result } = await chrome.debugger.sendCommand(
+        { tabId },
         "Runtime.evaluate",
         {
           expression: `
@@ -60,15 +59,15 @@ export class AccessibilityService {
       }
 
       // Get the backend node ID
-      const { nodeId } = await this.debugger.sendCommand(
-        tabId,
+      const { nodeId } = await chrome.debugger.sendCommand(
+        { tabId },
         "DOM.requestNode",
         { objectId: result.objectId }
       );
 
       // Get accessibility info
-      const { accessibilityNode } = await this.debugger.sendCommand(
-        tabId,
+      const { accessibilityNode } = await chrome.debugger.sendCommand(
+        { tabId },
         "Accessibility.getAXNodeAndAncestors",
         { nodeId }
       );

@@ -1,13 +1,12 @@
 import { CacheManager } from "./cache-manager.js";
-import { DebuggerManager } from "./debugger-manager.js";
 import { connectionManager } from "./connectionManager.js";
 import { MessageHandler } from "./message-handler.js";
 import TestUtils from "../utils/testUtils.js";
 
 // Initialize managers
 const cacheManager = new CacheManager();
-const debuggerManager = new DebuggerManager();
-const messageHandler = new MessageHandler(cacheManager, debuggerManager);
+// DebuggerManager deprecated: consolidated on connectionManager
+const messageHandler = new MessageHandler(cacheManager);
 
 // Setup message listener
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -20,7 +19,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 // Clean up on tab close
 chrome.tabs.onRemoved.addListener((tabId) => {
-  debuggerManager.detach(tabId);
+  try { connectionManager.detach(tabId); } catch (_) {}
 });
 
 // Store global cache instance for cleanup
@@ -28,6 +27,53 @@ globalThis.cacheInstance = cacheManager;
 
 
 console.log("Nexus Background Service Worker initialized");
+
+// Alarm guard: prevent runaway alarm creation from exceeding browser limits.
+try {
+  if (chrome && chrome.alarms && !globalThis.__NEXUS_ALARM_GUARD_INSTALLED) {
+    const origCreate = chrome.alarms.create.bind(chrome.alarms);
+    chrome.alarms.create = function(name, info) {
+      try {
+        chrome.alarms.getAll((alarms) => {
+          if (alarms && alarms.length >= 480) {
+            console.warn('[NEXUS][ALARM-GUARD] High alarm count', alarms.length, 'attempting to add', name);
+            if (alarms.length >= 495) {
+              // Skip creating new low-priority cache cleanup / delay style alarms when near cap
+              const lowPriority = /cache-cleanup|delay-|nexus-cache-cleanup/.test(name);
+              if (lowPriority) {
+                console.warn('[NEXUS][ALARM-GUARD] Suppressing low priority alarm creation:', name);
+                return; // Abort creation
+              }
+            }
+          }
+          try { origCreate(name, info); } catch (e) { console.warn('[NEXUS][ALARM-GUARD] create failed', e); }
+        });
+      } catch (e) {
+        try { origCreate(name, info); } catch(_) {}
+      }
+    };
+    globalThis.__NEXUS_ALARM_GUARD_INSTALLED = true;
+  }
+} catch (e) {
+  console.warn('[NEXUS][ALARM-GUARD] Failed to install alarm guard', e);
+}
+
+// One-time migration: clear legacy random cache cleanup & unused heartbeat alarms
+try {
+  if (chrome && chrome.alarms) {
+    chrome.alarms.getAll((alarms) => {
+      const legacy = alarms.filter(a => /^(cache-cleanup-|nexus-heartbeat)/.test(a.name));
+      if (legacy.length) {
+        console.warn('[NEXUS][ALARM-MIGRATION] Clearing legacy alarms:', legacy.map(a=>a.name));
+        for (const a of legacy) {
+          try { chrome.alarms.clear(a.name); } catch(_) {}
+        }
+      }
+    });
+  }
+} catch (e) {
+  console.warn('[NEXUS][ALARM-MIGRATION] Failed legacy cleanup', e);
+}
 
 // Attach test utilities to the service worker global for developer console access.
 try {
