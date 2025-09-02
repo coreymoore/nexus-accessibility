@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>ARIA Role: row</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style id="inline-style">/* Inline minimal styling (also written to assets/aria-test.css) */
+body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; margin:0; padding:1rem 1.2rem 4rem; line-height:1.4; background:#f7f7fa; color:#222; }
+header { background:#fff; padding:1rem 1.25rem; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,.08); margin-bottom:1rem; }
+h1 { margin:0 0 .25rem; font-size:1.8rem; }
+.deprecated { color:#b30032; font-weight:600; margin-left:.75rem; font-size:.9rem; }
+.small { font-size:.8rem; color:#444; }
+.examples { background:#fff; border:1px solid #ddd; padding:1rem; border-radius:8px; margin-bottom:1.25rem; }
+.example-row { display:flex; flex-wrap:wrap; gap:1rem; }
+.example-col { flex:1 1 300px; min-width:260px; }
+.widget, .aria-variant, .btn-like, .check-like, .spinbutton, .slider-track, .progress, .radiogroup, .toolbar, .dialog, .grid, .tree { border:1px solid #ccc; background:#fafafa; padding:.75rem; border-radius:6px; position:relative; }
+.btn-like, .check-like, [role=button] { cursor:pointer; user-select:none; }
+.attr-editor { background:#fff; border:1px solid #ddd; padding:1rem; border-radius:8px; }
+.attr-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:.5rem .75rem; margin-top:.75rem; }
+.attr-field { display:flex; flex-direction:column; font-size:.75rem; gap:.15rem; }
+.attr-field input { padding:.35rem .4rem; font-size:.75rem; border:1px solid #bbb; border-radius:4px; }
+.shadow-toggle { margin-top:1rem; }
+#toggle-shadow { margin-top:.5rem; }
+.visually-hidden { position:absolute; clip:rect(1px,1px,1px,1px); padding:0; border:0; height:1px; width:1px; overflow:hidden; }
+.combo-wrapper { max-width:240px; }
+.listbox { margin:0; padding:0; list-style:none; border:1px solid #aaa; max-width:240px; }
+.listbox [role=option] { padding:.25rem .5rem; cursor:pointer; }
+.listbox [role=option][aria-selected=true], .radio[aria-checked=true] { background:#683ab7; color:#fff; }
+.radio { padding:.25rem .5rem; margin:.15rem 0; border:1px solid #999; border-radius:4px; cursor:pointer; }
+.slider-track { height:28px; background:linear-gradient(#eee,#ddd); }
+.slider-thumb { position:absolute; top:2px; width:24px; height:24px; background:#683ab7; border-radius:50%; transform:translateX(-50%); }
+.progress { width:200px; height:16px; background:#eee; border-radius:4px; overflow:hidden; }
+.progress .bar { background:#683ab7; height:100%; }
+.spinbutton { width:60px; text-align:center; }
+.menubar { display:flex; gap:.5rem; }
+.menu-trigger { position:relative; padding:.25rem .5rem; border:1px solid #aaa; border-radius:4px; cursor:pointer; }
+.submenu { position:absolute; left:0; top:100%; background:#fff; border:1px solid #aaa; padding:.25rem 0; border-radius:4px; min-width:120px; z-index:10; }
+.submenu [role=menuitem] { padding:.25rem .75rem; cursor:pointer; }
+.tabs [role=tab] { padding:.4rem .75rem; border:1px solid #aaa; background:#fff; cursor:pointer; border-bottom:none; margin-right:.25rem; border-top-left-radius:4px; border-top-right-radius:4px; }
+.tabs [role=tab][aria-selected=false] { background:#eee; }
+.tabpanels { border:1px solid #aaa; padding:.75rem; border-radius:0 4px 4px 4px; background:#fff; }
+.tree, .tree ul { list-style:none; margin:0; padding-left:1rem; }
+.tree [role=treeitem] { cursor:pointer; }
+.grid { display:inline-block; }
+.grid [role=row] { display:flex; }
+.grid [role=columnheader], .grid [role=gridcell] { padding:.25rem .5rem; border:1px solid #999; min-width:32px; text-align:center; }
+.toolbar button { margin-right:.25rem; }
+.dialog { max-width:360px; background:#fff; padding:1rem; border:2px solid #683ab7; }
+.separator { height:4px; background:#999; }
+.note { font-size:.75rem; color:#333; }
+footer { margin-top:3rem; font-size:.65rem; text-align:center; color:#555; }
+code { background:#eee; padding:2px 4px; border-radius:3px; }
+button { cursor:pointer; }
+*:focus-visible { outline:2px solid #683ab7; outline-offset:2px; box-shadow:0 0 0 4px #fff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Role: <code>row</code></h1>
+  <p>Row of cells.</p>
+  <nav><a href="index.html">&#8592; Back to index</a></nav>
+</header>
+<div class="examples" id="example-host">
+    <h2>Examples</h2>
+    <div class="example-row">
+      <div class="example-col">
+        <h3 class="ex-heading">Primary Widget</h3>
+        <div class="widget" id="widget-root" data-role="row"><div class="native-stub">No distinct native element – demonstrating role via ARIA mapping.</div></div>
+      </div>
+      <div class="example-col">
+        <h3 class="ex-heading">ARIA Variant</h3>
+        <div class="aria-variant" role="row" tabindex="0" id="aria-role-target">ARIA <code>row</code> example (focus & interact)</div>
+      </div>
+    </div>
+    <div class="shadow-toggle">
+      <button id="toggle-shadow" type="button">Enable Shadow DOM Variant</button>
+      <div id="shadow-host-container" aria-live="off"></div>
+    </div>
+  </div>
+
+
+    <section class="attr-editor" aria-labelledby="attr-editor-heading">
+      <h2 id="attr-editor-heading">Attribute Editor</h2>
+      <p class="small">Edit attributes below. Changes apply live to the primary example widget. Empty values remove the attribute. Some inputs show/hide based on the widget type.</p>
+      <details open>
+        <summary><strong>Global & Common Attributes</strong></summary>
+        <div class="attr-grid">
+          <label class="attr-field"><span>aria-label</span><input data-attr="aria-label" id="inp-aria-label" placeholder="" /></label>
+<label class="attr-field"><span>aria-labelledby</span><input data-attr="aria-labelledby" id="inp-aria-labelledby" placeholder="" /></label>
+<label class="attr-field"><span>aria-describedby</span><input data-attr="aria-describedby" id="inp-aria-describedby" placeholder="" /></label>
+<label class="attr-field"><span>aria-hidden</span><input data-attr="aria-hidden" id="inp-aria-hidden" placeholder="" /></label>
+<label class="attr-field"><span>aria-disabled</span><input data-attr="aria-disabled" id="inp-aria-disabled" placeholder="" /></label>
+<label class="attr-field"><span>aria-expanded</span><input data-attr="aria-expanded" id="inp-aria-expanded" placeholder="" /></label>
+<label class="attr-field"><span>aria-pressed</span><input data-attr="aria-pressed" id="inp-aria-pressed" placeholder="" /></label>
+<label class="attr-field"><span>aria-selected</span><input data-attr="aria-selected" id="inp-aria-selected" placeholder="" /></label>
+<label class="attr-field"><span>aria-checked</span><input data-attr="aria-checked" id="inp-aria-checked" placeholder="" /></label>
+<label class="attr-field"><span>aria-required</span><input data-attr="aria-required" id="inp-aria-required" placeholder="" /></label>
+<label class="attr-field"><span>aria-invalid</span><input data-attr="aria-invalid" id="inp-aria-invalid" placeholder="" /></label>
+<label class="attr-field"><span>aria-busy</span><input data-attr="aria-busy" id="inp-aria-busy" placeholder="" /></label>
+<label class="attr-field"><span>aria-current</span><input data-attr="aria-current" id="inp-aria-current" placeholder="" /></label>
+<label class="attr-field"><span>aria-live</span><input data-attr="aria-live" id="inp-aria-live" placeholder="" /></label>
+<label class="attr-field"><span>aria-atomic</span><input data-attr="aria-atomic" id="inp-aria-atomic" placeholder="" /></label>
+<label class="attr-field"><span>aria-relevant</span><input data-attr="aria-relevant" id="inp-aria-relevant" placeholder="" /></label>
+<label class="attr-field"><span>aria-readonly</span><input data-attr="aria-readonly" id="inp-aria-readonly" placeholder="" /></label>
+<label class="attr-field"><span>aria-multiline</span><input data-attr="aria-multiline" id="inp-aria-multiline" placeholder="" /></label>
+<label class="attr-field"><span>aria-multiselectable</span><input data-attr="aria-multiselectable" id="inp-aria-multiselectable" placeholder="" /></label>
+<label class="attr-field"><span>aria-activedescendant</span><input data-attr="aria-activedescendant" id="inp-aria-activedescendant" placeholder="" /></label>
+<label class="attr-field"><span>aria-autocomplete</span><input data-attr="aria-autocomplete" id="inp-aria-autocomplete" placeholder="" /></label>
+<label class="attr-field"><span>aria-controls</span><input data-attr="aria-controls" id="inp-aria-controls" placeholder="" /></label>
+<label class="attr-field"><span>aria-orientation</span><input data-attr="aria-orientation" id="inp-aria-orientation" placeholder="" /></label>
+<label class="attr-field"><span>aria-placeholder</span><input data-attr="aria-placeholder" id="inp-aria-placeholder" placeholder="" /></label>
+<label class="attr-field"><span>aria-posinset</span><input data-attr="aria-posinset" id="inp-aria-posinset" placeholder="" /></label>
+<label class="attr-field"><span>aria-setsize</span><input data-attr="aria-setsize" id="inp-aria-setsize" placeholder="" /></label>
+<label class="attr-field"><span>aria-level</span><input data-attr="aria-level" id="inp-aria-level" placeholder="e.g., 1" /></label>
+<label class="attr-field"><span>aria-valuemin</span><input data-attr="aria-valuemin" id="inp-aria-valuemin" placeholder="e.g., 0" /></label>
+<label class="attr-field"><span>aria-valuemax</span><input data-attr="aria-valuemax" id="inp-aria-valuemax" placeholder="e.g., 100" /></label>
+<label class="attr-field"><span>aria-valuenow</span><input data-attr="aria-valuenow" id="inp-aria-valuenow" placeholder="e.g., 50" /></label>
+<label class="attr-field"><span>aria-roledescription</span><input data-attr="aria-roledescription" id="inp-aria-roledescription" placeholder="" /></label>
+<label class="attr-field"><span>tabindex</span><input data-attr="tabindex" id="inp-tabindex" placeholder="0 or -1" /></label>
+        </div>
+      </details>
+      <details open><summary><strong>Role-Specific Attributes</strong></summary><div class="attr-grid"><label class="attr-field"><span>aria-rowindex</span><input data-attr="aria-rowindex" id="inp-aria-rowindex" placeholder="" /></label></div></details>
+    </section>
+
+    <section class="test-notes" aria-labelledby="test-notes-h">
+      <h2 id="test-notes-h">Test Notes & Acceptance Criteria</h2>
+      <ul>
+        <li>Verify computed role appears as <code>row</code>.</li>
+        <li>Adjust attributes in the editor; confirm live reflection in inspector (no stale cache).</li>
+        <li>Keyboard interaction updates state attributes (e.g., aria-selected, aria-checked, aria-valuenow where applicable).</li>
+        <li>Shadow DOM variant replicates semantics (toggle to verify).</li>
+        <li>If description is added via <code>aria-describedby</code>, confirm it appears; removing it should not display a literal "(no description)" placeholder in the extension.</li>
+      </ul>
+    </section>
+<footer>Generated for accessibility testing &middot; 2025-09-02T22:24:59.940Z</footer>
+<script id="inline-script">// Inline behavior JS (also written to assets/aria-test.js)
+(function(){
+  const role = "row";
+  const root = document.getElementById('widget-root');
+  const ariaVariant = document.getElementById('aria-role-target');
+  const shadowToggle = document.getElementById('toggle-shadow');
+  const shadowHostContainer = document.getElementById('shadow-host-container');
+  let shadowEnabled = false;
+
+  function byAttrInputs(){ return Array.from(document.querySelectorAll('[data-attr]')); }
+  function targetElement(){ return root || ariaVariant; }
+  function applyAttr(el, name, value){ if(!el) return; if(!value && value !== '0'){ el.removeAttribute(name); return; } el.setAttribute(name, value); }
+  function handleAttrChange(e){ const input=e.target; if(!input.matches('[data-attr]')) return; const attr=input.getAttribute('data-attr'); const val=input.value.trim(); [targetElement(), ariaVariant].filter(Boolean).forEach(el=>applyAttr(el, attr, val)); }
+  document.addEventListener('input', handleAttrChange);
+
+  function toggleAriaPressed(el){ if(!el) return; const cur=el.getAttribute('aria-pressed')==='true'; el.setAttribute('aria-pressed', String(!cur)); }
+  function toggleAriaChecked(el){ if(!el) return; const cur=el.getAttribute('aria-checked'); let next=(cur==='true')?'false':'true'; if(cur==='mixed') next='true'; el.setAttribute('aria-checked', next); }
+
+  // Enhanced role-specific behaviors (Step 3)
+  switch(role){
+    case 'button':
+      if(ariaVariant) ariaVariant.addEventListener('keydown', e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); toggleAriaPressed(ariaVariant); }});
+      ariaVariant && ariaVariant.addEventListener('click', ()=>toggleAriaPressed(ariaVariant));
+      break;
+    case 'checkbox':
+    case 'switch':
+      ariaVariant && ariaVariant.addEventListener('keydown', e=>{ if(e.key===' '){ e.preventDefault(); toggleAriaChecked(ariaVariant);} });
+      ariaVariant && ariaVariant.addEventListener('click', ()=>toggleAriaChecked(ariaVariant));
+      break;
+    case 'radio':
+    case 'radiogroup': { const group=document.querySelector('[role=radiogroup]'); if(group){ group.addEventListener('keydown', e=>{ if(['ArrowLeft','ArrowUp','ArrowRight','ArrowDown'].includes(e.key)){ e.preventDefault(); const radios=[...group.querySelectorAll('[role=radio]')]; const current=radios.find(r=>r.getAttribute('aria-checked')==='true'); let i=radios.indexOf(current); i=(e.key==='ArrowLeft'||e.key==='ArrowUp')? (i-1+radios.length)%radios.length : (i+1)%radios.length; radios.forEach(r=>{ r.setAttribute('aria-checked','false'); r.tabIndex=-1; }); radios[i].setAttribute('aria-checked','true'); radios[i].tabIndex=0; radios[i].focus(); } }); group.addEventListener('click', e=>{ const r=e.target.closest('[role=radio]'); if(!r)return; const radios=group.querySelectorAll('[role=radio]'); radios.forEach(n=>{ n.setAttribute('aria-checked','false'); n.tabIndex=-1; }); r.setAttribute('aria-checked','true'); r.tabIndex=0; r.focus(); }); } break; }
+    case 'slider': { const slider=ariaVariant; if(slider){ slider.addEventListener('keydown', e=>{ const keyMap={ArrowLeft:-10,ArrowDown:-10,ArrowRight:10,ArrowUp:10,Home:'min',End:'max'}; if(!(e.key in keyMap)) return; e.preventDefault(); let val=parseInt(slider.getAttribute('aria-valuenow'),10); const min=parseInt(slider.getAttribute('aria-valuemin'),10); const max=parseInt(slider.getAttribute('aria-valuemax'),10); const delta=keyMap[e.key]; if(delta==='min') val=min; else if(delta==='max') val=max; else val=Math.min(max, Math.max(min, val+delta)); slider.setAttribute('aria-valuenow', String(val)); const thumb=slider.querySelector('.slider-thumb'); if(thumb){ const pct=((val-min)/(max-min))*100; thumb.style.left=pct+'%'; } }); } break; }
+    case 'progressbar': { const btn=document.getElementById('inc-progress'); const bar=ariaVariant; if(btn&&bar){ btn.addEventListener('click', ()=>{ const min=+bar.getAttribute('aria-valuemin'); const max=+bar.getAttribute('aria-valuemax'); let val=+bar.getAttribute('aria-valuenow'); val=Math.min(max,val+10); bar.setAttribute('aria-valuenow', String(val)); const inner=bar.querySelector('.bar'); if(inner){ const pct=((val-min)/(max-min))*100; inner.style.width=pct+'%'; } }); } break; }
+    case 'spinbutton': { const spin=ariaVariant; if(spin){ spin.addEventListener('keydown', e=>{ if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)){ e.preventDefault(); const min=+spin.getAttribute('aria-valuemin'); const max=+spin.getAttribute('aria-valuemax'); let val=+spin.getAttribute('aria-valuenow'); const step=(e.key==='PageUp'||e.key==='PageDown')?5:1; if(e.key==='ArrowUp'||e.key==='PageUp') val=Math.min(max,val+step); else if(e.key==='ArrowDown'||e.key==='PageDown') val=Math.max(min,val-step); else if(e.key==='Home') val=min; else if(e.key==='End') val=max; spin.setAttribute('aria-valuenow', String(val)); spin.textContent=val; } }); } break; }
+    case 'combobox': { const input=document.getElementById('cb-input'); const list=document.getElementById('cb-list'); if(input&&list){ const options=[...list.querySelectorAll('[role=option]')]; function open(){ list.hidden=false; input.setAttribute('aria-expanded','true'); } function close(){ list.hidden=true; input.setAttribute('aria-expanded','false'); input.setAttribute('aria-activedescendant',''); } input.addEventListener('input', ()=>{ const term=input.value.toLowerCase(); options.forEach(o=>{ o.hidden=!o.textContent.toLowerCase().includes(term); }); open(); }); input.addEventListener('keydown', e=>{ const visible=options.filter(o=>!o.hidden); let idx=visible.findIndex(o=>o.id===input.getAttribute('aria-activedescendant')); if(e.key==='ArrowDown'){ e.preventDefault(); if(list.hidden) open(); idx=(idx+1)%visible.length; } else if(e.key==='ArrowUp'){ e.preventDefault(); idx=(idx-1+visible.length)%visible.length; } else if(e.key==='Enter'){ const active=visible[idx]; if(active){ options.forEach(o=>o.setAttribute('aria-selected','false')); active.setAttribute('aria-selected','true'); input.value=active.textContent; close(); } } else if(e.key==='Escape'){ close(); return; } else return; const active=visible[idx]; if(active){ input.setAttribute('aria-activedescendant', active.id); } }); list.addEventListener('click', e=>{ const opt=e.target.closest('[role=option]'); if(!opt) return; options.forEach(o=>o.setAttribute('aria-selected','false')); opt.setAttribute('aria-selected','true'); input.value=opt.textContent; close(); }); document.addEventListener('click', e=>{ if(!e.target.closest('.combo-wrapper')) close(); }); } break; }
+    case 'listbox': { const lb=document.getElementById('widget-root'); if(lb){ let anchor=null; function opts(){ return [...lb.querySelectorAll('[role=option]')]; } function focusOpt(o){ opts().forEach(opt=>opt.tabIndex=-1); o.tabIndex=0; o.focus(); } function toggleSelect(o, additive){ if(!additive){ opts().forEach(opt=>opt.setAttribute('aria-selected','false')); } const cur=o.getAttribute('aria-selected')==='true'; o.setAttribute('aria-selected', additive ? String(!cur) : 'true'); if(!anchor || !additive) anchor=o; } function rangeSelect(to){ if(!anchor) anchor=to; const list=opts(); const a=list.indexOf(anchor); const b=list.indexOf(to); const [start,end]= a<b ? [a,b] : [b,a]; list.forEach((o,i)=>{ o.setAttribute('aria-selected', i>=start && i<=end ? 'true':'false'); }); } lb.addEventListener('click', e=>{ const opt=e.target.closest('[role=option]'); if(!opt) return; const multi=lb.getAttribute('aria-multiselectable')==='true'; toggleSelect(opt, multi && (e.metaKey||e.ctrlKey)); focusOpt(opt); }); lb.addEventListener('keydown', e=>{ const list=opts(); let current=document.activeElement.closest('[role=option]'); if(!current){ current=list[0]; focusOpt(current); return; } let idx=list.indexOf(current); if(e.key==='ArrowDown'){ e.preventDefault(); idx=Math.min(list.length-1, idx+1); focusOpt(list[idx]); if(e.shiftKey) rangeSelect(list[idx]); } else if(e.key==='ArrowUp'){ e.preventDefault(); idx=Math.max(0, idx-1); focusOpt(list[idx]); if(e.shiftKey) rangeSelect(list[idx]); } else if(e.key===' '){ e.preventDefault(); const multi=lb.getAttribute('aria-multiselectable')==='true'; if(e.shiftKey){ rangeSelect(current); } else toggleSelect(current, multi && (e.metaKey||e.ctrlKey)); } else if(e.key==='Home'){ e.preventDefault(); focusOpt(list[0]); if(e.shiftKey) rangeSelect(list[0]); } else if(e.key==='End'){ e.preventDefault(); focusOpt(list[list.length-1]); if(e.shiftKey) rangeSelect(list[list.length-1]); } }); } break; }
+    case 'menu':
+    case 'menubar': { const menubar=document.querySelector('[role=menubar]'); if(menubar){ function toggleSubmenu(trigger, openForce){ const submenu=trigger.querySelector('[role=menu]'); if(!submenu) return; const open=openForce!=null ? openForce : submenu.hidden; submenu.hidden=!open; trigger.setAttribute('aria-expanded', String(open)); if(!open) submenu.querySelectorAll('[role=menuitem],[role=menuitemcheckbox]').forEach(mi=>mi.tabIndex=-1); else submenu.querySelectorAll('[role=menuitem],[role=menuitemcheckbox]').forEach(mi=>mi.tabIndex=0); } function closeAll(){ menubar.querySelectorAll('.menu-trigger').forEach(t=>{ const sm=t.querySelector('[role=menu]'); if(sm){ sm.hidden=true; t.setAttribute('aria-expanded','false'); } }); } menubar.addEventListener('keydown', e=>{ const top=[...menubar.children]; const cur=e.target.closest('.menu-trigger'); let i=top.indexOf(cur); if(e.key==='ArrowRight'){ e.preventDefault(); i=(i+1)%top.length; top[i].focus(); } else if(e.key==='ArrowLeft'){ e.preventDefault(); i=(i-1+top.length)%top.length; top[i].focus(); } else if(['Enter',' ','ArrowDown'].includes(e.key)){ e.preventDefault(); toggleSubmenu(cur,true); const first=cur.querySelector('[role=menuitem]'); first && first.focus(); } else if(e.key==='Escape'){ e.preventDefault(); closeAll(); top[0].focus(); } }); menubar.addEventListener('keydown', e=>{ if(e.target.getAttribute('role')==='menuitem'){ const submenu=e.target.closest('[role=menu]'); if(!submenu) return; const items=[...submenu.querySelectorAll('[role=menuitem],[role=menuitemcheckbox]')]; let idx=items.indexOf(e.target); if(e.key==='ArrowDown'){ e.preventDefault(); idx=(idx+1)%items.length; items[idx].focus(); } else if(e.key==='ArrowUp'){ e.preventDefault(); idx=(idx-1+items.length)%items.length; items[idx].focus(); } else if(e.key==='Escape'){ e.preventDefault(); const parent=submenu.parentElement; toggleSubmenu(parent,false); parent.focus(); } else if(e.key==='ArrowRight'){ const nested=e.target.classList.contains('menu-trigger') ? e.target.querySelector('[role=menu]') : null; if(nested){ e.preventDefault(); toggleSubmenu(e.target,true); const first=nested.querySelector('[role=menuitem]'); first && first.focus(); } } else if(e.key==='ArrowLeft'){ const parentTrigger=submenu.parentElement.closest('.menu-trigger'); if(parentTrigger){ e.preventDefault(); toggleSubmenu(parentTrigger,false); parentTrigger.focus(); } } } }); menubar.addEventListener('click', e=>{ const trigger=e.target.closest('.menu-trigger'); if(trigger){ toggleSubmenu(trigger); } }); document.addEventListener('click', e=>{ if(!e.target.closest('[role=menubar]')) closeAll(); }); } break; }
+    case 'tablist':
+    case 'tab':
+    case 'tabpanel': { const tablist=document.querySelector('[role=tablist]'); if(tablist){ function activate(tab){ const tabs=[...tablist.querySelectorAll('[role=tab]')]; tabs.forEach(t=>{ const sel=t===tab; t.setAttribute('aria-selected', String(sel)); t.tabIndex= sel?0:-1; const panel=document.getElementById(t.getAttribute('aria-controls')); if(panel) panel.hidden=!sel; }); tab.focus(); } tablist.addEventListener('click', e=>{ const t=e.target.closest('[role=tab]'); if(t) activate(t); }); tablist.addEventListener('keydown', e=>{ const tabs=[...tablist.querySelectorAll('[role=tab]')]; const current=document.activeElement.closest('[role=tab]'); let i=tabs.indexOf(current); if(['ArrowRight','ArrowDown'].includes(e.key)){ e.preventDefault(); i=(i+1)%tabs.length; activate(tabs[i]); } else if(['ArrowLeft','ArrowUp'].includes(e.key)){ e.preventDefault(); i=(i-1+tabs.length)%tabs.length; activate(tabs[i]); } else if(e.key==='Home'){ e.preventDefault(); activate(tabs[0]); } else if(e.key==='End'){ e.preventDefault(); activate(tabs[tabs.length-1]); } }); } break; }
+    case 'tree':
+    case 'treeitem': { const tree=document.querySelector('[role=tree]'); if(tree){ function toggleExpand(item, force){ const expanded=force!=null ? !force : item.getAttribute('aria-expanded')==='true'; const next=!expanded; item.setAttribute('aria-expanded', String(next)); const group=item.querySelector('[role=group]'); if(group) group.hidden=!next; } tree.addEventListener('keydown', e=>{ const items=[...tree.querySelectorAll('[role=treeitem]')]; const current=document.activeElement.closest('[role=treeitem]'); if(!current) return; let idx=items.indexOf(current); if(e.key==='ArrowDown'){ e.preventDefault(); idx=Math.min(items.length-1, idx+1); items[idx].focus(); } else if(e.key==='ArrowUp'){ e.preventDefault(); idx=Math.max(0, idx-1); items[idx].focus(); } else if(e.key==='ArrowRight'){ e.preventDefault(); if(current.getAttribute('aria-expanded')==='false'){ toggleExpand(current,true); } } else if(e.key==='ArrowLeft'){ e.preventDefault(); if(current.getAttribute('aria-expanded')==='true'){ toggleExpand(current,false); } } else if(e.key===' '){ e.preventDefault(); const sel=current.getAttribute('aria-selected')==='true'; current.setAttribute('aria-selected', String(!sel)); } }); tree.addEventListener('click', e=>{ const item=e.target.closest('[role=treeitem]'); if(!item) return; if(item.getAttribute('aria-expanded')) toggleExpand(item); const sel=item.getAttribute('aria-selected')==='true'; item.setAttribute('aria-selected', String(!sel)); }); } break; }
+    case 'grid':
+    case 'gridcell':
+    case 'treegrid': { const grid=document.querySelector('[role=grid]'); if(grid){ let editingCell=null; grid.addEventListener('keydown', e=>{ const cells=[...grid.querySelectorAll('[role=gridcell]')]; const current=document.activeElement.closest('[role=gridcell]'); if(!current) return; const cols=grid.querySelectorAll('[role=row]')[1].querySelectorAll('[role=gridcell]').length; let idx=cells.indexOf(current); if(editingCell && e.key==='Escape'){ e.preventDefault(); const input=editingCell.querySelector('input'); if(input){ editingCell.textContent=input.getAttribute('data-orig'); editingCell.setAttribute('aria-selected','false'); editingCell.tabIndex=0; editingCell.focus(); editingCell=null; } return; } if(editingCell){ if(e.key==='Enter'){ e.preventDefault(); const input=editingCell.querySelector('input'); if(input){ editingCell.textContent=input.value; editingCell.setAttribute('aria-selected','false'); editingCell.tabIndex=0; editingCell.focus(); editingCell=null; } } return; } if(e.key==='ArrowRight'){ e.preventDefault(); idx=(idx+1)%cells.length; } else if(e.key==='ArrowLeft'){ e.preventDefault(); idx=(idx-1+cells.length)%cells.length; } else if(e.key==='ArrowDown'){ e.preventDefault(); idx=(idx+cols)%cells.length; } else if(e.key==='ArrowUp'){ e.preventDefault(); idx=(idx-cols+cells.length)%cells.length; } else if(e.key===' '){ e.preventDefault(); const sel=current.getAttribute('aria-selected')==='true'; current.setAttribute('aria-selected', String(!sel)); return; } else if(e.key==='Enter'){ e.preventDefault(); const val=current.textContent.trim(); current.setAttribute('data-orig', val); current.innerHTML='<input aria-label="Edit cell" data-orig="'+val.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'" value="'+val.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'" />'; const input=current.querySelector('input'); editingCell=current; input.focus(); input.select(); return; } else return; cells.forEach(c=>c.tabIndex=-1); const next=cells[idx]; next.tabIndex=0; next.focus(); }); grid.addEventListener('click', e=>{ const cell=e.target.closest('[role=gridcell]'); if(!cell) return; const sel=cell.getAttribute('aria-selected')==='true'; cell.setAttribute('aria-selected', String(!sel)); }); } break; }
+    case 'toolbar': { const tb=root; if(tb){ tb.addEventListener('click', e=>{ const btn=e.target.closest('button'); if(btn){ const pressed=btn.getAttribute('aria-pressed')==='true'; btn.setAttribute('aria-pressed', String(!pressed)); } }); tb.addEventListener('keydown', e=>{ const items=[...tb.querySelectorAll('button')]; const current=document.activeElement; let idx=items.indexOf(current); if(e.key==='ArrowRight'){ e.preventDefault(); idx=(idx+1)%items.length; items[idx].focus(); } else if(e.key==='ArrowLeft'){ e.preventDefault(); idx=(idx-1+items.length)%items.length; items[idx].focus(); } }); } break; }
+    case 'dialog':
+    case 'alertdialog': { const openBtn=document.getElementById('open-dialog'); const dlg=root; const closeBtn=document.getElementById('close-dialog'); function open(){ dlg.hidden=false; dlg.querySelector('h3').focus(); } function close(){ dlg.hidden=true; openBtn.focus(); } if(openBtn && dlg){ openBtn.addEventListener('click', open); closeBtn && closeBtn.addEventListener('click', close); document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !dlg.hidden) close(); }); } break; }
+  }
+
+  // Shadow DOM toggle - duplicates widget-root (light) into shadow root
+  if(shadowToggle){ shadowToggle.addEventListener('click', ()=>{ shadowEnabled=!shadowEnabled; if(shadowEnabled){ shadowToggle.textContent='Disable Shadow DOM Variant'; const host=document.createElement('div'); host.className='shadow-wrapper'; shadowHostContainer.innerHTML=''; shadowHostContainer.appendChild(host); const sr=host.attachShadow({mode:'open'}); const clone=root.cloneNode(true); clone.id='shadow-clone'; sr.innerHTML='<style>'+document.getElementById('inline-style').textContent+'</style>'; sr.appendChild(clone); } else { shadowToggle.textContent='Enable Shadow DOM Variant'; shadowHostContainer.innerHTML=''; } }); }
+
+})();</script>
+</body>
+</html>

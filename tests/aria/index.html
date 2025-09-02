@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>ARIA Role Index</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; margin:0; padding:1rem 1.5rem 4rem; background:#f0f2f7; }
+header { text-align:center; padding:1.25rem 1rem 2rem; }
+h1 { margin:.2rem 0 .4rem; font-size:2rem; }
+.search { max-width:420px; margin:0 auto; }
+.search input { width:100%; padding:.75rem 1rem; font-size:1rem; border:2px solid #ccc; border-radius:32px; }
+.search input:focus-visible { outline:2px solid #683ab7; outline-offset:2px; }
+.stats { display:flex; gap:1rem; flex-wrap:wrap; justify-content:center; margin:1rem 0 1.5rem; }
+.stat { background:#fff; border:1px solid #ddd; padding:.75rem 1rem; border-radius:8px; font-size:.8rem; }
+.category { background:#fff; border:1px solid #ddd; margin:1.25rem auto; padding:1rem 1.25rem 1.5rem; border-radius:10px; max-width:1400px; }
+.category h2 { margin:0 0 .75rem; font-size:1.3rem; }
+.role-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:.75rem; }
+.role-card { display:block; background:#fafbff; border:1px solid #d7dae2; padding:.65rem .7rem .8rem; border-radius:8px; text-decoration:none; color:#222; font-size:.75rem; position:relative; }
+.role-card:hover { background:#fff; border-color:#683ab7; box-shadow:0 2px 4px rgba(0,0,0,.12); }
+.role-name { font-weight:600; font-family:monospace; font-size:.9rem; margin-bottom:.25rem; display:flex; align-items:center; gap:.5rem; }
+.role-desc { font-size:.65rem; line-height:1.25; color:#333; }
+.deprecated-badge { background:#b30032; color:#fff; padding:2px 6px; font-size:.55rem; border-radius:14px; }
+footer { margin-top:3rem; text-align:center; font-size:.65rem; color:#555; }
+.hidden { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ARIA Role Test Pages</h1>
+  <p>Concrete WAI-ARIA 1.2 roles (including deprecated) – file:// ready pages.</p>
+  <div class="search"><input id="search" placeholder="Search roles & descriptions (Press / to focus)" aria-label="Search roles"></div>
+  <div class="stats">
+    <div class="stat">Total Roles: 80</div>
+    <div class="stat">Deprecated: 1</div>
+    <div class="stat">Generated: 2025-09-02</div>
+  </div>
+</header>
+<section class="category" data-category="Widget Roles"><h2>Widget Roles</h2><div class="role-grid"><a class="role-card" href="alert.html" data-role="alert"><div class="role-name">alert</div><div class="role-desc">A type of live region with important, and usually time-sensitive, information.</div></a>
+<a class="role-card" href="alertdialog.html" data-role="alertdialog"><div class="role-name">alertdialog</div><div class="role-desc">A type of dialog that contains an alert message, where initial focus goes to an element within the dialog.</div></a>
+<a class="role-card" href="button.html" data-role="button"><div class="role-name">button</div><div class="role-desc">An input that allows for user-triggered actions when clicked or pressed.</div></a>
+<a class="role-card" href="checkbox.html" data-role="checkbox"><div class="role-name">checkbox</div><div class="role-desc">A checkable input that has three possible values: true, false, or mixed.</div></a>
+<a class="role-card" href="dialog.html" data-role="dialog"><div class="role-name">dialog</div><div class="role-desc">A dialog is an application window that interrupts the current processing.</div></a>
+<a class="role-card" href="gridcell.html" data-role="gridcell"><div class="role-name">gridcell</div><div class="role-desc">A cell in a grid or treegrid.</div></a>
+<a class="role-card" href="link.html" data-role="link"><div class="role-name">link</div><div class="role-desc">An interactive reference to an internal or external resource.</div></a>
+<a class="role-card" href="log.html" data-role="log"><div class="role-name">log</div><div class="role-desc">A type of live region where new information is added in meaningful order.</div></a>
+<a class="role-card" href="marquee.html" data-role="marquee"><div class="role-name">marquee</div><div class="role-desc">A type of live region where non-essential information changes frequently.</div></a>
+<a class="role-card" href="menuitem.html" data-role="menuitem"><div class="role-name">menuitem</div><div class="role-desc">An option in a set of choices contained by a menu or menubar.</div></a>
+<a class="role-card" href="menuitemcheckbox.html" data-role="menuitemcheckbox"><div class="role-name">menuitemcheckbox</div><div class="role-desc">A menuitem with a checkable state whose values are true, false, or mixed.</div></a>
+<a class="role-card" href="menuitemradio.html" data-role="menuitemradio"><div class="role-name">menuitemradio</div><div class="role-desc">A checkable menuitem in a set where only one can be checked at a time.</div></a>
+<a class="role-card" href="option.html" data-role="option"><div class="role-name">option</div><div class="role-desc">A selectable item in a list.</div></a>
+<a class="role-card" href="progressbar.html" data-role="progressbar"><div class="role-name">progressbar</div><div class="role-desc">Displays progress status for lengthy tasks.</div></a>
+<a class="role-card" href="radio.html" data-role="radio"><div class="role-name">radio</div><div class="role-desc">A checkable input in a group where only one can be checked.</div></a>
+<a class="role-card" href="scrollbar.html" data-role="scrollbar"><div class="role-name">scrollbar</div><div class="role-desc">Controls the scrolling of content within a viewing area.</div></a>
+<a class="role-card" href="searchbox.html" data-role="searchbox"><div class="role-name">searchbox</div><div class="role-desc">A type of textbox intended for specifying search criteria.</div></a>
+<a class="role-card" href="slider.html" data-role="slider"><div class="role-name">slider</div><div class="role-desc">Selects a value from within a range.</div></a>
+<a class="role-card" href="spinbutton.html" data-role="spinbutton"><div class="role-name">spinbutton</div><div class="role-desc">Range with discrete choices.</div></a>
+<a class="role-card" href="status.html" data-role="status"><div class="role-name">status</div><div class="role-desc">Advisory information live region.</div></a>
+<a class="role-card" href="switch.html" data-role="switch"><div class="role-name">switch</div><div class="role-desc">A type of checkbox representing on/off.</div></a>
+<a class="role-card" href="tab.html" data-role="tab"><div class="role-name">tab</div><div class="role-desc">Grouping label selecting tabpanel content.</div></a>
+<a class="role-card" href="tabpanel.html" data-role="tabpanel"><div class="role-name">tabpanel</div><div class="role-desc">Container for the resources associated with a tab.</div></a>
+<a class="role-card" href="textbox.html" data-role="textbox"><div class="role-name">textbox</div><div class="role-desc">Input allowing free-form text.</div></a>
+<a class="role-card" href="timer.html" data-role="timer"><div class="role-name">timer</div><div class="role-desc">A live region timer/countdown.</div></a>
+<a class="role-card" href="tooltip.html" data-role="tooltip"><div class="role-name">tooltip</div><div class="role-desc">Contextual popup with a description for an element.</div></a>
+<a class="role-card" href="treeitem.html" data-role="treeitem"><div class="role-name">treeitem</div><div class="role-desc">An option in a tree that may be expanded or collapsed.</div></a></div></section>
+<section class="category" data-category="Composite Widget Roles"><h2>Composite Widget Roles</h2><div class="role-grid"><a class="role-card" href="combobox.html" data-role="combobox"><div class="role-name">combobox</div><div class="role-desc">Input controlling another element like listbox or grid that helps set its value.</div></a>
+<a class="role-card" href="grid.html" data-role="grid"><div class="role-name">grid</div><div class="role-desc">Composite widget with rows and cells.</div></a>
+<a class="role-card" href="listbox.html" data-role="listbox"><div class="role-name">listbox</div><div class="role-desc">Widget to select one or more items from a list.</div></a>
+<a class="role-card" href="menu.html" data-role="menu"><div class="role-name">menu</div><div class="role-desc">Widget offering a list of choices.</div></a>
+<a class="role-card" href="menubar.html" data-role="menubar"><div class="role-name">menubar</div><div class="role-desc">A presentation of menu typically horizontal.</div></a>
+<a class="role-card" href="radiogroup.html" data-role="radiogroup"><div class="role-name">radiogroup</div><div class="role-desc">Group of radio buttons.</div></a>
+<a class="role-card" href="tablist.html" data-role="tablist"><div class="role-name">tablist</div><div class="role-desc">List of tab elements.</div></a>
+<a class="role-card" href="tree.html" data-role="tree"><div class="role-name">tree</div><div class="role-desc">Hierarchical list with expandable groups.</div></a>
+<a class="role-card" href="treegrid.html" data-role="treegrid"><div class="role-name">treegrid</div><div class="role-desc">Grid whose rows can be expanded or collapsed.</div></a></div></section>
+<section class="category" data-category="Document Structure Roles"><h2>Document Structure Roles</h2><div class="role-grid"><a class="role-card" href="application.html" data-role="application"><div class="role-name">application</div><div class="role-desc">Region declared as a web application.</div></a>
+<a class="role-card" href="article.html" data-role="article"><div class="role-name">article</div><div class="role-desc">Independent composition forming a document part.</div></a>
+<a class="role-card" href="blockquote.html" data-role="blockquote"><div class="role-name">blockquote</div><div class="role-desc">Section quoted from another source.</div></a>
+<a class="role-card" href="caption.html" data-role="caption"><div class="role-name">caption</div><div class="role-desc">Visible content naming a figure, table, grid, or treegrid.</div></a>
+<a class="role-card" href="cell.html" data-role="cell"><div class="role-name">cell</div><div class="role-desc">A cell in a tabular container.</div></a>
+<a class="role-card" href="columnheader.html" data-role="columnheader"><div class="role-name">columnheader</div><div class="role-desc">Cell containing header information for a column.</div></a>
+<a class="role-card" href="definition.html" data-role="definition"><div class="role-name">definition</div><div class="role-desc">Definition of a term.</div></a>
+<a class="role-card" href="deletion.html" data-role="deletion"><div class="role-name">deletion</div><div class="role-desc">Content marked for removal.</div></a>
+<a class="role-card" href="directory.html" data-role="directory"><div class="role-name">directory<span class="deprecated-badge">DEPRECATED</span></div><div class="role-desc">List of references to group members (deprecated).</div></a>
+<a class="role-card" href="document.html" data-role="document"><div class="role-name">document</div><div class="role-desc">Region with related information declared as document content.</div></a>
+<a class="role-card" href="emphasis.html" data-role="emphasis"><div class="role-name">emphasis</div><div class="role-desc">Emphasized characters.</div></a>
+<a class="role-card" href="feed.html" data-role="feed"><div class="role-name">feed</div><div class="role-desc">Scrollable list of articles.</div></a>
+<a class="role-card" href="figure.html" data-role="figure"><div class="role-name">figure</div><div class="role-desc">Section with graphical/document content.</div></a>
+<a class="role-card" href="group.html" data-role="group"><div class="role-name">group</div><div class="role-desc">Set of UI objects not in table of contents.</div></a>
+<a class="role-card" href="heading.html" data-role="heading"><div class="role-name">heading</div><div class="role-desc">Heading for a section.</div></a>
+<a class="role-card" href="img.html" data-role="img"><div class="role-name">img</div><div class="role-desc">Container for elements forming an image.</div></a>
+<a class="role-card" href="insertion.html" data-role="insertion"><div class="role-name">insertion</div><div class="role-desc">Content marked as added.</div></a>
+<a class="role-card" href="list.html" data-role="list"><div class="role-name">list</div><div class="role-desc">Section containing listitem elements.</div></a>
+<a class="role-card" href="listitem.html" data-role="listitem"><div class="role-name">listitem</div><div class="role-desc">Single item in a list or directory.</div></a>
+<a class="role-card" href="math.html" data-role="math"><div class="role-name">math</div><div class="role-desc">Mathematical expression.</div></a>
+<a class="role-card" href="meter.html" data-role="meter"><div class="role-name">meter</div><div class="role-desc">Represents a scalar or fractional value.</div></a>
+<a class="role-card" href="none.html" data-role="none"><div class="role-name">none</div><div class="role-desc">No implicit semantics are exposed.</div></a>
+<a class="role-card" href="note.html" data-role="note"><div class="role-name">note</div><div class="role-desc">Parenthetic or ancillary section.</div></a>
+<a class="role-card" href="paragraph.html" data-role="paragraph"><div class="role-name">paragraph</div><div class="role-desc">Paragraph of content.</div></a>
+<a class="role-card" href="presentation.html" data-role="presentation"><div class="role-name">presentation</div><div class="role-desc">No semantics exposed (alias of none).</div></a>
+<a class="role-card" href="row.html" data-role="row"><div class="role-name">row</div><div class="role-desc">Row of cells.</div></a>
+<a class="role-card" href="rowgroup.html" data-role="rowgroup"><div class="role-name">rowgroup</div><div class="role-desc">Group containing one or more row elements.</div></a>
+<a class="role-card" href="rowheader.html" data-role="rowheader"><div class="role-name">rowheader</div><div class="role-desc">Cell containing header info for a row.</div></a>
+<a class="role-card" href="separator.html" data-role="separator"><div class="role-name">separator</div><div class="role-desc">Divider separating sections / groups.</div></a>
+<a class="role-card" href="strong.html" data-role="strong"><div class="role-name">strong</div><div class="role-desc">Important, serious, or urgent content.</div></a>
+<a class="role-card" href="subscript.html" data-role="subscript"><div class="role-name">subscript</div><div class="role-desc">Subscripted characters.</div></a>
+<a class="role-card" href="superscript.html" data-role="superscript"><div class="role-name">superscript</div><div class="role-desc">Superscripted characters.</div></a>
+<a class="role-card" href="table.html" data-role="table"><div class="role-name">table</div><div class="role-desc">Data arranged in rows and columns.</div></a>
+<a class="role-card" href="term.html" data-role="term"><div class="role-name">term</div><div class="role-desc">Word or phrase with definition.</div></a>
+<a class="role-card" href="time.html" data-role="time"><div class="role-name">time</div><div class="role-desc">Specific point in time.</div></a>
+<a class="role-card" href="toolbar.html" data-role="toolbar"><div class="role-name">toolbar</div><div class="role-desc">Collection of commonly used function buttons.</div></a></div></section>
+<section class="category" data-category="Landmark Roles"><h2>Landmark Roles</h2><div class="role-grid"><a class="role-card" href="banner.html" data-role="banner"><div class="role-name">banner</div><div class="role-desc">Region with site-oriented content.</div></a>
+<a class="role-card" href="complementary.html" data-role="complementary"><div class="role-name">complementary</div><div class="role-desc">Supporting section complementary to main content.</div></a>
+<a class="role-card" href="contentinfo.html" data-role="contentinfo"><div class="role-name">contentinfo</div><div class="role-desc">Region containing information about the parent document.</div></a>
+<a class="role-card" href="form.html" data-role="form"><div class="role-name">form</div><div class="role-desc">Region containing a collection of form elements.</div></a>
+<a class="role-card" href="main.html" data-role="main"><div class="role-name">main</div><div class="role-desc">Main content of a document.</div></a>
+<a class="role-card" href="navigation.html" data-role="navigation"><div class="role-name">navigation</div><div class="role-desc">Collection of navigational elements.</div></a>
+<a class="role-card" href="region.html" data-role="region"><div class="role-name">region</div><div class="role-desc">Perceivable section relevant to a specific purpose.</div></a>
+<a class="role-card" href="search.html" data-role="search"><div class="role-name">search</div><div class="role-desc">Region with search facility.</div></a></div></section>
+<footer>Generated ARIA role index &middot; 2025-09-02T22:24:59.953Z</footer>
+<script>(function(){
+ const input=document.getElementById('search'); const cards=[...document.querySelectorAll('.role-card')]; const cats=[...document.querySelectorAll('.category')]; function filter(){ const term=input.value.toLowerCase(); cards.forEach(c=>{ const t=c.getAttribute('data-role'); const d=c.querySelector('.role-desc').textContent.toLowerCase(); const show= t.includes(term) || d.includes(term); c.classList.toggle('hidden', !show); }); cats.forEach(cat=>{ const visible=cat.querySelectorAll('.role-card:not(.hidden)').length; cat.classList.toggle('hidden', !visible); }); } input.addEventListener('input', filter); document.addEventListener('keydown', e=>{ if(e.key==='/' && document.activeElement!==input){ e.preventDefault(); input.focus(); } });})();</script>
+</body>
+</html>
