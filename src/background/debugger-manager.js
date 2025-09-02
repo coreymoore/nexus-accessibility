@@ -9,17 +9,17 @@ export class DebuggerManager {
 
     // Listen for alarm events to handle scheduled detach operations
     try {
-      chrome.alarms.onAlarm.addListener((alarm) => {
-        if (!alarm || !alarm.name) return;
-        if (alarm.name.startsWith("detach-")) {
-          const tabId = Number(alarm.name.replace("detach-", ""));
-          // Only attempt detach if we still consider the connection attached
-          const conn = this.connections.get(tabId);
-          if (conn) {
-            this.detach(tabId).catch(() => {});
+      if (!globalThis.__NEXUS_ALARM_LISTENER_DBG_MGR) {
+        chrome.alarms.onAlarm.addListener((alarm) => {
+          if (!alarm || !alarm.name) return;
+          if (alarm.name.startsWith("detach-")) {
+            const tabId = Number(alarm.name.replace("detach-", ""));
+            const conn = this.connections.get(tabId);
+            if (conn) this.detach(tabId).catch(() => {});
           }
-        }
-      });
+        });
+        globalThis.__NEXUS_ALARM_LISTENER_DBG_MGR = true;
+      }
 
       // Propagate debugger detach events to internal state
       chrome.debugger.onDetach.addListener((source, reason) => {
@@ -124,12 +124,11 @@ export class DebuggerManager {
   scheduleDetach(tabId, delayMs = 30000) {
     try {
       const alarmName = `detach-${tabId}`;
+      // Clear any existing to avoid duplication
+      try { chrome.alarms.clear(alarmName); } catch (_) {}
       chrome.alarms.create(alarmName, { delayInMinutes: delayMs / 60000 });
     } catch (e) {
-      // If alarms are not available, fallback to immediate detach after timeout
-      setTimeout(() => {
-        this.detach(tabId).catch(() => {});
-      }, delayMs);
+      setTimeout(() => { this.detach(tabId).catch(() => {}); }, delayMs);
     }
   }
 

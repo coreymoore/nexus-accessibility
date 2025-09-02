@@ -39,32 +39,14 @@ export async function markUsed(tabId) {
   if (info) info.lastUsed = Date.now();
 }
 
+// Deprecated: unified detach scheduling handled by connectionManager/debugger-manager.
+// Keep a no-op to avoid breaking legacy imports.
 export function scheduleIdleDetach(tabId) {
-  chrome.alarms.create(`ax-detach-${tabId}`, {
-    when: Date.now() + DETACH_IDLE_MS,
-  });
+  // no-op (legacy path disabled to reduce alarm proliferation)
 }
 
 export function initDetachHandlers() {
-  chrome.alarms.onAlarm.addListener((alarm) => {
-    if (!alarm.name.startsWith("ax-detach-")) return;
-    const tabId = Number(alarm.name.replace("ax-detach-", ""));
-    const info = attachedTabs.get(tabId);
-    if (!info) return;
-    const idleFor = Date.now() - (info.lastUsed || 0);
-    if (idleFor >= DETACH_IDLE_MS) doDetach(tabId).catch(() => {});
-  });
-
-  chrome.debugger.onDetach.addListener(({ tabId }) => {
-    attachedTabs.delete(tabId);
-    // Invalidate contexts
-    for (const k of Array.from(contextCache.keys()))
-      if (k.startsWith(`${tabId}:`)) contextCache.delete(k);
-    for (const k of Array.from(docRoots.keys()))
-      if (k.startsWith(`${tabId}:`)) docRoots.delete(k);
-    for (const k of Array.from(nodeCache.keys()))
-      if (k.startsWith(`${tabId}:`)) nodeCache.delete(k);
-  });
+  // Legacy handler disabled; connectionManager handles detach & cache invalidation.
 }
 
 export async function doDetach(tabId) {

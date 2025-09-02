@@ -118,20 +118,8 @@ class ErrorRecoveryManager {
      * Delay helper for backoff
      */
     delay(ms) {
-      return new Promise((resolve) => {
-        if (chrome.alarms) {
-          const alarmName = `delay-${Date.now()}-${Math.random()}`;
-          chrome.alarms.create(alarmName, { when: Date.now() + ms });
-          chrome.alarms.onAlarm.addListener(function listener(alarm) {
-            if (alarm.name === alarmName) {
-              chrome.alarms.onAlarm.removeListener(listener);
-              resolve();
-            }
-          });
-        } else {
-          setTimeout(resolve, ms);
-        }
-      });
+      // Avoid creating unbounded unique alarms (service worker variant already uses setTimeout).
+      return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     /**

@@ -15,17 +15,24 @@ export class SmartCache {
   }
 
   setupCleanup() {
-    if (chrome.alarms) {
-      const alarmName = `cache-cleanup-${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
-      chrome.alarms.create(alarmName, { periodInMinutes: 1 });
+    if (!chrome.alarms) return;
+    // Use deterministic alarm names per cache type instead of per-instance random names.
+    // Name pattern: nexus-cache-cleanup-<ttl>-<maxSize>
+    const alarmName = `nexus-cache-cleanup-${this.defaultTTL}-${this.maxSize}`;
+    try { chrome.alarms.clear(alarmName); } catch (_) {}
+    chrome.alarms.create(alarmName, { periodInMinutes: 1 });
+    if (!globalThis.__NEXUS_CACHE_CLEANUP_LISTENER) {
       chrome.alarms.onAlarm.addListener((alarm) => {
-        if (alarm.name === alarmName) {
-          this.cleanup();
+        if (alarm && alarm.name && alarm.name.startsWith("nexus-cache-cleanup-")) {
+          try { globalThis.__NEXUS_ALL_SMART_CACHES && globalThis.__NEXUS_ALL_SMART_CACHES.forEach(c => c.cleanup()); } catch(_) {}
         }
       });
+      globalThis.__NEXUS_CACHE_CLEANUP_LISTENER = true;
     }
+    try {
+      if (!globalThis.__NEXUS_ALL_SMART_CACHES) globalThis.__NEXUS_ALL_SMART_CACHES = [];
+      globalThis.__NEXUS_ALL_SMART_CACHES.push(this);
+    } catch(_) {}
   }
 
   set(key, value, ttl = this.defaultTTL) {

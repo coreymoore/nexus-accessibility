@@ -37,12 +37,15 @@ export class DebuggerConnectionManager {
     });
 
     // Handle alarm-based detach scheduling
-    chrome.alarms.onAlarm.addListener((alarm) => {
-      if (alarm.name.startsWith("detach-")) {
-        const tabId = parseInt(alarm.name.replace("detach-", ""));
-        this.handleScheduledDetach(tabId);
-      }
-    });
+    if (!globalThis.__NEXUS_ALARM_LISTENER_CONN_MGR) {
+      chrome.alarms.onAlarm.addListener((alarm) => {
+        if (alarm.name && alarm.name.startsWith("detach-")) {
+          const tabId = parseInt(alarm.name.replace("detach-", ""));
+          this.handleScheduledDetach(tabId);
+        }
+      });
+      globalThis.__NEXUS_ALARM_LISTENER_CONN_MGR = true;
+    }
   }
 
   /**
