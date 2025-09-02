@@ -486,15 +486,20 @@
     const inspectorEl = CE.utils.getInspectorElement();
 
     if (e.key === "Escape" && !e.shiftKey) {
-      // If Escape is pressed from within the inspector, let the inspector handle it
+      // New behavior: never close the inspector on plain Escape.
+      // If focus is inside the inspector, move focus back to last inspected element.
       if (inspectorEl && CE.utils.safeContains(inspectorEl, e.target)) {
-        return;
+        const focusState = CE.events.getFocusState ? CE.events.getFocusState() : {};
+        const elToFocus = focusState.inspectedElement || focusState.lastFocusedElement;
+        if (elToFocus && typeof elToFocus.focus === 'function') {
+          try { elToFocus.focus({ preventScroll: false }); } catch(_) {}
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        return; // do nothing else
       }
-
-      // Close inspector and clear state
-      if (CE.inspector) CE.inspector.hideInspector();
-      inspectedElement = null;
-      lastFocusedElement = null;
+      // If focus is outside inspector, ignore (do not close, do not hide).
+      return;
     } else if (e.key === "Escape" && e.shiftKey) {
       // If pressed from within inspector, defer to inspector handler
       if (inspectorEl && CE.utils.safeContains(inspectorEl, e.target)) {

@@ -105,6 +105,15 @@
         "default": "Alt+X"
       },
       "description": "Open the Access Nexus popup"
+    },
+    "toggle-inspector": {
+      "suggested_key": {
+        "default": "Alt+T",
+        "mac": "Alt+T",
+        "windows": "Alt+T",
+        "linux": "Alt+T"
+      },
+      "description": "Toggle Nexus Inspector"
     }
   }
 }

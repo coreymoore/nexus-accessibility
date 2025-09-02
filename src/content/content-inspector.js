@@ -65,6 +65,7 @@
       );
       return;
     }
+    try { console.log('[ContentExtension.inspector] showInspector invoked (state restore)', { targetTag: target && target.tagName, targetId: target && target.id }); } catch(_) {}
 
     const options = {
       onClose: createCloseHandler(target),
@@ -113,6 +114,7 @@
       window.nexusAccessibilityUiInspector &&
       typeof window.nexusAccessibilityUiInspector.hideInspector === "function"
     ) {
+      try { console.log('[ContentExtension.inspector] hideInspector invoked'); } catch(_) {}
       window.nexusAccessibilityUiInspector.hideInspector(opts);
     } else {
       // Fallback: manually remove inspector

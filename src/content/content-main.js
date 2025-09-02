@@ -55,6 +55,41 @@
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     try {
       switch (msg.type) {
+        case "COMMAND_TOGGLE_INSPECTOR":
+          // Unified toggle logic matching popup semantics (on/mini -> off, off -> restore previous non-off or on)
+          (async () => {
+            try {
+              const current = getInspectorState();
+              if (current === 'off') {
+                // Restore last non-off from storage (fallback 'on')
+                let data;
+                try {
+                  // Use unified promise wrapper
+                  data = await (window.chromeAsync ? window.chromeAsync.storage.sync.get({ inspectorPreviousNonOffState: 'on' }) : new Promise((resolve)=> chrome.storage.sync.get({ inspectorPreviousNonOffState: 'on' }, resolve)));
+                } catch (e) {
+                  data = { inspectorPreviousNonOffState: 'on' };
+                }
+                let restore = data.inspectorPreviousNonOffState || 'on';
+                if (!['on','mini'].includes(restore)) restore = 'on';
+                await new Promise((resolve)=>{ try { chrome.storage.sync.set({ inspectorState: restore }, resolve); } catch(e){ resolve(); } });
+                updateInspectorState(restore);
+              } else {
+                // Turning off: capture effective state from storage (authoritative) to avoid race with async mini toggle UI
+                let effectiveState = current;
+                try {
+                  const data = await (window.chromeAsync ? window.chromeAsync.storage.sync.get({ inspectorState: current }) : new Promise((resolve)=> chrome.storage.sync.get({ inspectorState: current }, resolve)));
+                  if (data && (data.inspectorState === 'on' || data.inspectorState === 'mini')) {
+                    effectiveState = data.inspectorState;
+                  }
+                } catch(_) {}
+                await new Promise((resolve)=>{ try { chrome.storage.sync.set({ inspectorState: 'off', inspectorPreviousNonOffState: effectiveState }, resolve); } catch(e){ resolve(); } });
+                updateInspectorState('off');
+              }
+            } catch (e) {
+              console.warn('[ContentExtension] COMMAND_TOGGLE_INSPECTOR failed', e);
+            }
+          })();
+          break;
         case "INSPECTOR_STATE_CHANGE":
           updateInspectorState(msg.inspectorState);
           break;
@@ -306,6 +341,7 @@
    * Update inspector state across all modules
    */
   function updateInspectorState(state) {
+    const prev = currentInspectorState;
     // Validate state
     const validStates = ["off", "on", "mini"];
     if (!validStates.includes(state)) {
@@ -330,6 +366,59 @@
       CE.inspector.hideInspector();
     } else {
       CE.events.enableEventListeners();
+      // If transitioning from off -> on/mini and inspector not visible, attempt to restore/show
+      try {
+        if (prev === 'off') {
+          const legacy = window.nexusAccessibilityUiInspector;
+          const core = legacy && legacy.core ? legacy.core : null;
+          const focusState = CE.events && typeof CE.events.getFocusState === 'function' ? CE.events.getFocusState() : {};
+          const inspectorHost = CE.inspector && CE.inspector.getInspectorElement ? CE.inspector.getInspectorElement() : null;
+
+          // Resolve a preferred focus candidate: activeElement or lastFocusedElement from events.
+            let candidate = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
+          if (!candidate && focusState.lastFocusedElement && document.contains(focusState.lastFocusedElement)) {
+            candidate = focusState.lastFocusedElement;
+          }
+          // Ignore candidate if it's inside (or is) the inspector host.
+          if (candidate && inspectorHost) {
+            try {
+              const path = typeof candidate.composedPath === 'function' ? candidate.composedPath() : [];
+              if (path.includes(inspectorHost) || inspectorHost.contains(candidate)) candidate = null;
+            } catch(_) {}
+          }
+
+          const haveCoreRestore = core && core._lastTarget && core._lastInfo && document.contains(core._lastTarget);
+          const needNewFocusInspect = candidate && (!haveCoreRestore || candidate !== core._lastTarget);
+
+          // Helper to perform fresh inspection of candidate
+          const inspectCandidate = (el) => {
+            if (!el || !CE.accessibility || typeof CE.accessibility.getAccessibleInfo !== 'function') return false;
+            try { CE.inspector && CE.inspector.showLoadingInspector && CE.inspector.showLoadingInspector(el); } catch(_) {}
+            CE.accessibility.getAccessibleInfo(el, true)
+              .then(info => {
+                if (!info) { if (haveCoreRestore) { try { CE.inspector.showInspector(core._lastInfo, core._lastTarget, { forceRender: true }); } catch(_) {} } return; }
+                try { if (core) { core._lastTarget = el; core._lastInfo = info; } } catch(_) {}
+                CE.inspector.showInspector(info, el, { forceRender: true });
+              })
+              .catch(err => {
+                console.warn('[ContentExtension] Focus candidate inspect failed; falling back', err);
+                if (haveCoreRestore) { try { CE.inspector.showInspector(core._lastInfo, core._lastTarget, { forceRender: true }); } catch(_) {} }
+              });
+            return true;
+          };
+
+          if (needNewFocusInspect) {
+            inspectCandidate(candidate);
+          } else if (haveCoreRestore) {
+            try { CE.inspector.showInspector(core._lastInfo, core._lastTarget, { forceRender: true }); } catch (e) {}
+          } else if (candidate) {
+            // No previous info but we have a candidate
+            inspectCandidate(candidate);
+          }
+        }
+      } catch (e) {
+        console.warn('[ContentExtension] Toggle restore failed', e);
+      }
     }
 
     // Notify all modules of state change

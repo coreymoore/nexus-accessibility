@@ -40,9 +40,13 @@ These will be resolved in upcoming releases.
 
 ## Keyboard Shortcuts
 
-- `Esc` - Close inspector
-- `Shift` + `Esc` - Reopen inspector
-- `Alt` + `[` - Focus inspector
+Current shortcuts (see popup Shortcuts tab):
+
+- `Alt` + `X` – Open extension popup
+- `Alt` + `T` – Toggle Inspector (on/off, restores last non-off mode)
+- `Alt` + `M` – Toggle Mini Mode (when inspector is visible)
+- `Alt` + `[` – Enter / Focus the inspector (moves keyboard focus into the inspector UI)
+- `Esc` – When focus is inside the inspector, return focus to the inspected element (never closes the inspector)
 
 ## Installation
 
